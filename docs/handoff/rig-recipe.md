@@ -14,3 +14,12 @@ in `start.sh`, and a console fed from `console.txt` (`tail -n0 -F console.txt | 
 
 Pitfalls met so far: `pkill -f` / `pgrep -f` with a pattern that appears in your own command line kills your shell (write `[x]yz`); bots keep their party between runs, so use fresh names;
 the dev-only `runs advance` is absent from the production jar, use `runs winfloor` (repeat it on floors with extra opponents).
+
+Real client and a real click (met 2026-10-31):
+* A **vanilla client cannot join**: Cobblemon 1.8.2 sends trim patterns naming its own items and the join dies with "Registry loading errors". Use Fabric Loader + Fabric API + Cobblemon + fabric-language-kotlin on the client (what players have). Launch it with `net.fabricmc.loader.impl.launch.knot.KnotClient`, `-Dfabric.gameJarPath=<client.jar>`, the loader libraries on the classpath and the vanilla libraries and assets; `meta.fabricmc.net` is blocked, so the server runs `KnotServer` the same way with the loader jars from the Gradle cache.
+* The pack prompt only appears with **polymer-autohost** (`eu.pb4:polymer-autohost:0.9.19+1.21.1` on maven.nucleoid.xyz, a separate jar) and `config/polymer/auto-host.json` with `"enabled": true`.
+* Run the client with `LIBGL_ALWAYS_SOFTWARE=1`. It then draws a few frames a second and handles keys and clicks **seconds late**: wait 10 s or more after a click before reading the server, and settle any open screen first. A click only reaches the game when no screen is open.
+* A solo run is enough: `execute as <name> run cobbletowers play tower cobbletowers:halloween` / `confirm` / `start`, then `runs winfloor <name>`, then `play pick <card>` for the Trick or Treat stop; `vault list` gives the vault's position (it faces west), stand 3 blocks west at its y minus 1, yaw 270, pitch 0, and right-click. Every run after the day's first free one needs `give <name> cobbletowers:tower_key 5`.
+* `runs list` prints all runs on one line, so parse it with `findall` over `<uuid> <tower> <STATE>` and not line by line; abandoned runs stay listed.
+* `tools/vault/realclient_scene.py` teleports to y=101 before it sets creative mode: set `gamemode creative` first or a fresh survival player dies from the fall. F1 toggles the HUD, so press it once, not through `TOGGLE_HUD` as well.
+* To check that clicks reach the game at all, summon a vanilla `minecraft:interaction` in front of the player and read its `interaction` NBT after the click.
