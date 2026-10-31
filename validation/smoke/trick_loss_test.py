@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Proves what a lost Trick or Treat mimic costs, on a real server (the rest of the vault is walk_tower_test.py's).
 
-Starts runs with fresh bots until floor 1's route offers a Trick or Treat stop and the vault rolls a trick. Then the mimic is lost on purpose (operator
+With a relic in hand (--relic) the price includes it: a lost mimic takes it (granting it again then works), a won one returns it (granting it again is
+refused because it is held). Starts runs with fresh bots until floor 1's route offers a Trick or Treat stop and the vault rolls a trick. Then the mimic is lost on purpose (operator
 command runs losemimic) and the team cashes out, so the run's loot is banked and the cut can be read from the log:
 
     the price is taken first (a ledger mark: "loot cut now 5%"), the loss gives nothing back ("beat the mimic" never appears),
@@ -44,6 +45,8 @@ def main() -> None:
     parser.add_argument("--server-dir", required=True, type=Path)
     parser.add_argument("--attach", action="store_true", help="drive a server that is already running (the only mode)")
     parser.add_argument("--attempts", type=int, default=60)
+    parser.add_argument("--relic", default="cobbletowers:berserkers_mask", help="a relic handed to the team before the vault opens, so the mimic has one to take")
+    parser.add_argument("--win", action="store_true", help="win the mimic instead of losing it: the relic must come back and the cut be undone")
     args = parser.parse_args()
     server_dir = args.server_dir.resolve()
     node_modules = Path(__import__("os").environ.get("NODE_PATH", str(server_dir.parent / "bots" / "node_modules")).split(":")[0])
@@ -92,6 +95,10 @@ def main() -> None:
                 for n in (a, b):
                     play(rcon, n, f"pick {card if rnd == 0 else 1}")
                 time.sleep(2)
+                if rnd == 0 and args.relic:
+                    # the route is settled and the vault's own vote is open: put a relic in the team's hands before it is opened
+                    reply = rcon.command(f"cobbletowers runs grant {run} {args.relic}")
+                    check(f"the team is handed {args.relic}", "Granted relic" in reply, reply[:120])
             outcome = w.log_has(server_dir, rf"Run {run} opened the Jack-o'-Lantern Vault of floor 1: (TREAT|TRICK)", 15)
             if outcome != "TRICK":
                 rcon.command(f"cobbletowers runs abandon {run}")
@@ -99,10 +106,24 @@ def main() -> None:
             check(f"attempt {attempt}: floor 1 offers a Trick or Treat stop and the vault is a trick", True)
             taken = w.log_has(server_dir, rf"Run {run} mimic on floor 1: (.*)", 15)
             check("the mimic is raised for both players and the price is taken first (the cut is marked)", "2 fighter" in taken and "cut now 5%" in taken, taken)
+            if args.relic:
+                check("and the price includes the relic the team held", f"relic taken {args.relic}" in taken, taken)
             time.sleep(2)
+            if args.win:
+                rcon.command(f"cobbletowers runs winfloor {a}")
+                back = w.log_has(server_dir, rf"Run {run} beat the mimic of floor 1: (.*)", 20)
+                check("beating the mimic returns the price", bool(back), back)
+                if args.relic:
+                    again = rcon.command(f"cobbletowers runs grant {run} {args.relic}")
+                    check("and the relic is back with the team (granting it again is refused)", "already held" in again, again[:120])
+                break
             rcon.command(f"cobbletowers runs losemimic {a}")
             lost = w.log_has(server_dir, rf"Run {run} lost the mimic of floor 1: (.*)", 20)
             check("losing the mimic leaves the price taken", bool(lost), lost)
+            if args.relic:
+                check("and the log names the relic that was lost", args.relic in lost, lost)
+                gone = rcon.command(f"cobbletowers runs grant {run} {args.relic}")
+                check("and the team no longer holds it (it can be granted again)", "Granted relic" in gone, gone[:120])
             time.sleep(2)
             check("and nothing is paid back", not w.log_has(server_dir, rf"Run {run} beat the mimic", 1))
             # bank the run: both players cash out, so the cut can be read off the payout

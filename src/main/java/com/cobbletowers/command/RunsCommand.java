@@ -689,6 +689,17 @@ public final class RunsCommand {
             source.sendFailure(Component.literal("No modifier " + modifierId + " is loaded"));
             return 0;
         }
+        if (modifier.get().relic()) {
+            // a relic is held beside the challenges, not drafted: it goes in the relic list, if there is room and the run does not already hold it
+            if (run.modifiers().relics().contains(modifierId) || !run.modifiers().hasRelicRoom()) {
+                source.sendFailure(Component.literal(modifierId + " is already held, or the run has no room for another relic: " + run.modifiers().relics()));
+                return 0;
+            }
+            TowerRuns.save(source.getServer(),
+                    run.withModifiers(run.modifiers().withRelic(modifierId, run.floorIndex() + 1), System.currentTimeMillis()), true);
+            source.sendSuccess(() -> Component.literal("Granted relic " + modifierId + " to run " + runId), true);
+            return 1;
+        }
         if (!ModifierResolver.eligible(modifier.get(), DraftService.held(content, run.modifiers()))) {
             source.sendFailure(Component.literal(modifierId + " cannot be held alongside what this run"
                     + " already has: " + run.modifiers().accumulated()));
