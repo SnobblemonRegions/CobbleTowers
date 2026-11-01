@@ -1,3 +1,25 @@
+const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+
+/**
+ * The Threat picker (balance phase 2), or null when the server does not offer one. Advice is a colour, never a lock:
+ * at or under the advice is green, one over is yellow, further is red. 0 is the legacy tiers.
+ * @param {{chosen:number, advice:number, offered:boolean}|undefined} threat
+ */
+export function threatView(threat, enabled) {
+  if (!threat || !threat.offered) return null;
+  const tone = (band) => band === 0 || threat.advice <= 0 ? 'plain' : band <= threat.advice ? 'good' : band === threat.advice + 1 ? 'warn' : 'bad';
+  return {
+    chosen: threat.chosen,
+    advice: threat.advice,
+    adviceLabel: threat.advice > 0 ? 'Recommended: Threat ' + ROMAN[threat.advice] : '',
+    label: threat.chosen === 0 ? 'Threat: off' : 'Threat ' + ROMAN[threat.chosen],
+    tone: tone(threat.chosen),
+    next: threat.chosen >= 6 ? 0 : threat.chosen + 1,
+    bands: [0, 1, 2, 3, 4, 5, 6].map((band) => ({ band, label: band === 0 ? 'Off' : ROMAN[band], tone: tone(band) })),
+    enabled,
+  };
+}
+
 // What the lobby page offers, as a pure function of PlayState (mirrors the native PlayScreen's rules). The server re-checks every action.
 
 /** @param {object} play PlayState */
@@ -14,6 +36,7 @@ export function lobbyView(play) {
     canChoose: (role === 0 || host) && idle,
     invite: host && idle,
     depth: host && depth.offered ? { label: depth.chosen === 0 ? 'Floor 1' : 'Ascension ' + depth.chosen, next: depth.chosen >= depth.max ? 0 : depth.chosen + 1, enabled: depth.max > 0 && idle, none: depth.max === 0 } : null,
+    threat: host ? threatView(lobby.options.threat, idle) : null,
     modes: host && modes.ids.length ? { ids: ['standard', ...modes.ids], names: ['Standard', ...modes.names], chosen: modes.chosen || 'standard', enabled: idle } : null,
     confirm: host && lobby.selected !== '' && !ready.confirmed && idle,
     draft: rentalPlayer,
