@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "display_name": "Duskvale Tower",
   "ruleset": "cobbletowers:duskvale",
   "reward_table": "cobbletowers:duskvale",
@@ -22,5 +22,6 @@
     "cobbletowers:duskvale/boss_05",
     "cobbletowers:duskvale/champion_10"
   ],
-  "ascension": true
+  "ascension": true,
+  "boss_rush": true
 }

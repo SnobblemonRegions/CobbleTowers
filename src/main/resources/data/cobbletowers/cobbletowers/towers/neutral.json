@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "display_name": "Neutral Tower",
   "ruleset": "cobbletowers:standard",
   "reward_table": "cobbletowers:neutral",
@@ -20,5 +20,6 @@
     "cobbletowers:neutral/boss_05",
     "cobbletowers:neutral/champion_10"
   ],
-  "ascension": true
+  "ascension": true,
+  "boss_rush": true
 }

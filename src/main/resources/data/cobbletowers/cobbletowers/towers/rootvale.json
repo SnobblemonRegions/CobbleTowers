@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "display_name": "Rootvale Tower",
   "ruleset": "cobbletowers:rootvale",
   "reward_table": "cobbletowers:rootvale",
@@ -22,5 +22,6 @@
     "cobbletowers:rootvale/boss_05",
     "cobbletowers:rootvale/champion_10"
   ],
-  "ascension": true
+  "ascension": true,
+  "boss_rush": true
 }

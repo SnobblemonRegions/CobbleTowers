@@ -18,6 +18,7 @@ import net.minecraft.resources.ResourceLocation;
  * @param scoutingProfile the reveal-threshold profile (P12); empty means everything reveals (TDS #49)
  * @param pedestalVotes whether the intermission shows the modifier cards as clickable hologram pedestals (P55)
  * @param routeMap whether the route is one branching map drawn from the run seed, not a fresh draw per step (P56)
+ * @param bossRush whether every floor is its boss alone, with no opponent wave first (balance phase 2)
  */
 public record TowerDefinition(
         ResourceLocation id,
@@ -33,7 +34,18 @@ public record TowerDefinition(
         boolean ascension,
         Optional<TowerWindow> window,
         boolean pedestalVotes,
-        boolean routeMap) {
+        boolean routeMap,
+        boolean bossRush) {
+
+    /** A tower whose floors open with an opponent wave, which is every tower before balance phase 2. */
+    public TowerDefinition(ResourceLocation id, String displayName, int schemaVersion, int revision,
+                           ResourceLocation rulesetId, ResourceLocation rewardTableId, List<ResourceLocation> floorIds,
+                           List<ResourceLocation> milestoneIds, Optional<ResourceLocation> regionalTheme,
+                           Optional<ResourceLocation> scoutingProfile, boolean ascension, Optional<TowerWindow> window,
+                           boolean pedestalVotes, boolean routeMap) {
+        this(id, displayName, schemaVersion, revision, rulesetId, rewardTableId, floorIds, milestoneIds, regionalTheme,
+                scoutingProfile, ascension, window, pedestalVotes, routeMap, false);
+    }
 
     /** A tower whose route is the per-step draw, which is every tower before P56. */
     public TowerDefinition(ResourceLocation id, String displayName, int schemaVersion, int revision,
@@ -143,6 +155,7 @@ public record TowerDefinition(
                         TowerJson.requireString(TowerJson.object(root, "window"), "start"),
                         TowerJson.requireString(TowerJson.object(root, "window"), "end"))) : Optional.empty(),
                 TowerJson.bool(root, "pedestal_votes", false),
-                TowerJson.bool(root, "route_map", false));
+                TowerJson.bool(root, "route_map", false),
+                TowerJson.bool(root, "boss_rush", false));
     }
 }

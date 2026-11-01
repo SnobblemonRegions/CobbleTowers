@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "display_name": "Hollow's Eve",
   "ruleset": "cobbletowers:standard",
   "reward_table": "cobbletowers:halloween",
@@ -21,6 +21,7 @@
     "cobbletowers:halloween/champion_10"
   ],
   "ascension": true,
+  "boss_rush": true,
   "pedestal_votes": true,
   "route_map": true,
   "window": { "start": "2026-10-31T04:00:00Z", "end": "2026-11-03T05:00:00Z" }
