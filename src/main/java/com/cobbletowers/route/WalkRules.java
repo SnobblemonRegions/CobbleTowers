@@ -16,6 +16,8 @@ public final class WalkRules {
     public static final double ARRIVE_HEIGHT = 3.0;
     /** The longest the team gets to climb; stragglers are then taken to the arena. */
     public static final long WALK_MILLIS = 90_000;
+    /** The gate opens on its own once the modifier vote is settled, so the party may shop first: stragglers are taken after this. */
+    public static final long AUTO_WALK_MILLIS = 300_000;
     /** The gallery is behind glass: someone standing this close to the spectator anchor cannot walk out. */
     public static final double GALLERY_RADIUS = 14.0;
 

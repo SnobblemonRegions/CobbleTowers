@@ -223,6 +223,12 @@ public final class IntermissionService {
             tickWalk(server, found.get(), round, now);
             return;
         }
+        // Linear progression: with no modifier vote open the way up opens by itself; readying up is no longer needed.
+        if (!round.counting() && !round.autoWalkTried() && !found.get().modifiers().hasOpenDraft()
+                && !com.cobbletowers.echo.EchoDuels.active(server, runId)) {
+            round.markAutoWalkTried();
+            if (beginWalk(server, found.get(), round, now, com.cobbletowers.route.WalkRules.AUTO_WALK_MILLIS)) return;
+        }
         if (!round.counting()) return;
         if (!round.countdownDue(now)) {
             int left = round.secondsLeft(now);
@@ -243,7 +249,7 @@ public final class IntermissionService {
             broadcast(server, found.get(), "Cannot open the next floor: " + String.join("; ", problems), false);
             return;
         }
-        if (beginWalk(server, found.get(), round, now)) return;
+        if (beginWalk(server, found.get(), round, now, com.cobbletowers.route.WalkRules.WALK_MILLIS)) return;
         openNext(server, runId, found.get(), now);
     }
 
@@ -253,7 +259,7 @@ public final class IntermissionService {
      * a detour to another building, a tower with no gates) opens the next floor at once, as it always did.
      * @return whether the team is now walking
      */
-    private static boolean beginWalk(MinecraftServer server, PersistedRun run, IntermissionRound round, long now) {
+    private static boolean beginWalk(MinecraftServer server, PersistedRun run, IntermissionRound round, long now, long walkMillis) {
         if (run.cell().isEmpty()) return false;
         var content = TowerDefinitionRegistry.content();
         var current = com.cobbletowers.route.FloorLayouts.layoutOf(content, run, run.floorIndex());
@@ -261,7 +267,7 @@ public final class IntermissionService {
         if (current.isEmpty() || !com.cobbletowers.route.WalkRules.onFoot(current.get(), next)) return false;
         com.cobbletowers.route.TowerDoors.ensureOpen(server, run);
         com.cobbletowers.route.TowerGates.openB(server, run);
-        round.beginWalk(now, com.cobbletowers.route.WalkRules.WALK_MILLIS);
+        round.beginWalk(now, walkMillis);
         broadcast(server, run, "The gate to the stair is open. Climb to the next floor: the fight starts when the whole team is at the arena door.", false);
         return true;
     }
