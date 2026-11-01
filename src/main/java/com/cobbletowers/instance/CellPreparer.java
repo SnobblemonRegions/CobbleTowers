@@ -16,6 +16,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
@@ -91,12 +92,15 @@ public final class CellPreparer {
             int leftover = reset(server, cell);
             if (leftover > 0) TowerLog.warn("Cell {} held {} leftover block(s) before it was prepared; cleared", cell, leftover);
         }
+        int swept = CellCleanup.sweepBeforeBuild(server, cell);
+        if (swept > 0) TowerLog.warn("Cell {} held {} leftover entity/entities before it was prepared; swept", cell, swept);
         // From here the cell holds (some of) a build, whether or not the paste succeeds.
         CellCleanliness.markDirty(cell);
 
         long started = System.nanoTime();
         boolean placed = template.placeInWorld(level, origin, origin,
                 new StructurePlaceSettings().setIgnoreEntities(true), level.getRandom(), PLACE_FLAGS);
+        settle(level, BoundingBox.fromCorners(origin, origin.offset(size).offset(-1, -1, -1)));
         long millis = (System.nanoTime() - started) / 1_000_000;
         TowerMetrics.recordAllocation(server, millis);
         if (!placed) {
@@ -134,6 +138,15 @@ public final class CellPreparer {
         if (cleared > 0) TowerLog.info("Cell {} reset, {} block(s) cleared", cell, cleared);
         CellCleanliness.markClean(cell);
         return cleared;
+    }
+
+    /**
+     * Cancels the block ticks a paste just scheduled. A gravity block schedules a fall check whenever it is placed, and
+     * the battle towers (built in WorldEdit, which skips physics) rest about 430 of them on air. In a cell's outer
+     * chunks, which tick blocks but not entities, each one became a falling block frozen in place for good.
+     */
+    static void settle(ServerLevel level, BoundingBox box) {
+        level.getBlockTicks().clearArea(box);
     }
 
     /** Clears one loaded chunk of the cell and returns how many blocks were removed. */
