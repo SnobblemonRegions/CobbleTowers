@@ -35,7 +35,7 @@ public final class ModifierMenuText {
             case "damage"->percent>100;
             case "resist"->percent<100;
             case "hp"->percent>=100;
-            case "drain","sidecondition"->true;
+            case "drain","sidecondition","enrage"->true;
             case "status"->false;
             default->true;
         };
@@ -80,13 +80,13 @@ public final class ModifierMenuText {
         if(e.scoutingBonus()!=0)lines.add(GOOD+"Your scouts see "+e.scoutingBonus()+" floors further ahead.");
         e.custom().ifPresent(v->{
             switch(v) {
-                case "glass_cannon" -> {lines.add(GOOD+"Start battles with +2 Attack and Sp. Atk.");lines.add(BAD+"Start battles at 60% HP.");}
+                case "glass_cannon" -> {lines.add(GOOD+"Your side deals 40% more damage.");lines.add(BAD+"Start battles at 60% HP.");}
                 case "field_hospital" -> lines.add(GOOD+"The party heals on arrival at each intermission.");
                 case "fortunes_wheel" -> {lines.add(GOOD+"Reward gamble: 30% chance of x4.");lines.add(BAD+"Otherwise your rewards are x0.5.");}
                 case "black_market" -> lines.add(GOOD+"Vendor prices are halved for the rest of the run.");
                 case "swift_start" -> lines.add(GOOD+"Start battles with +1 Speed.");
-                case "iron_hide" -> lines.add(GOOD+"Start battles with +1 Defense and Sp. Def.");
-                case "war_banner" -> lines.add(GOOD+"Start battles with +1 Attack and Sp. Atk.");
+                case "iron_hide" -> lines.add(GOOD+"You take 8% less damage.");
+                case "war_banner" -> lines.add(GOOD+"Your side deals 10% more damage.");
                 default -> lines.add("Custom behavior: "+v);
             }
         });

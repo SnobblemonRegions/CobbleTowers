@@ -59,6 +59,15 @@ public final class AscensionPolicy {
         return 100 + BOSS_HEALTH_PERCENT_PER_ASCENSION * clamp(ascension);
     }
 
+    /**
+     * Boss-rush towers (balance phase 2): the turns between enrages that stand in for {@link #extraOpponents}, 0 for
+     * none. One extra opponent is an enrage every 5 turns, two every 4, three every 3.
+     */
+    public static int enrageEvery(int ascension) {
+        int extra = extraOpponents(ascension);
+        return extra <= 0 ? 0 : 6 - extra;
+    }
+
     public static int extraOpponents(int ascension) {
         return Math.min(MAX_EXTRA_OPPONENTS, clamp(ascension) / ASCENSIONS_PER_EXTRA_OPPONENT);
     }

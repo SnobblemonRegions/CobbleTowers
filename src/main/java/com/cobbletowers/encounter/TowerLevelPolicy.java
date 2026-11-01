@@ -46,6 +46,17 @@ public final class TowerLevelPolicy {
         return OptionalInt.of(clamp(scaled, ruleset));
     }
 
+    /**
+     * Balance phase 2: the levels a boss asked for but the level cap took away (0 when nothing was clamped). They come
+     * back as boss health ({@link com.cobbletowers.modifier.ModifierEffects#withClampedLevels}), so a level-100 party
+     * still feels a drafted "+3 levels".
+     */
+    public static int levelsClampedAway(Collection<Integer> partyLevels, int floorIndex, int offset, int levelGiven) {
+        OptionalInt mean = TowerLevelSnapshot.of(partyLevels);
+        if (mean.isEmpty()) return 0;
+        return Math.max(0, mean.getAsInt() + floorOffset(floorIndex) + offset - levelGiven);
+    }
+
     /** Held inside the ruleset's bounds, then Cobblemon's. */
     public static int clamp(int level, RulesetDefinition ruleset) {
         int low = Math.max(ruleset.minEnemyLevel(), TowerLevelSnapshot.MIN_LEVEL);

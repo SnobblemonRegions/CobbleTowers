@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "type": "enemy",
   "display_name": "Veteran's Medal",
   "risk": "minor",
@@ -11,6 +11,6 @@
     "sustain"
   ],
   "effect": {
-    "level_offset": -2
+    "boss_level_offset": -2
   }
 }

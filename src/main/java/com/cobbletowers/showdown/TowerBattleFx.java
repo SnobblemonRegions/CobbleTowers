@@ -190,6 +190,12 @@ public final class TowerBattleFx {
             case "drain" -> {
                 if (!side(op, clean) || !copyInt(op, "percent", 1, 50, clean)) return Optional.empty();
             }
+            case "enrage" -> {
+                if (!side(op, clean) || !copyInt(op, "every", 1, 20, clean)) return Optional.empty();
+            }
+            case "cap" -> {
+                if (!side(op, clean) || !copyInt(op, "dealt", 100, 300, clean) || !copyInt(op, "taken", 1, 100, clean)) return Optional.empty();
+            }
             case "damage", "resist" -> {
                 if (!side(op, clean) || !copyInt(op, "percent", 1, 300, clean)) return Optional.empty();
                 String type = string(op, "type");

@@ -49,7 +49,7 @@ class ModifierMenuTextTest {
     @DisplayName("a mixed custom modifier says its benefit and its cost on separate lines")
     void mixed() {
         List<String> lines = lines("custom", "\"custom\":\"glass_cannon\"");
-        assertTrue(has(lines, ModifierMenuText.GOOD, "+2 Attack"), lines.toString());
+        assertTrue(has(lines, ModifierMenuText.GOOD, "40% more damage"), lines.toString());
         assertTrue(has(lines, ModifierMenuText.BAD, "60% HP"), lines.toString());
     }
 

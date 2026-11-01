@@ -226,6 +226,29 @@ test('resist: scales what the named side takes', async () => {
   assert.strictEqual(hp(tough, 0), hp(base, 0), 'damage dealt to p1 is not changed by p2\'s resistance');
 });
 
+test('cap: bounds what a side\'s damage rules add up to (balance phase 2)', async () => {
+  const base = await battle({});
+  const baseLoss = maxhp(base, 1) - hp(base, 1);
+  const stacked = [{op: 'damage', sides: ['p1'], type: 'any', percent: 150}, {op: 'damage', sides: ['p1'], type: 'any', percent: 150}];
+  const capped = await battle({towerFx: [...stacked, {op: 'cap', sides: ['p1'], dealt: 135, taken: 80}]});
+  const cappedLoss = maxhp(capped, 1) - hp(capped, 1);
+  assert.ok(Math.abs(cappedLoss - Math.floor(baseLoss * 1.35)) <= 3, `two x1.5 relics capped at x1.35: ${baseLoss} -> ${cappedLoss}`);
+  const tough = await battle({towerFx: [{op: 'resist', sides: ['p2'], type: 'any', percent: 50}, {op: 'cap', sides: ['p2'], dealt: 135, taken: 80}]});
+  const toughLoss = maxhp(tough, 1) - hp(tough, 1);
+  assert.ok(Math.abs(toughLoss - Math.floor(baseLoss * 0.8)) <= 3, `x0.5 taken floored at x0.8: ${baseLoss} -> ${toughLoss}`);
+  const otherSide = await battle({towerFx: [...stacked, {op: 'cap', sides: ['p2'], dealt: 100, taken: 100}]});
+  assert.ok(maxhp(otherSide, 1) - hp(otherSide, 1) > cappedLoss, 'a cap on p2 does not bound p1');
+});
+
+test('enrage: the named side gains +1 Atk and SpA every N turns', async () => {
+  const b = await battle({towerFx: [{op: 'enrage', sides: ['p2'], every: 2}], turns: 4});
+  const foe = b.battle.sides[1].active[0];
+  assert.strictEqual(foe.boosts.atk, 2, 'enraged after turns 2 and 4');
+  assert.strictEqual(foe.boosts.spa, 2);
+  assert.strictEqual(b.battle.sides[0].active[0].boosts.atk, 0, 'p1 is not enraged');
+  assert.ok(b.lines.some(line => /is enraged!/.test(line)), 'the log says so');
+});
+
 test('a damage rule is local to its battle: a later battle without it is unaffected', async () => {
   await battle({towerFx: [{op: 'damage', sides: ['p1'], type: 'any', percent: 300}]});
   const after = await battle({});

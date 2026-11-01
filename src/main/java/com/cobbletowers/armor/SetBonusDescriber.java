@@ -108,6 +108,8 @@ public final class SetBonusDescriber {
                     + duration(op, "for ");
             case "damage" -> subject(side) + " " + movesOf(op) + " deal " + moreOrLess(integer(op, "percent")) + " damage";
             case "resist" -> takes(side) + " " + moreOrLess(integer(op, "percent")) + " damage" + fromType(op);
+            case "enrage" -> sides(side) + " enrages every " + integer(op, "every") + " turns (+1 Attack and Sp. Atk)";
+            case "cap" -> "Relic damage bonuses are capped";
             default -> titleCase(name);
         };
     }
