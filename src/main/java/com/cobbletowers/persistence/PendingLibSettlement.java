@@ -21,7 +21,20 @@ import net.minecraft.nbt.Tag;
  */
 public record PendingLibSettlement(UUID encounterId, Kind kind, String outcome, int fromFloor, int bossFloor,
                                    boolean keenEyeFloor, List<UUID> players, long createdAt, int attempts,
-                                   int cycle, String towerId, List<UUID> extrasPaid) {
+                                   int cycle, String towerId, List<UUID> extrasPaid, int threat) {
+
+    /** Without a Threat band (balance phase 2): every settlement written before it, and every run with no band. */
+    public PendingLibSettlement(UUID encounterId, Kind kind, String outcome, int fromFloor, int bossFloor,
+                                boolean keenEyeFloor, List<UUID> players, long createdAt, int attempts,
+                                int cycle, String towerId, List<UUID> extrasPaid) {
+        this(encounterId, kind, outcome, fromFloor, bossFloor, keenEyeFloor, players, createdAt, attempts, cycle, towerId, extrasPaid, 0);
+    }
+
+    /** This settlement at a Threat band (1-7), paid through AscensionLib's Threat calls; 0 keeps the older calls. */
+    public PendingLibSettlement withThreat(int band) {
+        return new PendingLibSettlement(encounterId, kind, outcome, fromFloor, bossFloor, keenEyeFloor, players, createdAt, attempts, cycle, towerId,
+                extrasPaid, Math.max(0, Math.min(7, band)));
+    }
 
     /**
      * TRIAL carries its rank (1-3) in {@code bossFloor}. COMPLETION is a tower cycle's champion: it carries the run's
@@ -61,7 +74,7 @@ public record PendingLibSettlement(UUID encounterId, Kind kind, String outcome, 
     public PendingLibSettlement withExtrasPaid(java.util.Collection<UUID> more) {
         var all = new ArrayList<>(extrasPaid);
         for (UUID player : more) if (!all.contains(player)) all.add(player);
-        return new PendingLibSettlement(encounterId, kind, outcome, fromFloor, bossFloor, keenEyeFloor, players, createdAt, attempts, cycle, towerId, all);
+        return new PendingLibSettlement(encounterId, kind, outcome, fromFloor, bossFloor, keenEyeFloor, players, createdAt, attempts, cycle, towerId, all, threat);
     }
 
     /** The statuses that mean "not paid yet, try again": the library was unavailable, or the wallet refused. */
@@ -83,7 +96,7 @@ public record PendingLibSettlement(UUID encounterId, Kind kind, String outcome, 
         }
         if (remaining.isEmpty()) return Optional.empty();
         return Optional.of(new PendingLibSettlement(encounterId, kind, outcome, fromFloor, bossFloor, keenEyeFloor,
-                remaining, createdAt, attempts + 1, cycle, towerId, extrasPaid));
+                remaining, createdAt, attempts + 1, cycle, towerId, extrasPaid, threat));
     }
 
     public boolean expired(long now) {
@@ -115,6 +128,7 @@ public record PendingLibSettlement(UUID encounterId, Kind kind, String outcome, 
             for (UUID player : extrasPaid) paid.add(NbtUtils.createUUID(player));
             tag.put("extras_paid", paid);
         }
+        if (threat > 0) tag.putInt("threat", threat);
         return tag;
     }
 
@@ -125,6 +139,7 @@ public record PendingLibSettlement(UUID encounterId, Kind kind, String outcome, 
         for (Tag entry : tag.getList("extras_paid", Tag.TAG_INT_ARRAY)) paid.add(NbtUtils.loadUUID(entry));
         return new PendingLibSettlement(tag.getUUID("encounter"), Kind.valueOf(tag.getString("kind")),
                 tag.getString("outcome"), tag.getInt("from"), tag.getInt("boss"), tag.getBoolean("keen_eye"), players,
-                tag.getLong("created_at"), tag.getInt("attempts"), tag.getInt("cycle"), tag.getString("tower"), paid);
+                tag.getLong("created_at"), tag.getInt("attempts"), tag.getInt("cycle"), tag.getString("tower"), paid,
+                Math.max(0, Math.min(7, tag.getInt("threat"))));
     }
 }

@@ -127,7 +127,8 @@ public final class ArmorBonusEffects {
         JsonArray ops = battleEffects(player);
         com.cobbletowers.runtime.TowerRuns.get(runId).ifPresent(run -> {
             com.cobbletowers.modifier.DraftService.customs(run).battleOps().forEach(ops::add);
-            int ascension = com.cobbletowers.modifier.DraftService.ascensionOf(run);
+            // The boon and the enemy's growth follow the same Ascension, which for a Threat run counts only the cycles past VII.
+            int ascension = com.cobbletowers.modifier.DraftService.growthAscensionOf(run);
             com.cobbletowers.ascension.AscensionFx.boon(ascension).forEach(ops::add);
             if (enemyScaling) com.cobbletowers.ascension.AscensionFx.enemy(ascension).forEach(ops::add);
             com.cobbletowers.encounter.RegionFx.ops(run, player.getUUID(), enemyScaling).forEach(ops::add);

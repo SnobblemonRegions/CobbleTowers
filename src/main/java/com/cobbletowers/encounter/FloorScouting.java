@@ -35,11 +35,12 @@ final class FloorScouting {
     private FloorScouting() {}
 
     /** Lets players scout this opponent; the id is unique per opponent and arms the battle. */
-    static String declareOpponent(UUID runId, UUID playerId, int floorIndex, EncounterSnapshot snapshot) {
+    static String declareOpponent(PersistedRun run, UUID playerId, int floorIndex, EncounterSnapshot snapshot) {
+        UUID runId = run.runId();
         String id = runId + "-f" + floorIndex + "-o" + snapshot.ordinal();
         String previous = OPPONENT_SCOUTING.put(runId + "/" + playerId, id);
         if (previous != null && !previous.equals(id)) AscensionLibScouting.end(previous);
-        AscensionLibScouting.declare(id, List.of(playerId), 0, ScoutingTiers.tierFor(floorIndex, false), false,
+        AscensionLibScouting.declare(id, List.of(playerId), 0, tierOf(run, floorIndex, false, false), false,
                 snapshot.species().toString(), snapshot.level());
         return id;
     }
@@ -66,8 +67,15 @@ final class FloorScouting {
         Optional<String> species = RaidSpecies.of(server, boss.definition());
         if (species.isEmpty()) return;
         boolean milestone = setup.content().milestoneAt(setup.run().towerId(), setup.run().floorIndex()).isPresent();
+        boolean champion = setup.tower().contentFloor(setup.run().floorIndex()) == setup.tower().floorCount();
         AscensionLibScouting.declare(encounterId.toString(), standing.stream().map(ServerPlayer::getUUID).toList(), 0,
-                ScoutingTiers.tierFor(setup.run().floorIndex(), milestone), true, species.get(), boss.level());
+                tierOf(setup.run(), setup.run().floorIndex(), milestone, champion), true, species.get(), boss.level());
+    }
+
+    /** The enemy tier for a fight of this run: its Threat band when it picked one and the library has Threat on, else the floor tiers. */
+    private static String tierOf(PersistedRun run, int floorIndex, boolean milestone, boolean champion) {
+        return ScoutingTiers.tierFor(run.options().entryThreat(), com.cobbletowers.modifier.DraftService.ascensionOf(run), floorIndex, milestone,
+                champion, AscensionLibScouting.threatEnabled());
     }
 
     /** Sent alongside the encounter; never gates it. */

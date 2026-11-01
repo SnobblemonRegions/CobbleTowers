@@ -138,6 +138,7 @@ public final class TowerNetworking {
                 case TOGGLE_POKEMON -> LobbyService.choose(server, player, java.util.UUID.fromString(payload.argument()));
                 case CLEAR_CHOICE -> LobbyService.clearChoice(server, player);
                 case SET_ASCENSION -> LobbyService.setAscension(server, player, Integer.parseInt(payload.argument()));
+                case SET_THREAT -> LobbyService.setThreat(server, player, Integer.parseInt(payload.argument()));
                 case SET_PLAYLIST -> LobbyService.setPlaylist(server, player, payload.argument());
                 case CONFIRM_MODE -> {
                     String confirmed = LobbyService.confirmMode(server, player);

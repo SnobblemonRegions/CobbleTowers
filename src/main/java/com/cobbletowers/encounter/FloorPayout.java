@@ -64,12 +64,15 @@ final class FloorPayout {
             // Pokemon fainted during the cycle (the mastery stats reset at the cycle's first floor).
             var stats = com.cobbletowers.persistence.TowerRunStatsStore.get(server).peek(run.runId());
             boolean flawless = stats != null && stats.faints == 0;
+            int cycle = tower.ascensionOf(binding.floorIndex());
             AscensionLibRewards.settleCompletion(server, result.encounterId(), outcome, binding.floorIndex(),
-                    tower.ascensionOf(binding.floorIndex()), run.modifiers().accumulated().size(), flawless, run.towerId().toString(), members, now);
+                    cycle, run.modifiers().accumulated().size(), flawless, run.towerId().toString(), members, now,
+                    com.cobbletowers.ascension.ThreatPolicy.bandFor(run.options().entryThreat(), cycle, true));
             return;
         }
+        int cycle = tower == null ? 0 : tower.ascensionOf(binding.floorIndex());
         AscensionLibRewards.settleMilestone(server, result.encounterId(), outcome, from, binding.floorIndex(),
-                members, now);
+                members, now, com.cobbletowers.ascension.ThreatPolicy.bandFor(run.options().entryThreat(), cycle, false));
     }
 
     /** A trial's rank (1-3) follows its length like the scouting tiers: 1-4 floors rank 1, 5-9 rank 2, 10+ rank 3. */

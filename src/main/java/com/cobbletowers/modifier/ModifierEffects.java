@@ -76,10 +76,18 @@ public record ModifierEffects(
      * better reward factor from {@link com.cobbletowers.ascension.AscensionPolicy}.
      */
     public ModifierEffects withAscension(int ascension) {
-        if (ascension <= 0) return this;
-        return new ModifierEffects(levelOffset, extraOpponents + com.cobbletowers.ascension.AscensionPolicy.extraOpponents(ascension),
-                bossLevelOffset, bossHealthPercent * com.cobbletowers.ascension.AscensionPolicy.bossHealthPercent(ascension) / 100,
-                rewardPercent * com.cobbletowers.ascension.AscensionPolicy.rewardPercent(ascension) / 100,
+        return withAscension(ascension, ascension);
+    }
+
+    /**
+     * As above, with the growth and the reward factor counted separately (balance phase 2): a run at a Threat band grows only for the cycles past
+     * Threat VII ({@link com.cobbletowers.ascension.ThreatPolicy#rampAscension}), while its loot still improves every cycle.
+     */
+    public ModifierEffects withAscension(int growthAscension, int rewardAscension) {
+        if (growthAscension <= 0 && rewardAscension <= 0) return this;
+        return new ModifierEffects(levelOffset, extraOpponents + com.cobbletowers.ascension.AscensionPolicy.extraOpponents(growthAscension),
+                bossLevelOffset, bossHealthPercent * com.cobbletowers.ascension.AscensionPolicy.bossHealthPercent(growthAscension) / 100,
+                rewardPercent * com.cobbletowers.ascension.AscensionPolicy.rewardPercent(rewardAscension) / 100,
                 bannedMoves, switchingAllowed, itemsAllowed, weather, terrain, scoutingBonus);
     }
 

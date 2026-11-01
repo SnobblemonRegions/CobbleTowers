@@ -37,6 +37,22 @@ public record PlayStatePayload(List<Tower> towers, Lobby lobby, List<Integer> pa
      * The Ascension (P30) the lobby will start at and the deepest the team may choose.
      * @param offered whether the tower ascends; when false the picker is hidden
      */
+    /**
+     * The Threat band the host picked (balance phase 2): {@code chosen} 0-6 (0 for none), {@code advice} the band AscensionLib advises for the team
+     * (1-6), {@code offered} whether the server has Threat on and this is not a trial. Advice only; every band can be picked.
+     */
+    public record Threat(int chosen, int advice, boolean offered) {
+        static final StreamCodec<RegistryFriendlyByteBuf, Threat> STREAM_CODEC = StreamCodec.composite(
+                ByteBufCodecs.VAR_INT, Threat::chosen,
+                ByteBufCodecs.VAR_INT, Threat::advice,
+                ByteBufCodecs.BOOL, Threat::offered,
+                Threat::new);
+
+        public static Threat none() {
+            return new Threat(0, 1, false);
+        }
+    }
+
     public record Depth(int chosen, int max, boolean offered) {
         static final StreamCodec<RegistryFriendlyByteBuf, Depth> STREAM_CODEC = StreamCodec.composite(
                 ByteBufCodecs.VAR_INT, Depth::chosen,
@@ -84,15 +100,20 @@ public record PlayStatePayload(List<Tower> towers, Lobby lobby, List<Integer> pa
      * What the host can choose before starting: how deep (P30) and which mode (P32). Nested to stay under the codec's
      * field limit.
      */
-    public record Options(Depth depth, Modes modes, List<Roster> rosters) {
+    public record Options(Depth depth, Modes modes, List<Roster> rosters, Threat threat) {
         static final StreamCodec<RegistryFriendlyByteBuf, Options> STREAM_CODEC = StreamCodec.composite(
                 Depth.STREAM_CODEC, Options::depth,
                 Modes.STREAM_CODEC, Options::modes,
                 Roster.STREAM_CODEC.apply(ByteBufCodecs.list(8)), Options::rosters,
+                Threat.STREAM_CODEC, Options::threat,
                 Options::new);
 
         public Options(Depth depth, Modes modes) {
-            this(depth, modes, List.of());
+            this(depth, modes, List.of(), Threat.none());
+        }
+
+        public Options(Depth depth, Modes modes, List<Roster> rosters) {
+            this(depth, modes, rosters, Threat.none());
         }
 
         public static Options none() {
