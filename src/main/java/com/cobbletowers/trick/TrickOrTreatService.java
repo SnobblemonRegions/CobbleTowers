@@ -205,6 +205,7 @@ public final class TrickOrTreatService {
             com.cobbletowers.economy.VendorServices.apply(VendorEffect.FULL_HEAL, player);
             player.sendSystemMessage(Component.literal("A treat! The vault pays " + purse + " CobbleDollars" + relicLine + " and the party is healed."));
         }
+        HauntedRare.offer(server, run, active.floor());
     }
 
     // ---- a trick ---------------------------------------------------------------------------------
@@ -343,6 +344,7 @@ public final class TrickOrTreatService {
         if (shown != null) VaultService.remove(shown);
         NO_SPOT.remove(runId);
         FIGHTS.remove(runId);
+        HauntedRare.forget(runId);
     }
 
     public static void clear() {
@@ -351,6 +353,7 @@ public final class TrickOrTreatService {
         BY_VAULT.clear();
         BY_RUN.clear();
         FIGHTS.clear();
+        HauntedRare.clear();
     }
 
     /** For tests and the operator: the runs with an open vault. */
