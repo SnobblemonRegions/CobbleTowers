@@ -123,6 +123,8 @@ public final class TrickOrTreatService {
         String message;
         if (mine.isEmpty() || !mine.get().runId().equals(runId)) {
             message = "This vault belongs to another team.";
+        } else if (HauntedRare.active(runId)) {
+            message = HauntedRare.throwBy(server, player);   // the rare is out: a click on the vault is a throw
         } else if (BY_RUN.containsKey(runId)) {
             message = "The vault is already open.";
         } else if (openCard(mine.get()) < 0) {

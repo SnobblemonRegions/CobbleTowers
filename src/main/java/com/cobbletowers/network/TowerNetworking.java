@@ -34,6 +34,7 @@ public final class TowerNetworking {
         PayloadTypeRegistry.playS2C().register(TowerHallStatePayload.TYPE, TowerHallStatePayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(TrackStatePayload.TYPE, TrackStatePayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(SpectatorPanelPayload.TYPE, SpectatorPanelPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(HauntedRareTrayPayload.TYPE, HauntedRareTrayPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(RewardRevealPayload.TYPE, RewardRevealPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(VendorCatalogPayload.TYPE, VendorCatalogPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(ScoutingRevealPayload.TYPE, ScoutingRevealPayload.STREAM_CODEC);

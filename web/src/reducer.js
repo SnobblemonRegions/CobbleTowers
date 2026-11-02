@@ -14,6 +14,7 @@ export const initial = Object.freeze({
   play: null,        // PlayState (also carried inside TowerHallState)
   scout: null,       // ScoutingReveal (screen 'scout')
   spec: null, specAt: 0, // SpectatorPanel, for the HUD page, and when it last arrived
+  tray: null, trayAt: 0, // HauntedRareTray (open ones only), for the HUD page, and when it last arrived
   mast: null,        // MasteryScreen (view 'mastery')
   ranks: null,       // RanksState (the Ranks tab's region duel)
   reg: null,         // RegistrationState (the party chooser, view 'party')
@@ -95,6 +96,8 @@ export function reduce(state, kind, data, now) {
       return { ...state, scout: data, screen: 'scout' };
     case 'SpectatorPanel':
       return { ...state, spec: data, specAt: now };
+    case 'HauntedRareTray':
+      return { ...state, tray: data && data.open ? data : null, trayAt: now };
     default:
       return state;
   }

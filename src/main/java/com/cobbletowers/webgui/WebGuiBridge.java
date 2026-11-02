@@ -56,7 +56,7 @@ public final class WebGuiBridge {
             IntermissionStatePayload.TYPE, RentalDraftPayload.TYPE, RewardRevealPayload.TYPE, VendorCatalogPayload.TYPE,
             TowerHallStatePayload.TYPE, PlayStatePayload.TYPE, TowerFeatureState.TYPE, TrackStatePayload.TYPE,
             RegistrationStatePayload.TYPE, MasteryScreenPayload.TYPE, RanksStatePayload.TYPE,
-            ScoutingRevealPayload.TYPE, SpectatorPanelPayload.TYPE);
+            ScoutingRevealPayload.TYPE, SpectatorPanelPayload.TYPE, com.cobbletowers.network.HauntedRareTrayPayload.TYPE);
 
     private static volatile WebGuiConfig config = WebGuiConfig.OFF;
     private static volatile boolean linked;
@@ -111,6 +111,8 @@ public final class WebGuiBridge {
         if (payload instanceof IntermissionStatePayload || payload instanceof PlayStatePayload
                 || payload instanceof RegistrationStatePayload || payload instanceof MasteryScreenPayload) return PageSession.Policy.UPDATE_OR_OPEN_IF_FLAGGED;
         if (payload instanceof TrackStatePayload || payload instanceof RanksStatePayload) return PageSession.Policy.UPDATE_ONLY;
+        // taking the tray down must never open a page just to close it
+        if (payload instanceof com.cobbletowers.network.HauntedRareTrayPayload tray && !tray.open()) return PageSession.Policy.UPDATE_ONLY;
         return PageSession.Policy.UPDATE_OR_OPEN;
     }
 
@@ -159,7 +161,7 @@ public final class WebGuiBridge {
         }
         long now = System.currentTimeMillis();
         PageSession session = SESSIONS.computeIfAbsent(player.getUUID(), id -> new PageSession());
-        boolean hud = payload instanceof SpectatorPanelPayload;
+        boolean hud = payload instanceof SpectatorPanelPayload || payload instanceof com.cobbletowers.network.HauntedRareTrayPayload;
         // The completion reveal of AscensionLib is on screen (it opens in the same tick a cycle's champion falls): do not cover it. Our page is not showing,
         // so this only holds back an open, and the state is kept for the next payload or the player's own request.
         if (!hud && !session.alive(false, now, config.heartbeatSeconds()) && WebGuiLink.otherModScreenShowing(player)) {
