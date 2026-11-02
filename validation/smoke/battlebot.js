@@ -226,6 +226,7 @@ setInterval(() => {
   }
 }, 500);
 bot.on('messagestr', (text) => {
+  if (/World Boss|Haunting|Candy Corn|fight opens|You are in/.test(text)) console.log(`${tag} CHAT ${text.replace(/\s+/g, ' ').slice(0, 220)}`);
   if (text.includes('turned off inside the tower')) console.log(`${tag} BLOCKED ${text}`);
   if (text.includes('Switching is not allowed')) console.log(`${tag} SWITCH_REFUSED ${text}`);
   // A refusal is followed at once by a fresh request and "choose now"; the duplicate guard in choose() must not eat

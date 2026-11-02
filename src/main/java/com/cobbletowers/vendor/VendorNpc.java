@@ -89,6 +89,26 @@ public final class VendorNpc {
         if (!message.isEmpty()) player.displayClientMessage(Component.literal(message), true);
     }
 
+    /** The yaw of the longest clear line from {@code spot} (the party walks in along it); {@code fallback} when none is open or the cell is not loaded. */
+    static float openYaw(ServerLevel level, BlockPos spot, float fallback) {
+        net.minecraft.core.Direction best = null;
+        int bestRun = 2;
+        for (net.minecraft.core.Direction side : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+            int run = 0;
+            for (int step = 1; step <= 16; step++) {
+                BlockPos at = spot.relative(side, step);
+                if (!level.isLoaded(at) || !level.getBlockState(at).getCollisionShape(level, at).isEmpty()
+                        || !level.getBlockState(at.above()).getCollisionShape(level, at.above()).isEmpty()) break;
+                run = step;
+            }
+            if (run > bestRun) {
+                bestRun = run;
+                best = side;
+            }
+        }
+        return best == null ? fallback : best.toYRot();
+    }
+
     /** Puts a vendor at the run's exit anchor. Idempotent: a run never has two. Returns whether one stands there. */
     public static boolean spawn(MinecraftServer server, PersistedRun run) {
         if (run.cell().isEmpty()) return false;
@@ -133,6 +153,7 @@ public final class VendorNpc {
         vendor.addTag(VendorNpcRules.VENDOR_TAG);
         vendor.addTag(VendorNpcRules.runTag(run.runId()));
         float yaw = VendorNpcRules.yawToward(spot.getX(), spot.getZ(), entry.getX(), entry.getZ());
+        if (witch) yaw = openYaw(level, spot, yaw);
         vendor.moveTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, yaw, 0f);
         if (!level.addFreshEntity(vendor)) {
             TowerLog.warn("Run {}: the vendor could not be spawned at {}", run.runId(), spot);
