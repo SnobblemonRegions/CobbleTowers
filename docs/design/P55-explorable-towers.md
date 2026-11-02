@@ -162,7 +162,7 @@ not built.
 
 ## Owner answers (2026-10-26)
 
-1. Event window is **Eastern time**: `halloween.json` now reads 2026-10-31T04:00Z (EDT) to 2026-11-03T05:00Z (EST).
+1. Event window is **Eastern time**: `halloween.json` now reads 2026-10-31T04:00Z (EDT) to 2026-11-07T05:00Z (EST; extended from 11-03 to the 6th on 2026-11-02).
 2. Trick or Treat encounters use the **same pool** as the floor. A **rare catchable encounter** reskinned from the CobbleRaids
    catch screen is wanted: not designed; read how that screen is driven before promising anything.
 3. **Invisible barrier blocks** stop players jumping out; they belong in the generator's wall spec (Phase B/C).

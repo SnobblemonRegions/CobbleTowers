@@ -61,7 +61,7 @@ def main() -> None:
     conf["enabled"] = True
     conf["spawn"]["interval_minutes"] = 1
     conf["spawn"]["auto_start"] = True
-    conf["window"] = {"start": "2026-10-31T04:00:00Z", "end": "2026-11-03T05:00:00Z"}   # the shipped Halloween window; without one nothing starts by itself
+    conf["window"] = {"start": "2026-10-31T04:00:00Z", "end": "2026-11-07T05:00:00Z"}   # the shipped Halloween window; without one nothing starts by itself
     cfg.write_text(json.dumps(conf, indent=2), encoding="utf-8")
 
     launch = ps.load_launcher()
