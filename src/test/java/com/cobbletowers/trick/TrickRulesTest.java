@@ -82,4 +82,15 @@ class TrickRulesTest {
         assertTrue(cut.get(1).perPlayer(), "a guaranteed item stays a guaranteed item");
         assertEquals(grants, TrickRules.apply(grants, 0, 7L));
     }
+
+    @Test
+    void theMimicIsCostumedMimikyuAtTheDrawnLevel() {
+        var drawn = new com.cobbletowers.encounter.EncounterSnapshot(3, net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("cobblemon", "eevee"),
+                java.util.List.of("regional"), 37);
+        var mimic = TrickRules.mimicOf(drawn);
+        org.junit.jupiter.api.Assertions.assertEquals(TrickRules.MIMIC_SPECIES, mimic.species());
+        org.junit.jupiter.api.Assertions.assertEquals(37, mimic.level());
+        org.junit.jupiter.api.Assertions.assertEquals(3, mimic.ordinal());
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of(TrickRules.MIMIC_ASPECT), mimic.aspects());
+    }
 }

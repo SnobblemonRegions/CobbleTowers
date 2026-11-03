@@ -348,8 +348,10 @@ public final class TowerEncounters {
         Optional<EncounterSnapshot> drawn = EncounterDraw.draw(setup.pool(), run.seed(), run.floorIndex(), 40 + ordinal,
                 levelsOf(run, List.of(player)), setup.ruleset(), DraftService.effects(run).levelOffset(), setup.theme());
         if (drawn.isEmpty()) return false;
+        // the vault's mimic wears its costume: Mimikyu at the level the floor drew
+        EncounterSnapshot mimic = com.cobbletowers.trick.TrickRules.mimicOf(drawn.get());
         return AscensionLibScouting.armed(List.of(player.getUUID()), null,
-                () -> CobblemonBattleAdapter.startExhibition(setup.level(), player, drawn.get(), where, run.runId(), run.floorIndex())).isPresent();
+                () -> CobblemonBattleAdapter.startExhibition(setup.level(), player, mimic, where, run.runId(), run.floorIndex())).isPresent();
     }
 
     /**
