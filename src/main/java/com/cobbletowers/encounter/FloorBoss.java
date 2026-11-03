@@ -80,7 +80,7 @@ final class FloorBoss {
         if (started.isEmpty()) return false;
 
         TowerEncounters.putRound(
-                new TowerEncounters.Round(round.runId(), round.floorIndex(), TowerEncounters.Phase.BOSS, round.byPlayer(), round.waves(),
+                new TowerEncounters.Round(round.runId(), round.floorIndex(), TowerEncounters.Phase.BOSS, round.byPlayer(),
                         round.startedAt()));
         return true;
     }
@@ -97,7 +97,7 @@ final class FloorBoss {
     }
 
     /** The definition a milestone floor is meant to finish with, if this is one. */
-    private static Optional<ResourceLocation> handpickedBoss(TowerContent content, TowerDefinition tower,
+    static Optional<ResourceLocation> handpickedBoss(TowerContent content, TowerDefinition tower,
                                                             FloorDefinition floor) {
         if (floor.milestone().isEmpty()) return Optional.empty();
         return content.milestoneAt(tower.id(), floor.index()).flatMap(MilestoneDefinition::raidDefinitionId);

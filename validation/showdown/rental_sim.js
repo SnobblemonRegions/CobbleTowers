@@ -14,7 +14,8 @@ const opt = (name, fallback) => {
 };
 const SHOWDOWN = path.resolve(opt('showdown-dir', process.env.SHOWDOWN_DIR || 'showdown'));
 const SETS = path.resolve(__dirname, '../../src/main/resources/data/cobbletowers/cobbletowers/rental_sets');
-const POOLS = path.resolve(__dirname, '../../src/main/resources/data/cobbletowers/cobbletowers/encounter_pools');
+// Species the sims fight against. Tooling data only: the mod has no ordinary-opponent pools (every floor is a boss).
+const POOLS = path.resolve(__dirname, 'sim_opponents');
 const TEAMS = Number(opt('teams', 800));
 const OPPONENTS = Number(opt('opponents', 3));
 const POOL = opt('pool', 'neutral_common');

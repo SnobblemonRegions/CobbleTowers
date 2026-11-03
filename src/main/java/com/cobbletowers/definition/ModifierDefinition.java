@@ -50,8 +50,6 @@ public record ModifierDefinition(
     /**
      * What a modifier does; every default changes nothing. Percentages are integers (100 = unchanged) so they persist
      * and sum exactly.
-     * @param levelOffset ordinary opponents' level (ENEMY)
-     * @param extraOpponents extra opponents (ENCOUNTER)
      * @param bossLevelOffset boss level (ENEMY)
      * @param bossHealthPercent boss pool percentage (ENEMY)
      * @param rewardPercent earnings percentage (REWARD)
@@ -65,8 +63,6 @@ public record ModifierDefinition(
      * @param scoutingBonus floors added to a scouting category's concealment threshold (SCOUTING)
      */
     public record Effect(
-            int levelOffset,
-            int extraOpponents,
             int bossLevelOffset,
             int bossHealthPercent,
             int rewardPercent,
@@ -81,22 +77,22 @@ public record ModifierDefinition(
 
         /** Changes nothing: the baseline every field is measured against. */
         public static final Effect NEUTRAL =
-                new Effect(0, 0, 0, 100, 100, List.of(), true, true, Optional.empty(), Optional.empty(), 0,
+                new Effect(0, 100, 100, List.of(), true, true, Optional.empty(), Optional.empty(), 0,
                         Optional.empty(), new JsonArray());
 
         /** Everything except battle operations, which is what every modifier before P45 declared. */
-        public Effect(int levelOffset, int extraOpponents, int bossLevelOffset, int bossHealthPercent,
+        public Effect(int bossLevelOffset, int bossHealthPercent,
                       int rewardPercent, List<String> bannedMoves, boolean allowSwitching, boolean allowItems,
                       Optional<String> weather, Optional<String> terrain, int scoutingBonus, Optional<String> custom) {
-            this(levelOffset, extraOpponents, bossLevelOffset, bossHealthPercent, rewardPercent, bannedMoves,
+            this(bossLevelOffset, bossHealthPercent, rewardPercent, bannedMoves,
                     allowSwitching, allowItems, weather, terrain, scoutingBonus, custom, new JsonArray());
         }
 
         /** Everything except a coded behavior, which is what every modifier before P29 declared. */
-        public Effect(int levelOffset, int extraOpponents, int bossLevelOffset, int bossHealthPercent,
+        public Effect(int bossLevelOffset, int bossHealthPercent,
                       int rewardPercent, List<String> bannedMoves, boolean allowSwitching, boolean allowItems,
                       Optional<String> weather, Optional<String> terrain, int scoutingBonus) {
-            this(levelOffset, extraOpponents, bossLevelOffset, bossHealthPercent, rewardPercent, bannedMoves,
+            this(bossLevelOffset, bossHealthPercent, rewardPercent, bannedMoves,
                     allowSwitching, allowItems, weather, terrain, scoutingBonus, Optional.empty(), new JsonArray());
         }
 
@@ -119,18 +115,11 @@ public record ModifierDefinition(
             if (rewardPercent < 0) {
                 throw new IllegalArgumentException("reward_percent must be >= 0, got " + rewardPercent);
             }
-            if (extraOpponents < 0) {
-                throw new IllegalArgumentException("extra_opponents must be >= 0, got " + extraOpponents);
-            }
         }
 
         /** Whether this effect leaves the enemies exactly as they would have been. */
         public boolean touchesEnemies() {
-            return levelOffset != 0 || bossLevelOffset != 0 || bossHealthPercent != 100;
-        }
-
-        public boolean touchesEncounter() {
-            return extraOpponents != 0;
+            return bossLevelOffset != 0 || bossHealthPercent != 100;
         }
 
         public boolean touchesReward() {
@@ -156,8 +145,6 @@ public record ModifierDefinition(
         public static Effect fromJson(JsonObject root) {
             if (root == null) return NEUTRAL;
             return new Effect(
-                    TowerJson.integer(root, "level_offset", 0),
-                    TowerJson.integer(root, "extra_opponents", 0),
                     TowerJson.integer(root, "boss_level_offset", 0),
                     TowerJson.integer(root, "boss_health_percent", 100),
                     TowerJson.integer(root, "reward_percent", 100),
@@ -233,7 +220,6 @@ public record ModifierDefinition(
     private static void validateEffectMatchesType(ResourceLocation id, ModifierType type, Effect effect) {
         boolean matches = switch (type) {
             case ENEMY -> effect.touchesEnemies();
-            case ENCOUNTER -> effect.touchesEncounter();
             case PLAYER_CONSTRAINT -> effect.touchesConstraints();
             case FIELD -> effect.touchesField();
             case REWARD -> effect.touchesReward();

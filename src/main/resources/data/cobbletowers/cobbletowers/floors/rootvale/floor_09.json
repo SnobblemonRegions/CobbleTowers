@@ -1,6 +1,5 @@
 {
   "index": 9,
-  "encounter_pool": "cobbletowers:rootvale_common",
   "layout": {
     "structure": "cobbletowers:battle_tower_rootvale",
     "entry": {

@@ -42,7 +42,7 @@ class RotatingTowersTest {
 
     static TowerContent shipped() throws Exception {
         return TowerContent.of(load("towers", TowerDefinition::fromJson), load("floors", FloorDefinition::fromJson),
-                load("encounter_pools", EncounterPoolDefinition::fromJson), load("rulesets", RulesetDefinition::fromJson),
+                load("rulesets", RulesetDefinition::fromJson),
                 load("milestones", MilestoneDefinition::fromJson), load("boss_pools", BossPoolDefinition::fromJson),
                 load("modifiers", ModifierDefinition::fromJson), load("reward_tables", RewardTableDefinition::fromJson),
                 load("regional_themes", RegionalThemeDefinition::fromJson), load("vendor_services", VendorServiceDefinition::fromJson),
@@ -88,7 +88,7 @@ class RotatingTowersTest {
                     FloorDefinition got = content.floorAt(id, floor).orElseThrow();
                     assertEquals(floor, got.index());
                     FloorDefinition source = base.floorAt(roll.regionAt(recipe, floor), floor).orElseThrow();
-                    assertEquals(source.encounterPoolId(), got.encounterPoolId());
+                    assertEquals(source.bossPoolId(), got.bossPoolId());
                     assertEquals(source.layout(), got.layout());
                     assertEquals(source.milestone(), got.milestone());
                     assertEquals(source.milestone().isPresent(), content.milestoneAt(id, floor).isPresent());
@@ -137,7 +137,7 @@ class RotatingTowersTest {
         TowerContent without = base.withRotating(base.towers().get(roll.segmentRegions().get(0)), List.of());
         Map<ResourceLocation, TowerDefinition> towers = new LinkedHashMap<>(without.towers());
         towers.remove(roll.segmentRegions().get(0));
-        TowerContent gone = new TowerContent(towers, without.floors(), without.pools(), without.rulesets(), without.milestones(),
+        TowerContent gone = new TowerContent(towers, without.floors(), without.rulesets(), without.milestones(),
                 without.bossPools(), without.modifiers(), without.rewardTables(), without.regionalThemes(), without.vendorServices(),
                 without.scoutingProfiles(), without.digests(), without.problems(), without.sortedTowerIds());
         try {

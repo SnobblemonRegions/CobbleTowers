@@ -26,7 +26,7 @@ class TowerListingTest {
         Map<ResourceLocation, TowerDefinition> towers = new LinkedHashMap<>(base.towers());
         towers.put(EVENT, new TowerDefinition(EVENT, "Event", 1, 1, plain.rulesetId(), plain.rewardTableId(), plain.floorIds(), plain.milestoneIds(),
                 Optional.empty(), Optional.empty(), false, Optional.of(new TowerWindow(OPENS, CLOSES))));
-        return TowerContent.of(towers, base.floors(), base.pools(), base.rulesets(), base.milestones(), base.bossPools(), base.modifiers(), base.rewardTables(),
+        return TowerContent.of(towers, base.floors(), base.rulesets(), base.milestones(), base.bossPools(), base.modifiers(), base.rewardTables(),
                 base.regionalThemes(), base.vendorServices(), base.scoutingProfiles(), base.digests());
     }
 

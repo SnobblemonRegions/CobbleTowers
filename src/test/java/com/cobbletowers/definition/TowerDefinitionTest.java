@@ -72,10 +72,10 @@ class TowerDefinitionTest {
     }
 
     @Test
-    @DisplayName("a floor reads its pool and milestone mark")
+    @DisplayName("a floor reads its milestone mark and boss pool")
     void floorParses() {
         FloorDefinition floor = FloorDefinition.fromJson(ID, json("""
-                {"index": 5, "encounter_pool": "cobbletowers:neutral_common", "milestone": "boss",
+                {"index": 5, "boss_pool": "cobbletowers:neutral/early", "milestone": "boss",
                  "modifiers": ["cobbletowers:double_trouble"]}"""));
 
         assertEquals(5, floor.index());
@@ -87,35 +87,11 @@ class TowerDefinitionTest {
     @DisplayName("a floor is refused for a bad index, an unknown milestone word or an unparseable id")
     void floorValidation() {
         assertThrows(IllegalArgumentException.class, () -> FloorDefinition.fromJson(ID, json("""
-                {"index": 0, "encounter_pool": "a:b"}""")));
+                {"index": 0}""")));
         assertThrows(IllegalArgumentException.class, () -> FloorDefinition.fromJson(ID, json("""
-                {"index": 1, "encounter_pool": "a:b", "milestone": "finale"}""")));
+                {"index": 1, "milestone": "finale"}""")));
         assertThrows(IllegalArgumentException.class, () -> FloorDefinition.fromJson(ID, json("""
-                {"index": 1, "encounter_pool": "NOT AN ID"}""")));
-    }
-
-    @Test
-    @DisplayName("an encounter pool weights its entries")
-    void poolParses() {
-        EncounterPoolDefinition pool = EncounterPoolDefinition.fromJson(ID, json("""
-                {"schema_version": 1, "entries": [
-                   {"species": "cobblemon:machoke", "weight": 100},
-                   {"species": "cobblemon:lucario", "weight": 40, "level_offset": 3,
-                    "aspects": ["shiny"]}]}"""));
-
-        assertEquals(2, pool.entries().size());
-        assertEquals(140, pool.totalWeight());
-        assertEquals(3, pool.entries().get(1).levelOffset());
-        assertEquals("shiny", pool.entries().get(1).aspects().get(0));
-    }
-
-    @Test
-    @DisplayName("an encounter pool is refused when empty or weighted at zero")
-    void poolValidation() {
-        assertThrows(IllegalArgumentException.class, () -> EncounterPoolDefinition.fromJson(ID, json("""
-                {"schema_version": 1, "entries": []}""")));
-        assertThrows(IllegalArgumentException.class, () -> EncounterPoolDefinition.fromJson(ID, json("""
-                {"schema_version": 1, "entries": [{"species": "a:b", "weight": 0}]}""")));
+                {"index": 1, "boss_pool": "NOT AN ID"}""")));
     }
 
     @Test

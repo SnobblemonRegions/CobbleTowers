@@ -8,7 +8,6 @@ import com.cobbletowers.api.tower.MilestoneKind;
 import com.cobbletowers.api.tower.RunState;
 import com.cobbletowers.api.tower.participant.ParticipantState;
 import com.cobbletowers.definition.DefinitionKey;
-import com.cobbletowers.definition.EncounterPoolDefinition;
 import com.cobbletowers.definition.FloorDefinition;
 import com.cobbletowers.definition.MilestoneDefinition;
 import com.cobbletowers.definition.RewardTableDefinition;
@@ -44,14 +43,11 @@ class RewardBankServiceTest {
     private static TowerContent contentWith(boolean banksRewards) {
         RulesetDefinition ruleset = RulesetDefinition.fromJson(id("standard"),
                 JsonParser.parseString("{\"schema_version\":1}").getAsJsonObject());
-        EncounterPoolDefinition pool = EncounterPoolDefinition.fromJson(id("pool"),
-                JsonParser.parseString("{\"schema_version\":1,\"entries\":[{\"species\":\"cobblemon:machoke\"}]}")
-                        .getAsJsonObject());
         RewardTableDefinition rewardTable = RewardTableDefinition.fromJson(id("rewards"),
                 JsonParser.parseString("{\"schema_version\":1,\"display_name\":\"Rewards\"}").getAsJsonObject());
-        FloorDefinition one = new FloorDefinition(id("floor_1"), 1, id("pool"), Optional.empty(), Optional.empty(),
+        FloorDefinition one = new FloorDefinition(id("floor_1"), 1, Optional.empty(), Optional.empty(),
                 List.of(), Optional.empty(), Optional.empty());
-        FloorDefinition two = new FloorDefinition(id("floor_2"), 2, id("pool"), Optional.of(MilestoneKind.BOSS),
+        FloorDefinition two = new FloorDefinition(id("floor_2"), 2, Optional.of(MilestoneKind.BOSS),
                 Optional.empty(), List.of(), Optional.empty(), Optional.empty());
         MilestoneDefinition boss = new MilestoneDefinition(id("boss"), 2, MilestoneKind.BOSS,
                 Optional.of(ResourceLocation.fromNamespaceAndPath("cobbleraids", "lucario")), banksRewards);
@@ -59,7 +55,7 @@ class RewardBankServiceTest {
                 List.of(one.id(), two.id()), List.of(boss.id()), Optional.empty(), Optional.empty());
 
         return TowerContent.of(Map.of(TestRuns.TOWER, tower), Map.of(one.id(), one, two.id(), two),
-                Map.of(pool.id(), pool), Map.of(ruleset.id(), ruleset), Map.of(boss.id(), boss), Map.of(), Map.of(),
+                Map.of(ruleset.id(), ruleset), Map.of(boss.id(), boss), Map.of(), Map.of(),
                 Map.of(rewardTable.id(), rewardTable), Map.of(), Map.of(), Map.of(),
                 Map.of(DefinitionKey.tower(TestRuns.TOWER), "digest"));
     }

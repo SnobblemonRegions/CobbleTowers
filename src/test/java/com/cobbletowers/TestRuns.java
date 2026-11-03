@@ -4,7 +4,6 @@ import com.cobbletowers.api.tower.MilestoneKind;
 import com.cobbletowers.api.tower.RunState;
 import com.cobbletowers.api.tower.participant.ParticipantState;
 import com.cobbletowers.definition.DefinitionKey;
-import com.cobbletowers.definition.EncounterPoolDefinition;
 import com.cobbletowers.definition.FloorDefinition;
 import com.cobbletowers.definition.MilestoneDefinition;
 import com.cobbletowers.definition.ModifierDefinition;
@@ -63,9 +62,6 @@ public final class TestRuns {
     public static TowerContent content() {
         RulesetDefinition ruleset = RulesetDefinition.fromJson(id("standard"),
                 JsonParser.parseString("{\"schema_version\":1,\"revision\":5}").getAsJsonObject());
-        EncounterPoolDefinition pool = EncounterPoolDefinition.fromJson(id("pool"),
-                JsonParser.parseString("{\"schema_version\":1,\"entries\":[{\"species\":\"cobblemon:machoke\"}]}")
-                        .getAsJsonObject());
 
         FloorDefinition one = floor(1, Optional.empty());
         FloorDefinition two = floor(2, Optional.of(MilestoneKind.BOSS));
@@ -77,8 +73,7 @@ public final class TestRuns {
         TowerDefinition tower = new TowerDefinition(TOWER, "Neutral", 1, 3, id("standard"), rewardTable.id(),
                 List.of(one.id(), two.id()), List.of(boss.id()), Optional.empty(), Optional.empty());
 
-        return TowerContent.of(Map.of(TOWER, tower), Map.of(one.id(), one, two.id(), two), Map.of(pool.id(), pool),
-                Map.of(ruleset.id(), ruleset), Map.of(boss.id(), boss), Map.of(), Map.of(),
+        return TowerContent.of(Map.of(TOWER, tower), Map.of(one.id(), one, two.id(), two), Map.of(ruleset.id(), ruleset), Map.of(boss.id(), boss), Map.of(), Map.of(),
                 Map.of(rewardTable.id(), rewardTable), Map.of(), Map.of(), Map.of(),
                 Map.of(DefinitionKey.tower(TOWER), "digest-abc"));
     }
@@ -86,7 +81,7 @@ public final class TestRuns {
     /** The same content, plus a set of modifiers to draft from. */
     public static TowerContent contentWith(Map<ResourceLocation, ModifierDefinition> modifiers) {
         TowerContent base = content();
-        return TowerContent.of(base.towers(), base.floors(), base.pools(), base.rulesets(), base.milestones(),
+        return TowerContent.of(base.towers(), base.floors(), base.rulesets(), base.milestones(),
                 base.bossPools(), modifiers, base.rewardTables(), base.regionalThemes(), base.vendorServices(),
                 base.scoutingProfiles(), base.digests());
     }
@@ -111,6 +106,6 @@ public final class TestRuns {
     }
 
     private static FloorDefinition floor(int index, Optional<MilestoneKind> milestone) {
-        return new FloorDefinition(id("floor_" + index), index, id("pool"), milestone, Optional.empty(), List.of(), Optional.empty(), Optional.empty());
+        return new FloorDefinition(id("floor_" + index), index, milestone, Optional.empty(), List.of(), Optional.empty(), Optional.empty());
     }
 }
