@@ -36,6 +36,14 @@ public final class TowerRareCatchStore extends TowerStore {
         return runs;
     }
 
+    /** Takes back one catch recorded on that day, for a grant that failed after it was counted. Never below nothing. */
+    public int undo(UUID player, String dayKey) {
+        int runs = Math.max(0, catchesOn(player, dayKey) - 1);
+        if (runs == 0) players.remove(player); else players.put(player, new Day(dayKey, runs));
+        setDirty();
+        return runs;
+    }
+
     /** An operator's tool, and what a test uses to start clean. */
     public void reset(UUID player) {
         if (players.remove(player) != null) setDirty();

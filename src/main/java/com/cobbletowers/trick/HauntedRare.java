@@ -132,16 +132,25 @@ public final class HauntedRare {
         int number = used + 1;
         int chance = CatchRules.chancePercent(number, rare.floor);
         boolean landed = CatchRules.lands(chance, EncounterSeed.hidden(run.seed(), run.runId()), rare.floor, id.getLeastSignificantBits(), number);
-        if (landed && !grant(player, rare)) {
-            String line = "Your PC could not take it; clear a box and throw again.";
-            tray(player, rare, line);
-            return line;   // nothing was taken: the throw is not used
+        if (landed) {
+            // The day's count is taken first and given back if the grant fails: a crash between the two can only cost the player a
+            // catch, never give one past the limit.
+            TowerRareCatchStore catches = TowerRareCatchStore.get(player.server);
+            String day = TrialClock.dayKey(TrialService.today());
+            catches.record(id, day);
+            catches.checkpoint(player.server);
+            if (!grant(player, rare)) {
+                catches.undo(id, day);
+                catches.checkpoint(player.server);
+                String line = "Your PC could not take it; clear a box and throw again.";
+                tray(player, rare, line);
+                return line;   // nothing was taken: the throw is not used
+            }
         }
         rare.marks.computeIfAbsent(id, k -> new StringBuilder()).append(landed ? 'h' : 'm');
         String line;
         if (landed) {
             rare.caught.add(id);
-            TowerRareCatchStore.get(player.server).record(id, TrialClock.dayKey(TrialService.today()));
             TowerLog.info("Run {}: {} caught the Haunted {} on throw {}", run.runId(), player.getGameProfile().getName(), rare.species, number);
             line = "Caught! The Haunted " + pretty(rare.species) + " went to your PC.";
         } else if (number < CatchRules.THROWS) {
