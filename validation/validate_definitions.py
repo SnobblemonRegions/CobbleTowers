@@ -666,6 +666,39 @@ def main() -> None:
             if not milestone_floors.get(floor.get("index")):
                 problems.append(f"{floor_id} names no boss_pool and no milestone boss, so it cannot be finished")
 
+    phase_ops = ("weather", "terrain", "boost", "status", "sidecondition", "heal", "cure", "damage", "resist", "drain",
+                 "enrage", "clear")
+    for milestone_id, milestone in content["milestones"].items():
+        phases = milestone.get("phases", [])
+        if len(phases) > 3:
+            problems.append(f"{milestone_id} has {len(phases)} phases; a boss has at most 3")
+        seen_phase_ids = set()
+        for phase in phases:
+            phase_id = phase.get("id", "")
+            if not phase_id or phase_id in seen_phase_ids:
+                problems.append(f"{milestone_id} has a phase with a missing or repeated id '{phase_id}'")
+            seen_phase_ids.add(phase_id)
+            if phase.get("side") not in ("foe", "self", "both"):
+                problems.append(f"{milestone_id} phase {phase_id} needs side foe (the boss)")
+            when = phase.get("when", {})
+            hp_below, turn = when.get("hp_below"), when.get("turn")
+            if hp_below is None and turn is None:
+                problems.append(f"{milestone_id} phase {phase_id} needs when.hp_below or when.turn")
+            if hp_below is not None and not 1 <= hp_below <= 99:
+                problems.append(f"{milestone_id} phase {phase_id} has hp_below {hp_below}; must be 1..99")
+            if turn is not None and not 2 <= turn <= 50:
+                problems.append(f"{milestone_id} phase {phase_id} has turn {turn}; must be 2..50")
+            if not phase.get("announce"):
+                problems.append(f"{milestone_id} phase {phase_id} has no announce line; phases are announced")
+            if not phase.get("name"):
+                problems.append(f"{milestone_id} phase {phase_id} has no name; the boss card lists it")
+            effects = phase.get("do", [])
+            if not effects or len(effects) > 8:
+                problems.append(f"{milestone_id} phase {phase_id} needs 1..8 effects, has {len(effects)}")
+            for effect in effects:
+                if effect.get("op") not in phase_ops:
+                    problems.append(f"{milestone_id} phase {phase_id} uses op '{effect.get('op')}', which a phase cannot")
+
     for ruleset_id, ruleset in content["rulesets"].items():
         levels = ruleset.get("enemy_level", {})
         low, high = levels.get("min", MIN_LEVEL), levels.get("max", MAX_LEVEL)

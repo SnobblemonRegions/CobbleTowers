@@ -103,6 +103,14 @@ public final class TowerBossAdapter {
     public static Optional<UUID> start(MinecraftServer server, ServerLevel level, List<ServerPlayer> players,
                                        BossDraw.Boss boss, BlockPos where, UUID runId, int floorIndex,
                                        ModifierEffects effects, java.util.function.Consumer<UUID> beforeStart) {
+        return start(server, level, players, boss, where, runId, floorIndex, effects, beforeStart, new com.google.gson.JsonArray());
+    }
+
+    /** The same start, also arming the boss's own phases ({@code bossOps}, logical operations: side foe is the boss) for the first player only. */
+    public static Optional<UUID> start(MinecraftServer server, ServerLevel level, List<ServerPlayer> players,
+                                       BossDraw.Boss boss, BlockPos where, UUID runId, int floorIndex,
+                                       ModifierEffects effects, java.util.function.Consumer<UUID> beforeStart,
+                                       com.google.gson.JsonArray bossOps) {
         if (players.isEmpty()) return Optional.empty();
         if (players.size() > EncounterRequest.MAX_PLAYERS) {
             TowerLog.error("Floor {} of run {} has {} players; CobbleRaids takes at most {}",
@@ -131,7 +139,12 @@ public final class TowerBossAdapter {
         StartResult result;
         // Armed only around the start: the effects ride this boss battle's >start and no other's.
         com.cobbletowers.showdown.TowerBattleFx.armBossBattle(playerIds, id -> players.stream().filter(p -> p.getUUID().equals(id)).findFirst()
-                    .map(p -> com.cobbletowers.armor.ArmorBonusEffects.battleEffects(p, runId, p.getUUID().equals(playerIds.get(0)))).orElseGet(com.google.gson.JsonArray::new));
+                    .map(p -> {
+                        boolean first = p.getUUID().equals(playerIds.get(0));
+                        com.google.gson.JsonArray ops = com.cobbletowers.armor.ArmorBonusEffects.battleEffects(p, runId, first);
+                        if (first) bossOps.forEach(ops::add);   // once per battle, whatever the party size
+                        return ops;
+                    }).orElseGet(com.google.gson.JsonArray::new));
         com.cobbletowers.economy.AscensionLibScouting.arm(playerIds, encounterId.toString());
         try {
             result = CobbleRaidsEncounters.start(request, new FloorListener(server));
