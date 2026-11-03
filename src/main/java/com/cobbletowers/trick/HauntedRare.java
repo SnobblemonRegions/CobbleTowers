@@ -97,6 +97,12 @@ public final class HauntedRare {
 
     /** One throw by this player. Returns the line to show them (also put on the tray). */
     public static String throwBy(MinecraftServer server, ServerPlayer player) {
+        String line = throwUnlogged(player);
+        TowerLog.info("Haunted rare: {} threw: {}", player.getGameProfile().getName(), line);
+        return line;
+    }
+
+    private static String throwUnlogged(ServerPlayer player) {
         Optional<PersistedRun> mine = TowerRuns.forPlayer(player.getUUID());
         if (mine.isEmpty()) return "You are not in a run.";
         PersistedRun run = mine.get();

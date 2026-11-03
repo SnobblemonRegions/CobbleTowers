@@ -27,6 +27,7 @@ public final class CatchRules {
 
     /** Whether the treat of this floor also holds a rare. */
     public static boolean treatHasRare(long runSeed, int floorIndex) {
+        if (Boolean.getBoolean("cobbletowers.forceRare")) return true;   // for the rig: every treat holds one
         return Math.floorMod(EncounterSeed.of(runSeed, floorIndex, ORDINAL_BASE), 100) < RARE_PERCENT;
     }
 
