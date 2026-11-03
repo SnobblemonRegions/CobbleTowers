@@ -655,6 +655,8 @@ public final class RunsCommand {
             return 0;
         }
 
+        // Floors are bosses now: clearing one by command must end the fight still open, or the next floor's boss is refused ("already in a battle").
+        if (event == RunEvent.ENCOUNTER_RESOLVED_CLEARED) com.cobbletowers.battle.cobbleraids.TowerBossAdapter.abort(runId);
         RunTransitionService.Outcome outcome =
                 RunTransitionService.apply(source.getServer(), runId, event, System.currentTimeMillis());
         if (outcome instanceof RunTransitionService.Move move) {
