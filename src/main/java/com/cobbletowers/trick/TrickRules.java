@@ -39,6 +39,14 @@ public final class TrickRules {
         return 5 + 2 * Math.max(0, floorIndex);
     }
 
+    /** The most Candy Corn the tower pays one player in a day, across every run. Candy Corn buys real prizes, so the ceiling is hard. */
+    public static final int DAILY_CANDY_CORN_CAP = 100;
+
+    /** How much of {@code amount} a player who was paid {@code paidToday} today may still be paid: the rest of the cap, never negative, never more than asked. */
+    public static int candyCornPayable(int amount, int paidToday) {
+        return Math.max(0, Math.min(amount, DAILY_CANDY_CORN_CAP - Math.max(0, paidToday)));
+    }
+
     private TrickRules() {}
 
     /** The mimic that fights in place of the opponent drawn for this slot: the same level, so the difficulty is the floor's, but wearing the vault's costume. */
@@ -48,7 +56,11 @@ public final class TrickRules {
 
     public enum Result { TREAT, TRICK }
 
-    /** What the vault of this floor holds. Seeded, so leaving and coming back, or a replay of the run code, finds the same thing. */
+    /**
+     * What the vault of this floor holds. Seeded, so leaving and coming back finds the same thing. The seed passed in is the run's
+     * {@link com.cobbletowers.encounter.EncounterSeed#hidden hidden} seed, not its run-code seed: a replay of the run code gets the
+     * same opponents but not the same vault, so nobody can read the coin off a code, or write a code to choose it.
+     */
     public static Result roll(long runSeed, int floorIndex) {
         return Math.floorMod(EncounterSeed.of(runSeed, floorIndex, ORDINAL_BASE), 100) < TRICK_PERCENT ? Result.TRICK : Result.TREAT;
     }
