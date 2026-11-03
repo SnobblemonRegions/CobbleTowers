@@ -4,6 +4,7 @@
   "display_name": "Hollow's Eve",
   "ruleset": "cobbletowers:standard",
   "reward_table": "cobbletowers:halloween",
+  "scouting_profile": "cobbletowers:halloween",
   "floors": [
     "cobbletowers:halloween/floor_01",
     "cobbletowers:halloween/floor_02",

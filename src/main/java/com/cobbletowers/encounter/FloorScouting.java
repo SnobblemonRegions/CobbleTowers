@@ -32,15 +32,18 @@ final class FloorScouting {
     /** Each player's current opponent encounter, keyed {@code run/player}; ended with that battle. */
     private static final Map<String, String> OPPONENT_SCOUTING = new LinkedHashMap<>();
 
+    /** The ordinal the floor boss's decoy is drawn with, apart from every opponent's. */
+    private static final int BOSS_ORDINAL = 99;
+
     private FloorScouting() {}
 
     /** Lets players scout this opponent; the id is unique per opponent and arms the battle. */
-    static String declareOpponent(UUID runId, UUID playerId, int floorIndex, EncounterSnapshot snapshot) {
+    static String declareOpponent(FloorSetup setup, UUID runId, UUID playerId, int floorIndex, EncounterSnapshot snapshot) {
         String id = runId + "-f" + floorIndex + "-o" + snapshot.ordinal();
         String previous = OPPONENT_SCOUTING.put(runId + "/" + playerId, id);
         if (previous != null && !previous.equals(id)) AscensionLibScouting.end(previous);
         AscensionLibScouting.declare(id, List.of(playerId), 0, ScoutingTiers.tierFor(floorIndex, false), false,
-                snapshot.species().toString(), snapshot.level());
+                ScoutingDisguise.shown(setup, snapshot.ordinal(), snapshot.species()).toString(), snapshot.level());
         return id;
     }
 
@@ -67,7 +70,8 @@ final class FloorScouting {
         if (species.isEmpty()) return;
         boolean milestone = setup.content().milestoneAt(setup.run().towerId(), setup.run().floorIndex()).isPresent();
         AscensionLibScouting.declare(encounterId.toString(), standing.stream().map(ServerPlayer::getUUID).toList(), 0,
-                ScoutingTiers.tierFor(setup.run().floorIndex(), milestone), true, species.get(), boss.level());
+                ScoutingTiers.tierFor(setup.run().floorIndex(), milestone), true,
+                ScoutingDisguise.shown(setup, BOSS_ORDINAL, ResourceLocation.parse(species.get())).toString(), boss.level());
     }
 
     /** Sent alongside the encounter; never gates it. */
@@ -80,7 +84,8 @@ final class FloorScouting {
         for (ScoutingProfileDefinition.RevealCategory category : profile.get().categories()) {
             if (!ScoutingReveal.isRevealed(category, run.floorIndex(), effects.scoutingBonus())) continue;
             revealed.add(new ScoutingRevealPayload.Category(category.name(),
-                    valueOf(category.name(), setup.floor(), snapshot)));
+                    category.name().equals("typing") && ScoutingDisguise.disguised(setup, snapshot.ordinal(), snapshot.species())
+                            ? "???" : valueOf(category.name(), setup.floor(), snapshot)));
         }
         TowerNetworking.sendScoutingReveal(player, new ScoutingRevealPayload(run.floorIndex(), List.copyOf(revealed)));
     }

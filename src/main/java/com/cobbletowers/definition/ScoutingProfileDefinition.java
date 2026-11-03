@@ -15,7 +15,8 @@ public record ScoutingProfileDefinition(
         ResourceLocation id,
         int schemaVersion,
         int revision,
-        List<RevealCategory> categories) {
+        List<RevealCategory> categories,
+        java.util.Optional<Disguise> disguise) {
 
     public static final int SUPPORTED_SCHEMA_VERSION = 1;
 
@@ -29,7 +30,20 @@ public record ScoutingProfileDefinition(
         }
     }
 
+    /**
+     * A decoy a Scouter and the typing line show instead of the real opponent, from {@code fromFloor} on (P54). Presentation only: the opponent
+     * is still the one drawn.
+     */
+    public record Disguise(int fromFloor, List<ResourceLocation> decoys) {
+        public Disguise {
+            decoys = List.copyOf(decoys);
+            if (decoys.isEmpty()) throw new IllegalArgumentException("a disguise needs at least one decoy species");
+            if (fromFloor < 0) throw new IllegalArgumentException("disguise from_floor must be >= 0");
+        }
+    }
+
     public ScoutingProfileDefinition {
+        Objects.requireNonNull(disguise, "disguise");
         Objects.requireNonNull(id, "id");
         categories = List.copyOf(categories);
         if (schemaVersion != SUPPORTED_SCHEMA_VERSION) {
@@ -55,10 +69,18 @@ public record ScoutingProfileDefinition(
                         TowerJson.integer(category, "concealed_from_floor", -1)));
             }
         }
+        java.util.Optional<Disguise> disguise = java.util.Optional.empty();
+        if (root.has("disguise")) {
+            JsonObject d = root.getAsJsonObject("disguise");
+            List<ResourceLocation> decoys = new ArrayList<>();
+            for (JsonElement e : d.getAsJsonArray("decoys")) decoys.add(ResourceLocation.parse(e.getAsString()));
+            disguise = java.util.Optional.of(new Disguise(TowerJson.integer(d, "from_floor", 0), decoys));
+        }
         return new ScoutingProfileDefinition(
                 id,
                 TowerJson.requireInt(root, "schema_version"),
                 TowerJson.integer(root, "revision", 1),
-                categories);
+                categories,
+                disguise);
     }
 }
