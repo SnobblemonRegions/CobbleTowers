@@ -115,7 +115,9 @@ export function App() {
 export function HudApp() {
   const spec = useStore((s) => s.spec);
   const specAt = useStore((s) => s.specAt);
-  return html`<${Hud} spec=${spec} specAt=${specAt} />`;
+  const tray = useStore((s) => s.tray);
+  const trayAt = useStore((s) => s.trayAt);
+  return html`<${Hud} spec=${spec} specAt=${specAt} tray=${tray} trayAt=${trayAt} />`;
 }
 
 export { isHud };

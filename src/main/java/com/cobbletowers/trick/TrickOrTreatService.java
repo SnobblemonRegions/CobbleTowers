@@ -123,6 +123,8 @@ public final class TrickOrTreatService {
         String message;
         if (mine.isEmpty() || !mine.get().runId().equals(runId)) {
             message = "This vault belongs to another team.";
+        } else if (HauntedRare.active(runId)) {
+            message = HauntedRare.throwBy(server, player);   // the rare is out: a click on the vault is a throw
         } else if (BY_RUN.containsKey(runId)) {
             message = "The vault is already open.";
         } else if (openCard(mine.get()) < 0) {
@@ -198,6 +200,8 @@ public final class TrickOrTreatService {
             }
         }
         creditEach(server, run, purse);
+        int candy = queueCandyCorn(server, run, active.floor());
+        if (candy > 0) relicLine += " and " + candy + " Candy Corn";
         TowerLog.info("Run {} treat on floor {}: {} CobbleDollars each{}", run.runId(), active.floor(), purse, relicLine);
         for (PersistedParticipant participant : run.participants()) {
             ServerPlayer player = server.getPlayerList().getPlayer(participant.playerId());
@@ -205,6 +209,7 @@ public final class TrickOrTreatService {
             com.cobbletowers.economy.VendorServices.apply(VendorEffect.FULL_HEAL, player);
             player.sendSystemMessage(Component.literal("A treat! The vault pays " + purse + " CobbleDollars" + relicLine + " and the party is healed."));
         }
+        HauntedRare.offer(server, run, active.floor());
     }
 
     // ---- a trick ---------------------------------------------------------------------------------
@@ -270,6 +275,17 @@ public final class TrickOrTreatService {
         return FIGHTS.containsKey(runId);
     }
 
+    /** Operator tool ({@code runs losemimic}): ends each fighter's battle and counts it as lost, so the price stays taken. @return a line, or empty with no fight */
+    public static Optional<String> operatorLose(MinecraftServer server, UUID runId) {
+        Fight fight = FIGHTS.get(runId);
+        if (fight == null) return Optional.empty();
+        for (UUID playerId : new ArrayList<>(fight.waiting)) {
+            CobblemonBattleAdapter.endPlayer(server, runId, playerId);
+            resolve(server, runId, playerId, false);
+        }
+        return Optional.of("The mimic was lost by the operator.");
+    }
+
     /** Operator tool ({@code runs winfloor} while a mimic is being fought): ends each fighter's battle and counts it as won. @return a line, or empty with no fight */
     public static Optional<String> operatorWin(MinecraftServer server, UUID runId) {
         Fight fight = FIGHTS.get(runId);
@@ -307,6 +323,22 @@ public final class TrickOrTreatService {
 
     // ---- housekeeping ----------------------------------------------------------------------------
 
+    /**
+     * Queues Candy Corn for every player; the usual loot delivery hands it over (and holds it for /tower claim if the inventory is full).
+     * Returns the amount each gets, 0 when SpookySurge is not installed.
+     */
+    private static int queueCandyCorn(MinecraftServer server, PersistedRun run, int floor) {
+        if (!net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(TrickRules.CANDY_CORN)) return 0;
+        int amount = TrickRules.candyCorn(floor);
+        var queue = com.cobbletowers.persistence.TowerPendingRewardStore.get(server);
+        long now = System.currentTimeMillis();
+        for (PersistedParticipant participant : run.participants()) {
+            queue.add(participant.playerId(), new com.cobbletowers.persistence.PendingTowerReward(run.runId(), Math.max(1, floor), TrickRules.CANDY_CORN, amount, now));
+        }
+        queue.checkpoint(server);
+        return amount;
+    }
+
     private static void creditEach(MinecraftServer server, PersistedRun run, int amount) {
         if (amount <= 0) return;
         TowerWalletStore wallets = TowerWalletStore.get(server);
@@ -332,6 +364,7 @@ public final class TrickOrTreatService {
         if (shown != null) VaultService.remove(shown);
         NO_SPOT.remove(runId);
         FIGHTS.remove(runId);
+        HauntedRare.forget(runId);
     }
 
     public static void clear() {
@@ -340,6 +373,7 @@ public final class TrickOrTreatService {
         BY_VAULT.clear();
         BY_RUN.clear();
         FIGHTS.clear();
+        HauntedRare.clear();
     }
 
     /** For tests and the operator: the runs with an open vault. */

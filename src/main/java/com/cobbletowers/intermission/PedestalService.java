@@ -704,7 +704,21 @@ public final class PedestalService {
 
     // ---- clicking and looking --------------------------------------------------------------------------------
 
+    /** The tick of each player's last accepted click: one click arrives as two interaction events, and the copy must not vote on the next vote. */
+    private static final Map<UUID, Integer> LAST_CLICK = new HashMap<>();
+    private static final int CLICK_GAP_TICKS = 10;
+
+    private static boolean repeatedClick(ServerPlayer player) {
+        int now = player.server.getTickCount();
+        Integer last = LAST_CLICK.get(player.getUUID());
+        if (last != null && now - last < CLICK_GAP_TICKS) return true;
+        LAST_CLICK.put(player.getUUID(), now);
+        if (LAST_CLICK.size() > 32) LAST_CLICK.values().removeIf(tick -> now - tick > CLICK_GAP_TICKS);
+        return false;
+    }
+
     private static void click(ServerPlayer player, Entity entity) {
+        if (repeatedClick(player)) return;
         Optional<UUID> pedestalRun = entity.getTags().stream().map(PedestalRules::runOf).flatMap(Optional::stream).findFirst();
         Optional<Integer> card = entity.getTags().stream().map(PedestalRules::cardOf).flatMap(Optional::stream).findFirst();
         if (pedestalRun.isEmpty() || card.isEmpty()) return;

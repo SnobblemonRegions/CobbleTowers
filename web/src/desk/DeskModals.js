@@ -113,6 +113,18 @@ export function DeskSpectator({ spec }) {
   return html`<div class="fd-hud"><b>Following ${spec.teammateName}</b><div>${spec.remainingCount}/${spec.totalCount} Pokémon remaining</div><small>Floor ${spec.floorIndex} · ${spec.runStateLabel}</small></div>`;
 }
 
+/** The Haunted rare tray (P58): a click-through strip along the bottom. One wrapper per throw: landed, missed, or still to come. */
+export function DeskRareTray({ tray }) {
+  const marks = String(tray.marks || '---').split('');
+  const done = marks.every((m) => m !== '-') || marks.includes('h');
+  const next = marks.indexOf('-');
+  return html`<div class="fd-tray"><div class="fdt-candies" aria-label="Throws">${marks.map((m) => html`<i class=${'fdt-c ' + (m === 'h' ? 'hit' : m === 'm' ? 'miss' : '')}></i>`)}</div>
+    <div class="fdt-main"><b>Haunted ${tray.name} <small>Lv ${tray.level}</small></b>
+      <small>${done ? 'Finished' : 'Chance ' + tray.chancePercent + '% · throw ' + (next + 1) + ' of ' + marks.length}</small></div>
+    <div class="fdt-hint">${done ? '' : 'Right-click the vault'}</div>
+    <div class="fdt-msg">${tray.message}</div></div>`;
+}
+
 /** Shown before the server has sent anything. */
 export function DeskWaiting() {
   return html`<div class="fd"><div class="dbody" style="grid-template-columns:1fr;flex:1"><div class="dcard empty" style="display:grid;place-items:center"><div style="text-align:center"><h3 style="font-size:calc(var(--u) * 3)">CobbleTowers</h3><div class="dsub">Waiting for the tower…</div></div></div></div></div>`;

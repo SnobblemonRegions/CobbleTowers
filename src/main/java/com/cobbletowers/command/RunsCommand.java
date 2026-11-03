@@ -143,6 +143,20 @@ public final class RunsCommand {
         group.then(opOnRun("show", RunsCommand::show));
         // A moderator's way to end a run that is stuck (beta runbook): abandons it, or a run waiting for recovery.
         group.then(opOnRun("abandon", RunsCommand::abandon));
+        // Loses the Trick or Treat mimic under way for a player's run: the vault's price stays taken (admin testing).
+        group.then(op("losemimic")
+                .then(Commands.argument("player", EntityArgument.player())
+                        .executes(context -> {
+                            ServerPlayer target = EntityArgument.getPlayer(context, "player");
+                            Optional<PersistedRun> run = TowerRuns.forPlayer(target.getUUID());
+                            Optional<String> line = run.flatMap(r -> com.cobbletowers.trick.TrickOrTreatService.operatorLose(context.getSource().getServer(), r.runId()));
+                            if (line.isEmpty()) {
+                                context.getSource().sendFailure(Component.literal("No mimic is being fought."));
+                                return 0;
+                            }
+                            context.getSource().sendSuccess(() -> Component.literal(line.get()).withStyle(ChatFormatting.GOLD), true);
+                            return 1;
+                        })));
         // Wins the floor under way for a player's run, rewards and all (admin testing).
         group.then(op("winfloor")
                 .executes(context -> winFloor(context, context.getSource().getPlayerOrException()))
@@ -674,6 +688,17 @@ public final class RunsCommand {
         if (modifier.isEmpty()) {
             source.sendFailure(Component.literal("No modifier " + modifierId + " is loaded"));
             return 0;
+        }
+        if (modifier.get().relic()) {
+            // a relic is held beside the challenges, not drafted: it goes in the relic list, if there is room and the run does not already hold it
+            if (run.modifiers().relics().contains(modifierId) || !run.modifiers().hasRelicRoom()) {
+                source.sendFailure(Component.literal(modifierId + " is already held, or the run has no room for another relic: " + run.modifiers().relics()));
+                return 0;
+            }
+            TowerRuns.save(source.getServer(),
+                    run.withModifiers(run.modifiers().withRelic(modifierId, run.floorIndex() + 1), System.currentTimeMillis()), true);
+            source.sendSuccess(() -> Component.literal("Granted relic " + modifierId + " to run " + runId), true);
+            return 1;
         }
         if (!ModifierResolver.eligible(modifier.get(), DraftService.held(content, run.modifiers()))) {
             source.sendFailure(Component.literal(modifierId + " cannot be held alongside what this run"

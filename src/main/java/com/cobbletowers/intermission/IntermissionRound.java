@@ -80,6 +80,17 @@ public final class IntermissionRound {
         lastAnnounced = -1;
     }
 
+    private boolean autoWalkTried;
+
+    /** Whether the gate has already been opened on its own this intermission (once, so a floor that cannot be walked is not retried every tick). */
+    public boolean autoWalkTried() {
+        return autoWalkTried;
+    }
+
+    public void markAutoWalkTried() {
+        autoWalkTried = true;
+    }
+
     public void cancelWalk() {
         walkEndsAt = -1;
     }

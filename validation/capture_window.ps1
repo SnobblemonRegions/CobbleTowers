@@ -10,6 +10,7 @@ public class Win {
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
+  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, int flags, int extra);
   [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h, int x, int y, int w, int ht, bool repaint);
   public struct RECT { public int Left, Top, Right, Bottom; }
 }
@@ -20,6 +21,8 @@ $p = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
 if ($p -and $p.MainWindowHandle -eq 0) { $p.Refresh() }
 if (-not $p) { Write-Error "no client window"; exit 1 }
 [Win]::ShowWindow($p.MainWindowHandle, 9) | Out-Null
+# Windows only lets the process that last got input take the front: one Alt press (down, up) lifts that lock; the guard below still checks the result
+[Win]::keybd_event(0x12, 0, 0, 0); [Win]::keybd_event(0x12, 0, 2, 0)
 [Win]::SetForegroundWindow($p.MainWindowHandle) | Out-Null
 Start-Sleep -Milliseconds 400
 # never photograph anything but the test client: if another window is in front, the screen holds somebody else's content

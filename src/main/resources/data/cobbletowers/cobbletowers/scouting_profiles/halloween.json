@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "revision": 1,
+  "categories": [
+    { "name": "typing", "concealed_from_floor": 8 },
+    { "name": "threat_level", "concealed_from_floor": 9 },
+    { "name": "field_conditions", "concealed_from_floor": 7 }
+  ],
+  "disguise": {
+    "from_floor": 2,
+    "decoys": [
+      "cobblemon:gastly", "cobblemon:misdreavus", "cobblemon:shuppet", "cobblemon:litwick",
+      "cobblemon:phantump", "cobblemon:pumpkaboo", "cobblemon:yamask", "cobblemon:sableye"
+    ]
+  }
+}

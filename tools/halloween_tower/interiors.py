@@ -120,6 +120,9 @@ def weather(t, x0: int, x1: int, y0: int, y1: int, z0: int, z1: int, salt: int) 
     for x in range(x0, x1 + 1):
         for z in range(z0, z1 + 1):
             for y in range(y0, y1 + 1):
+                # only bricks age: a gate's or a door's bars in the same face must stay bars (the walk test found them replaced)
+                if t.at(t.grid.shape[0] - 1 - x if t.mirror else x, y, z) != BRICKS:
+                    continue
                 n = noise(x * 7 + y, z * 5 + y * 3, salt)
                 if n < 110:
                     t.set(x, y, z, CRACKED)

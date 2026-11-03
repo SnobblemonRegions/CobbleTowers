@@ -120,3 +120,14 @@ test('the mastery screen opens only when flagged; a reply fills it without openi
   const opened = reduce(hall, 'MasteryScreen', { open: true, towers: [], selected: '', tab: 'mastery' }, 3);
   assert.equal(opened.view, 'mastery');
 });
+
+test('the Haunted rare tray feeds only the HUD slice, and a closed one clears it', () => {
+  const open = { open: true, name: 'Phantump', level: 22, chancePercent: 27, marks: '---', message: '' };
+  const s = reduce(initial, 'HauntedRareTray', open, 77);
+  assert.equal(s.tray.name, 'Phantump');
+  assert.equal(s.trayAt, 77);
+  assert.equal(s.screen, null);
+  const t = reduce(s, 'HauntedRareTray', { ...open, open: false }, 99);
+  assert.equal(t.tray, null);
+  assert.equal(t.trayAt, 99);
+});

@@ -19,6 +19,8 @@ final class PageSession {
 
     /** The one kind shown on the HUD page; everything else belongs to the full-screen page. */
     static final String HUD_KIND = "SpectatorPanel";
+    /** Every kind the HUD page shows (the spectator panel and the Haunted rare tray). */
+    static final java.util.Set<String> HUD_KINDS = java.util.Set.of(HUD_KIND, "HauntedRareTray");
 
     /** What a payload does when it reaches a page, mirroring what the native client does with the same payload. */
     enum Policy {
@@ -120,7 +122,7 @@ final class PageSession {
         List<String> out = new ArrayList<>();
         if (since == NEVER) return out;
         for (Map.Entry<String, Stamped> entry : latest.entrySet()) {
-            if (entry.getKey().equals(HUD_KIND) != hud) continue;
+            if (HUD_KINDS.contains(entry.getKey()) != hud) continue;
             if (entry.getValue().at() >= since - 2_000) out.add(entry.getValue().json());
         }
         return out;

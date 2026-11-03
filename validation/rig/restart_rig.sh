@@ -7,7 +7,10 @@ echo "stop" >> console.txt
 for i in $(seq 1 40); do pgrep -f KnotServer >/dev/null || break; sleep 2; done
 rm -rf world/dimensions/cobbletowers/tower
 rm -f world/data/cobbletowers_runs.dat world/data/cobbletowers_cells.dat world/data/cobbletowers_run_stats.dat world/data/cobbletowers_*pending*.dat
-cp $REPO/build/libs/CobbleTowers-1.0.2+fabric-1.21.1.jar mods/
+rm -f mods/CobbleTowers-*.jar
+JAR=$(ls -t $REPO/build/libs/CobbleTowers-*+fabric-1.21.1.jar | head -1)   # the newest build, never a -sources jar
+cp "$JAR" mods/
+if [ -n "$RAIDS_JAR" ]; then rm -f mods/CobbleRaids-*.jar; cp "$RAIDS_JAR" mods/; fi   # a CobbleRaids build to test against
 : > console.txt
 (setsid bash $SP/srv_up.sh >/dev/null 2>&1 &)
 for i in $(seq 1 60); do grep -aq "Done (" $SP/live.log && break; sleep 2; done

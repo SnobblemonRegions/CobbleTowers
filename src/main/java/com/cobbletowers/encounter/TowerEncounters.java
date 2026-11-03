@@ -193,7 +193,7 @@ public final class TowerEncounters {
             BlockPos where = setup.presentation(ordinal);
             // Declared and armed before the battle starts: the enemy's ascension effects ride its >start, so the
             // enemy a Scouter reveals has to exist by then.
-            String scoutId = FloorScouting.declareOpponent(run.runId(), player.getUUID(), run.floorIndex(),
+            String scoutId = FloorScouting.declareOpponent(setup, run.runId(), player.getUUID(), run.floorIndex(),
                     snapshot.get());
             Optional<UUID> battle = AscensionLibScouting.armed(List.of(player.getUUID()), scoutId,
                     () -> CobblemonBattleAdapter.start(setup.level(), player, snapshot.get(), where, run.runId(),
@@ -348,8 +348,10 @@ public final class TowerEncounters {
         Optional<EncounterSnapshot> drawn = EncounterDraw.draw(setup.pool(), run.seed(), run.floorIndex(), 40 + ordinal,
                 levelsOf(run, List.of(player)), setup.ruleset(), DraftService.effects(run).levelOffset(), setup.theme());
         if (drawn.isEmpty()) return false;
+        // the vault's mimic wears its costume: Mimikyu at the level the floor drew
+        EncounterSnapshot mimic = com.cobbletowers.trick.TrickRules.mimicOf(drawn.get());
         return AscensionLibScouting.armed(List.of(player.getUUID()), null,
-                () -> CobblemonBattleAdapter.startExhibition(setup.level(), player, drawn.get(), where, run.runId(), run.floorIndex())).isPresent();
+                () -> CobblemonBattleAdapter.startExhibition(setup.level(), player, mimic, where, run.runId(), run.floorIndex())).isPresent();
     }
 
     /**
@@ -376,7 +378,7 @@ public final class TowerEncounters {
         RunDraws.record(server, run.runId(), run.floorIndex(), wave.nextOrdinal(), snapshot.get().species().getPath());
 
         BlockPos where = setup.presentation(wave.nextOrdinal());
-        String scoutId = FloorScouting.declareOpponent(round.runId(), playerId, run.floorIndex(), snapshot.get());
+        String scoutId = FloorScouting.declareOpponent(setup, round.runId(), playerId, run.floorIndex(), snapshot.get());
         Optional<UUID> battle = AscensionLibScouting.armed(List.of(playerId), scoutId,
                 () -> CobblemonBattleAdapter.start(setup.level(), player, snapshot.get(), where, round.runId(),
                         run.floorIndex()));

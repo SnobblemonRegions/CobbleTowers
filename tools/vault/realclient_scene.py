@@ -1,13 +1,19 @@
-"""Drives a REAL vanilla Minecraft 1.21.1 client (no client mod; only the Polymer resource pack from the server) around the vault and takes
-screenshots: closed, open, the four facings and an animation spot-check. Needs a running scratch server with CobbleTowers (console fed from
-a file) and the client logged in as ShotCam under Xvfb :99. Paths come from the environment:  SP (scratchpad), OUT (screenshot dir)."""
+"""Drives a REAL Minecraft 1.21.1 client around the vault and takes screenshots: closed, open, the four facings and an animation spot-check.
+The client is Fabric + Fabric API + Cobblemon + fabric-language-kotlin (what players have) with the Polymer resource pack from the server and
+no CobbleTowers client mod; a pure vanilla client cannot join a Cobblemon server (see docs/handoff/rig-recipe.md). Needs a running scratch
+server with CobbleTowers (console fed from a file) and the client logged in as ShotCam under Xvfb :99. Paths come from the environment:
+SP (rig folder: srv/console.txt and live.log), OUT (screenshot dir).
+
+The HUD is hidden with F1 (TOGGLE_HUD=1 presses it once; leave it unset if the HUD is already hidden). The script puts ShotCam in creative
+before it teleports it, so a fresh survival player does not die from the fall. Under software GL the client is slow and handles input late,
+so the frames are screen grabs, not tick-exact."""
 import os, re, subprocess, sys, time
 
 SP = os.environ["SP"]
 OUT = os.environ["OUT"]
 CONSOLE, LOG = f"{SP}/srv/console.txt", f"{SP}/live.log"
 ENV = dict(os.environ, DISPLAY=":99")
-os.makedirs(OUT, exist_ok=True)
+os.makedirs(f"{OUT}/anim", exist_ok=True)
 
 
 def cmd(c, wait=0.35):
@@ -37,13 +43,15 @@ def cam(x, y, z, yaw, pitch):
 
 
 def setup():
-    cmd("execute in minecraft:overworld run forceload add -20 -20 20 20", 1.0)
-    cmd("execute in minecraft:overworld run tp ShotCam 0.5 101 8.5 180 10", 6.0)
+    # creative first, then the stage, then the teleport: a survival player teleported to y=101 dies from the fall
     for c in ("op ShotCam", "gamemode creative ShotCam", "gamerule doDaylightCycle false", "gamerule doWeatherCycle false", "time set 6000", "weather clear",
-              "gamerule doMobSpawning false", "gamerule randomTickSpeed 0",
-              "execute in minecraft:overworld run fill -16 99 -16 16 99 16 minecraft:smooth_stone",
+              "gamerule doMobSpawning false", "gamerule randomTickSpeed 0"):
+        cmd(c, 0.5)
+    cmd("execute in minecraft:overworld run forceload add -20 -20 20 20", 2.0)
+    for c in ("execute in minecraft:overworld run fill -16 99 -16 16 99 16 minecraft:smooth_stone",
               "execute in minecraft:overworld run fill -16 100 -16 16 114 16 minecraft:air"):
         cmd(c, 0.5)
+    cmd("execute in minecraft:overworld run tp ShotCam 0.5 101 8.5 180 10", 6.0)
 
 
 def facing_vec(f):

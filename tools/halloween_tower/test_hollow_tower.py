@@ -20,6 +20,17 @@ class HollowTowerTest(unittest.TestCase):
     def test_the_tower_is_valid(self):
         self.assertEqual([], ht.validate(self.t))
 
+    def test_gates_and_doors_are_bars_all_through(self):
+        """The wall-aging pass once scattered cracked and gilded bricks over the bars of gate A and the doors: aging only touches bricks."""
+        for floor in range(1, 11):
+            lay = ht.layout(floor)
+            boxes = [("gate A", lay["gate_a"])] + ([("gate B", lay["gate_b"])] if "gate_b" in lay else []) + [(f"door {i}", d["open"]) for i, d in enumerate(lay["doors"])]
+            for name, b in boxes:
+                for x in range(b["min"][0], b["max"][0] + 1):
+                    for y in range(b["min"][1], b["max"][1] + 1):
+                        for z in range(b["min"][2], b["max"][2] + 1):
+                            self.assertEqual("minecraft:iron_bars", self.t.at(x, y, z), (floor, name, x, y, z))
+
     def test_dimensions_and_floor_levels(self):
         self.assertEqual((97, 121, 97), self.t.grid.shape)
         self.assertEqual([6, 16, 26, 36, 46, 56, 66, 76, 86, 96], [ht.feet(k) for k in range(1, 11)])

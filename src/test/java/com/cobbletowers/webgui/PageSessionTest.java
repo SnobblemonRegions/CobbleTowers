@@ -189,4 +189,18 @@ class PageSessionTest {
     void clickAnswerWithoutPage() {
         assertEquals(OPEN, session.offer("IntermissionState", "{i}", false, UPDATE_OR_OPEN_IF_FLAGGED, true, true, 0, HEARTBEAT, LOAD));
     }
+
+    @Test
+    void theRareTrayIsReplayedToTheHudPageNotTheFullPage() {
+        PageSession session = new PageSession();
+        assertEquals(OPEN, session.offer("HauntedRareTray", "tray", true, UPDATE_OR_OPEN, true, 100, 8, 6000));
+        assertEquals(List.of("tray"), session.hello(true, 200));
+        assertEquals(List.of(), session.hello(false, 300));
+    }
+
+    @Test
+    void takingTheTrayDownNeverOpensAPage() {
+        PageSession session = new PageSession();
+        assertEquals(NOTHING, session.offer("HauntedRareTray", "closed", true, UPDATE_ONLY, true, 100, 8, 6000));
+    }
 }

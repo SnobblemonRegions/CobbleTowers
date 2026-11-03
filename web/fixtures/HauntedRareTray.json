@@ -1,0 +1,11 @@
+{
+  "kind": "HauntedRareTray",
+  "data": {
+    "open": true,
+    "name": "Phantump",
+    "level": 22,
+    "chancePercent": 37,
+    "marks": "m--",
+    "message": "It slipped away! (27%) 2 throws left."
+  }
+}

@@ -237,6 +237,11 @@
 .fd .dgood b { font: 800 calc(var(--u) * 1.4) Outfit; } .fd .dgood span { color: var(--afg); font-weight: 700; font-size: calc(var(--u) * 1.2); } .fd .dgood small { color: var(--mut); font-size: calc(var(--u) * 1); }
 .fd .dgood.sel { border-color: var(--pri); box-shadow: 0 0 0 calc(var(--u) * .25) var(--glow); } .fd .dgood:focus-visible { outline: 3px solid var(--pri); outline-offset: 2px; }
 .fd .dach.pick { border-color: var(--pri); box-shadow: 0 0 0 calc(var(--u) * .25) var(--glow); } .fd button.dach { text-align: left; cursor: pointer; font: inherit; color: var(--ink); }
+.fd-tray { --u: min(1vw, 1.7778vh); position: fixed; left: 50%; bottom: 0; translate: -50% 0; width: min(calc(var(--u) * 52), 96vw); pointer-events: none; background: #241540ee; color: #f1e9dc; border: calc(var(--u) * .2) solid #5a4685; border-bottom: 0; border-radius: calc(var(--u) * 1.4) calc(var(--u) * 1.4) 0 0; padding: calc(var(--u) * 1.1) calc(var(--u) * 1.6); display: grid; grid-template-columns: auto 1fr auto; gap: calc(var(--u) * .4) calc(var(--u) * 1.4); align-items: center; font: 600 calc(var(--u) * 1.5) Outfit, sans-serif; animation: fdt-up .35s ease-out 1; }
+.fd-tray b { font-weight: 800; } .fd-tray small { display: block; opacity: .75; font-size: .85em; } .fd-tray b small { display: inline; }
+.fdt-candies { display: flex; gap: calc(var(--u) * .6); } .fdt-c { display: block; width: calc(var(--u) * 2.6); height: calc(var(--u) * 1.5); background: #f4c542; clip-path: polygon(0 50%, 14% 0, 86% 0, 100% 50%, 86% 100%, 14% 100%); } .fdt-c.hit { background: #4fbf7a; } .fdt-c.miss { background: #4a3a66; }
+.fdt-hint { font-size: .8em; color: #b9a6e8; } .fdt-msg { grid-column: 1 / -1; min-height: 1.3em; font-size: .9em; }
+@keyframes fdt-up { from { translate: -50% 100%; } to { translate: -50% 0; } }
 .fd-hud { --u: min(1vw, 1.7778vh); position: fixed; left: calc(var(--u) * 1.6); top: calc(var(--u) * 1.6); pointer-events: none; background: #16202ee6; color: #fff; padding: calc(var(--u) * 1.1) calc(var(--u) * 1.6); border-radius: calc(var(--u) * 1.2); font: 600 calc(var(--u) * 1.5) Outfit, sans-serif; } .fd-hud b { display: block; font-weight: 800; } .fd-hud small { opacity: .75; }
 
 /* the rental cards keep their own type gems and level text: the desk's chip and tile classes must not reach them */

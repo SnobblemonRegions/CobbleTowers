@@ -144,6 +144,19 @@ def main() -> None:
                 return math.degrees(math.atan2(-(tx - fx), tz - fz))
 
             time.sleep(6)
+            for _ in range(30):   # the arrival teleport can land after ENCOUNTER_ACTIVE; the lobby platform is at y 200
+                me = pos()
+                if me[1] < 150:
+                    break
+                time.sleep(2)
+            else:
+                for q in ("Dimension", "playerGameType", "Health", "OnGround"):
+                    print("diag", q, ascii(rcon.command(f"data get entity {ps.VIEWER} {q}")))
+                print("diag runs", ascii(rcon.command("cobbletowers runs list")))
+                print("diag battle", ascii(rcon.command("cobbletowers runs encounter")))
+                print("HOLDING for live diagnosis", flush=True)
+                time.sleep(float(os.environ.get("HOLD_SECONDS", "0")))
+                sys.exit(f"the player never reached the arena, still at {me}: " + run_line(rcon))
             me = pos()
             first = layout(1)["entry"]
             off = (me[0] - first["x"], me[1] - first["y"], me[2] - first["z"])

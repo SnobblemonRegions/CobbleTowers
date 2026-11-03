@@ -1,6 +1,7 @@
 package com.cobbletowers.trick;
 
 import com.cobbletowers.encounter.EncounterSeed;
+import com.cobbletowers.encounter.EncounterSnapshot;
 import com.cobbletowers.persistence.LedgerEntry;
 import com.cobbletowers.reward.RewardValuation;
 import java.util.ArrayList;
@@ -26,7 +27,24 @@ public final class TrickRules {
     /** Its own ordinal space, like every other draw. */
     static final int ORDINAL_BASE = 7_000_019;
 
+    /** The vault's mimic is Mimikyu in its Halloween skin (the cosmetic aspect is ignored by Cobblemon where the skin pack is not installed). */
+    public static final ResourceLocation MIMIC_SPECIES = ResourceLocation.fromNamespaceAndPath("cobblemon", "mimikyu");
+    public static final String MIMIC_ASPECT = "snobble_halloween_mimikyu";
+
+    /** SpookySurge's item, paid with a treat. */
+    public static final ResourceLocation CANDY_CORN = ResourceLocation.fromNamespaceAndPath("spookysurge", "candy_corn");
+
+    /** How many Candy Corn a treat on this floor pays each player: 5 on the first floor, 2 more for each floor after. */
+    public static int candyCorn(int floorIndex) {
+        return 5 + 2 * Math.max(0, floorIndex);
+    }
+
     private TrickRules() {}
+
+    /** The mimic that fights in place of the opponent drawn for this slot: the same level, so the difficulty is the floor's, but wearing the vault's costume. */
+    public static EncounterSnapshot mimicOf(EncounterSnapshot drawn) {
+        return new EncounterSnapshot(drawn.ordinal(), MIMIC_SPECIES, List.of(MIMIC_ASPECT), drawn.level());
+    }
 
     public enum Result { TREAT, TRICK }
 
