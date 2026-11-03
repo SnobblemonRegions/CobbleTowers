@@ -1,13 +1,15 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "type": "enemy",
   "display_name": "Double Trouble",
   "risk": "severe",
   "weight": 70,
   "stack_limit": 1,
-  "excludes": ["cobbletowers:sharpened_claws"],
+  "excludes": [
+    "cobbletowers:sharpened_claws"
+  ],
   "effect": {
-    "level_offset": 7
+    "boss_level_offset": 5
   }
 }

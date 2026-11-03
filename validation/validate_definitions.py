@@ -219,7 +219,7 @@ def check_modifiers(content: dict, problems: list[str]) -> None:
         "custom": ("custom", "battle"),
     }
     battle_ops = ("weather", "terrain", "boost", "evs", "hp", "status", "sidecondition", "suppress_items", "drain",
-                  "damage", "resist")
+                  "damage", "resist", "enrage", "cap")
     known_customs = ("glass_cannon", "field_hospital", "fortunes_wheel", "black_market",
                      "swift_start", "iron_hide", "war_banner")
     for modifier_id, modifier in content["modifiers"].items():

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "type": "custom",
   "display_name": "Ember Brand",
   "risk": "minor",
@@ -15,7 +15,7 @@
       {
         "op": "damage",
         "side": "self",
-        "percent": 125,
+        "percent": 115,
         "type": "Fire"
       }
     ]

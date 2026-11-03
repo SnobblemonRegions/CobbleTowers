@@ -41,6 +41,8 @@ public final class TowerLobby {
     private long countdownEndsAt = -1;
     /** The Ascension the team will start at (P30); 0 is the ordinary start. */
     private int ascension;
+    /** The Threat band the team picked at the door (balance phase 2): 1-6, or 0 for none. Advice is shown, nothing is locked. */
+    private int entryThreat;
     /**
      * The trial (P32) the team will attempt, empty for an ordinary run. It fixes the tower, playlist, seed and floor
      * limit.
@@ -129,6 +131,15 @@ public final class TowerLobby {
         this.playlist = next;
         modeConfirmed = false;
         ready.clear();
+        cancelCountdown();
+    }
+
+    public int entryThreat() {
+        return entryThreat;
+    }
+
+    public void setEntryThreat(int next) {
+        this.entryThreat = com.cobbletowers.ascension.ThreatPolicy.clampEntry(next);
         cancelCountdown();
     }
 

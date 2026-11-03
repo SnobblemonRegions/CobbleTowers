@@ -126,10 +126,20 @@ public final class ArmorBonusEffects {
     public static JsonArray battleEffects(ServerPlayer player, java.util.UUID runId, boolean enemyScaling) {
         JsonArray ops = battleEffects(player);
         com.cobbletowers.runtime.TowerRuns.get(runId).ifPresent(run -> {
-            com.cobbletowers.modifier.DraftService.customs(run).battleOps().forEach(ops::add);
-            int ascension = com.cobbletowers.modifier.DraftService.ascensionOf(run);
+            // An enrage is the run's, not the player's: like the enemy's growth, only the one player who asks sends it, or
+            // a boss battle merging everyone's operations would enrage once per player.
+            for (var op : com.cobbletowers.modifier.DraftService.customs(run).battleOps()) {
+                boolean enrage = op.isJsonObject() && op.getAsJsonObject().has("op")
+                        && "enrage".equals(op.getAsJsonObject().get("op").getAsString());
+                if (enemyScaling || !enrage) ops.add(op);
+            }
+            // The boon and the enemy's growth follow the same Ascension, which for a Threat run counts only the cycles past VII.
+            int ascension = com.cobbletowers.modifier.DraftService.growthAscensionOf(run);
             com.cobbletowers.ascension.AscensionFx.boon(ascension).forEach(ops::add);
-            if (enemyScaling) com.cobbletowers.ascension.AscensionFx.enemy(ascension).forEach(ops::add);
+            if (enemyScaling) {
+                var tower = com.cobbletowers.definition.TowerDefinitionRegistry.content().towers().get(run.towerId());
+                com.cobbletowers.ascension.AscensionFx.enemy(ascension, tower != null && tower.bossRush()).forEach(ops::add);
+            }
             com.cobbletowers.encounter.RegionFx.ops(run, player.getUUID(), enemyScaling).forEach(ops::add);
         });
         return ops;

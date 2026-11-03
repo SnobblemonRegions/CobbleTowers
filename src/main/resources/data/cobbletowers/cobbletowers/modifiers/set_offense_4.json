@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "type": "custom",
   "display_name": "Offense Set (4)",
   "risk": "minor",
@@ -15,19 +15,8 @@
       {
         "op": "damage",
         "side": "self",
-        "percent": 110
-      },
-      {
-        "op": "boost",
-        "side": "self",
-        "stat": "atk",
-        "stages": 1
-      },
-      {
-        "op": "boost",
-        "side": "self",
-        "stat": "spa",
-        "stages": 1
+        "percent": 112,
+        "type": "any"
       }
     ]
   }

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "type": "enemy",
   "display_name": "Fragile Champion",
   "risk": "minor",
@@ -11,6 +11,10 @@
     "cobbletowers:colossus"
   ],
   "effect": {
-    "boss_health_percent": 70
-  }
+    "boss_health_percent": 85
+  },
+  "relic": true,
+  "tags": [
+    "boss"
+  ]
 }

@@ -132,6 +132,7 @@ public final class TowerEncounters {
 
         arrive(server, setup, fighters);
         ModifierEffects effects = DraftService.effects(run);
+        if (setup.tower().bossRush()) return beginBossRush(server, setup, fighters);
         Optional<Round> round = startOpponents(server, setup, fighters, partyLevels, effects);
         if (round.isEmpty()) {
             TowerLog.error("Run {} drew no opponents at all for floor {}; pool {} produced nothing",
@@ -143,6 +144,25 @@ public final class TowerEncounters {
                 round.get().byPlayer().size(),
                 effects.extraOpponents() > 0 ? " plus " + effects.extraOpponents() + " more each" : "");
         return round;
+    }
+
+    /**
+     * A boss-rush floor (balance phase 2): no opponent wave, everyone who can fight goes straight to the floor's boss. The round is built as if every
+     * fighter had cleared the wave, which is exactly what the normal path hands {@link FloorBoss#start}, so the boss, its rewards and its ending are
+     * unchanged.
+     */
+    private static Optional<Round> beginBossRush(MinecraftServer server, FloorSetup setup, List<ServerPlayer> fighters) {
+        PersistedRun run = setup.run();
+        Map<UUID, Status> byPlayer = new LinkedHashMap<>();
+        for (ServerPlayer player : fighters) byPlayer.put(player.getUUID(), Status.CLEARED);
+        Round round = new Round(run.runId(), run.floorIndex(), Phase.PREREQUISITE, byPlayer, Map.of(), System.currentTimeMillis());
+        if (!FloorBoss.start(server, round, System.currentTimeMillis())) {
+            TowerLog.error("Boss-rush floor {} of run {}: the boss could not be started", run.floorIndex(), run.runId());
+            return Optional.empty();
+        }
+        Round started = ROUNDS.get(run.runId());
+        TowerLog.info("Boss-rush floor {} of run {} begun against its boss with {} fighter(s)", run.floorIndex(), run.runId(), fighters.size());
+        return Optional.ofNullable(started);
     }
 
     /** The run's participants who can fight and are online. */

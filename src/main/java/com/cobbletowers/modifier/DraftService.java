@@ -114,7 +114,19 @@ public final class DraftService {
 
     /** A run's effects, read from whatever content is loaded now. */
     public static ModifierEffects effects(PersistedRun run) {
-        return effects(TowerDefinitionRegistry.content(), run.modifiers()).withAscension(ascensionOf(run));
+        int ascension = ascensionOf(run);
+        return effects(TowerDefinitionRegistry.content(), run.modifiers())
+                .withAscension(growthAscensionOf(run), ascension);
+    }
+
+    /**
+     * The Ascension the old difficulty growth counts from (balance phase 2): every cycle for a run with no Threat band, only the cycles past Threat VII for
+     * a run with one while AscensionLib has Threat on.
+     */
+    public static int growthAscensionOf(PersistedRun run) {
+        int ascension = ascensionOf(run);
+        if (!com.cobbletowers.economy.AscensionLibScouting.threatEnabled()) return ascension;
+        return com.cobbletowers.ascension.ThreatPolicy.rampAscension(run.options().entryThreat(), ascension);
     }
 
     /** Which Ascension a run's current floor is in (0 for the base cycle, and for any tower that does not ascend). */

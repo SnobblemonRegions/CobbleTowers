@@ -20,6 +20,8 @@ public final class AscensionLibScouting {
     private static Method end;
     private static Method arm;
     private static Method disarm;
+    private static Method threatEnabled;
+    private static Method recommendedThreat;
     private static boolean saidUnknown;
 
     private AscensionLibScouting() {}
@@ -74,6 +76,26 @@ public final class AscensionLibScouting {
         }
     }
 
+    /** Whether AscensionLib's Threat system is on (balance phase 2); false when the library is missing or too old for it. */
+    public static boolean threatEnabled() {
+        if (!resolve() || threatEnabled == null) return false;
+        try {
+            return Boolean.TRUE.equals(threatEnabled.invoke(null));
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ex) {
+            return false;
+        }
+    }
+
+    /** The Threat band (1-6) the library advises for these players' teams, or 1 when it cannot say. Advice only. */
+    public static int recommendedThreat(Collection<UUID> players) {
+        if (!resolve() || recommendedThreat == null) return 1;
+        try {
+            return recommendedThreat.invoke(null, players) instanceof Integer band ? band : 1;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ex) {
+            return 1;
+        }
+    }
+
     /**
      * Runs {@code start} with these players armed for {@code encounterId} (null: explicitly native), always
      * disarming.
@@ -98,6 +120,14 @@ public final class AscensionLibScouting {
                 end = encounters.getMethod("end", String.class);
                 arm = encounters.getMethod("armBattle", Collection.class, String.class);
                 disarm = encounters.getMethod("disarmBattle", Collection.class);
+                try {
+                    // Newer than the rest (AscensionLib balance phase 1): without them every run keeps the floor tiers.
+                    threatEnabled = encounters.getMethod("threatEnabled");
+                    recommendedThreat = encounters.getMethod("recommendedThreat", Collection.class);
+                } catch (NoSuchMethodException older) {
+                    threatEnabled = null;
+                    recommendedThreat = null;
+                }
             } catch (ReflectiveOperationException | LinkageError ex) {
                 declare = null;
                 end = null;

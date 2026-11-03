@@ -52,7 +52,8 @@ class TagBonusTest {
     @DisplayName("held battle operations reach the battle ops a run sends, after the coded behaviors")
     void opsReachTheBattle() {
         var ops = CustomEffects.of(List.of(relic("a", "offense", 120), relic("b", "offense", 110))).battleOps();
-        assertEquals(2, ops.size());
+        assertEquals(3, ops.size(), "two relic ops plus the trailing cap op (balance phase 2)");
+        assertEquals("cap", ops.get(2).getAsJsonObject().get("op").getAsString());
         assertEquals(120, ops.get(0).getAsJsonObject().get("percent").getAsInt());
         assertTrue(CustomEffects.NONE.battleOps().isEmpty());
     }

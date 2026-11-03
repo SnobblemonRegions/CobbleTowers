@@ -12,7 +12,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  */
 public record PlayActionPayload(Action action, String argument) implements CustomPacketPayload {
 
-    public enum Action { SELECT_TOWER, INVITE, ACCEPT, DECLINE, START, LEAVE, REFRESH, OPEN_CHOOSER, TOGGLE_POKEMON, CLEAR_CHOICE, SET_ASCENSION, SET_PLAYLIST, READY, UNREADY, CONFIRM_MODE }
+    public enum Action { SELECT_TOWER, INVITE, ACCEPT, DECLINE, START, LEAVE, REFRESH, OPEN_CHOOSER, TOGGLE_POKEMON, CLEAR_CHOICE, SET_ASCENSION, SET_PLAYLIST, READY, UNREADY, CONFIRM_MODE, SET_THREAT }
 
     public static final CustomPacketPayload.Type<PlayActionPayload> TYPE = new CustomPacketPayload.Type<>(
             CobbleTowers.id("play_action"));

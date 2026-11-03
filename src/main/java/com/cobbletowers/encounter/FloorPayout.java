@@ -64,12 +64,20 @@ final class FloorPayout {
             // Pokemon fainted during the cycle (the mastery stats reset at the cycle's first floor).
             var stats = com.cobbletowers.persistence.TowerRunStatsStore.get(server).peek(run.runId());
             boolean flawless = stats != null && stats.faints == 0;
+            int cycle = tower.ascensionOf(binding.floorIndex());
+            int band = com.cobbletowers.ascension.ThreatPolicy.bandFor(run.options().entryThreat(), cycle, true);
+            // Balance phase 2: under Threat the chest is scored by risk points (minor 1, moderate 2, severe 3; relics 0),
+            // so one severe card counts for more than three minor ones. Ascension is already in the band.
+            int score = band > 0
+                    ? com.cobbletowers.modifier.RunDifficulty.of(content, run.modifiers(), 0).points()
+                    : run.modifiers().accumulated().size();
             AscensionLibRewards.settleCompletion(server, result.encounterId(), outcome, binding.floorIndex(),
-                    tower.ascensionOf(binding.floorIndex()), run.modifiers().accumulated().size(), flawless, run.towerId().toString(), members, now);
+                    cycle, score, flawless, run.towerId().toString(), members, now, band);
             return;
         }
+        int cycle = tower == null ? 0 : tower.ascensionOf(binding.floorIndex());
         AscensionLibRewards.settleMilestone(server, result.encounterId(), outcome, from, binding.floorIndex(),
-                members, now);
+                members, now, com.cobbletowers.ascension.ThreatPolicy.bandFor(run.options().entryThreat(), cycle, false));
     }
 
     /** A trial's rank (1-3) follows its length like the scouting tiers: 1-4 floors rank 1, 5-9 rank 2, 10+ rank 3. */

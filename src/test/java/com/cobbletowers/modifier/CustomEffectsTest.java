@@ -58,9 +58,11 @@ class CustomEffectsTest {
         assertTrue(held(CustomBehavior.FIELD_HOSPITAL).healsEachIntermission());
         var ops = held(CustomBehavior.GLASS_CANNON).battleOps();
         assertEquals(3, ops.size());
-        assertEquals("boost", ops.get(0).getAsJsonObject().get("op").getAsString());
+        assertEquals("damage", ops.get(0).getAsJsonObject().get("op").getAsString());
+        assertEquals(140, ops.get(0).getAsJsonObject().get("percent").getAsInt());
         assertEquals("self", ops.get(0).getAsJsonObject().get("side").getAsString());
-        assertEquals(60, ops.get(2).getAsJsonObject().get("percent").getAsInt());
+        assertEquals(60, ops.get(1).getAsJsonObject().get("percent").getAsInt());
+        assertEquals("cap", ops.get(2).getAsJsonObject().get("op").getAsString(), "the relic cap rides last");
     }
 
     @Test
@@ -78,12 +80,12 @@ class CustomEffectsTest {
     }
 
     @Test
-    @DisplayName("the relic behaviors each start the party's battles with one-stage boosts, and stack with each other")
+    @DisplayName("the relic behaviors each add one op, stack with each other, and carry a single cap")
     void relicBoosts() {
-        assertEquals(1, held(CustomBehavior.SWIFT_START).battleOps().size());
+        assertEquals(2, held(CustomBehavior.SWIFT_START).battleOps().size());
         assertEquals(2, held(CustomBehavior.IRON_HIDE).battleOps().size());
         assertEquals(2, held(CustomBehavior.WAR_BANNER).battleOps().size());
-        assertEquals(5, held(CustomBehavior.SWIFT_START, CustomBehavior.IRON_HIDE, CustomBehavior.WAR_BANNER)
+        assertEquals(4, held(CustomBehavior.SWIFT_START, CustomBehavior.IRON_HIDE, CustomBehavior.WAR_BANNER)
                 .battleOps().size());
     }
 }
