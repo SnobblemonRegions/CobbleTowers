@@ -6,7 +6,10 @@ import com.cobbletowers.TowerLog;
 import com.cobbletowers.definition.TowerDefinitionRegistry;
 import com.cobbletowers.definition.VendorEffect;
 import com.cobbletowers.echo.EchoDuels;
+import com.cobbletowers.encounter.EncounterSeed;
 import com.cobbletowers.encounter.TowerEncounters;
+import com.cobbletowers.trial.TrialClock;
+import com.cobbletowers.trial.TrialService;
 import com.cobbletowers.halloween.vault.VaultEvent;
 import com.cobbletowers.halloween.vault.VaultFacing;
 import com.cobbletowers.halloween.vault.VaultMachine;
@@ -149,7 +152,7 @@ public final class TrickOrTreatService {
 
     private static void openUnguarded(MinecraftServer server, PersistedRun run, int floorIndex) {
         if (BY_RUN.containsKey(run.runId())) return;
-        TrickRules.Result result = TrickRules.roll(run.seed(), floorIndex);
+        TrickRules.Result result = TrickRules.roll(EncounterSeed.hidden(run.seed(), run.runId()), floorIndex);
         Optional<TowerDoors.RoomSpot> spot = TowerDoors.roomSpot(server, run, run.modifiers().lastLane());
         if (spot.isEmpty()) {
             // No built room to show it in: still settle the coin, so the vote is never a silent nothing.
@@ -191,7 +194,7 @@ public final class TrickOrTreatService {
         int purse = IntermissionEvents.vaultPurse(active.floor());
         String relicLine = "";
         // the run is saved first: a crash between the two leaves a free relic, never a paid-for nothing
-        if (TrickRules.treatHasRelic(run.seed(), active.floor())) {
+        if (TrickRules.treatHasRelic(EncounterSeed.hidden(run.seed(), run.runId()), active.floor())) {
             var relic = IntermissionEvents.treatRelic(TowerDefinitionRegistry.content(), run, active.floor());
             if (relic.isPresent()) {
                 RunModifierState next = run.modifiers().withRelic(relic.get().id(), active.floor() + 1);
@@ -221,7 +224,7 @@ public final class TrickOrTreatService {
         PersistedRun run = found.get();
         int floor = active.floor();
         // The price is taken before the fight and given back on a win.
-        Optional<ResourceLocation> relic = TrickRules.relicLost(run.modifiers().relics(), run.seed(), floor);
+        Optional<ResourceLocation> relic = TrickRules.relicLost(run.modifiers().relics(), EncounterSeed.hidden(run.seed(), run.runId()), floor);
         RunModifierState held = run.modifiers();
         RunModifierState state = relic.isPresent() ? held.withoutRelic(relic.get()) : held;
         long now = System.currentTimeMillis();
@@ -325,16 +328,33 @@ public final class TrickOrTreatService {
 
     /**
      * Queues Candy Corn for every player; the usual loot delivery hands it over (and holds it for /tower claim if the inventory is full).
-     * Returns the amount each gets, 0 when SpookySurge is not installed.
+     * Each player's share is cut to what is left of their daily cap ({@value TrickRules#DAILY_CANDY_CORN_CAP}), and what is queued is
+     * counted against that cap at once, so a restart or a second run cannot pay the same day twice. A practice trial pays none.
+     * Returns the amount a player under the cap gets, 0 when SpookySurge is not installed or the run is a practice.
      */
     private static int queueCandyCorn(MinecraftServer server, PersistedRun run, int floor) {
         if (!net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(TrickRules.CANDY_CORN)) return 0;
+        if (com.cobbletowers.reward.PracticeTrialReward.isPractice(run.options())) return 0;
         int amount = TrickRules.candyCorn(floor);
         var queue = com.cobbletowers.persistence.TowerPendingRewardStore.get(server);
+        var paid = com.cobbletowers.persistence.TowerCandyCornStore.get(server);
+        String day = TrialClock.dayKey(TrialService.today());
         long now = System.currentTimeMillis();
         for (PersistedParticipant participant : run.participants()) {
-            queue.add(participant.playerId(), new com.cobbletowers.persistence.PendingTowerReward(run.runId(), Math.max(1, floor), TrickRules.CANDY_CORN, amount, now));
+            UUID id = participant.playerId();
+            int share = TrickRules.candyCornPayable(amount, paid.paidOn(id, day));
+            if (share <= 0) {
+                ServerPlayer capped = server.getPlayerList().getPlayer(id);
+                if (capped != null) {
+                    capped.sendSystemMessage(Component.literal("You have already earned " + TrickRules.DAILY_CANDY_CORN_CAP
+                            + " Candy Corn from the towers today. The vault pays you none more until tomorrow."));
+                }
+                continue;
+            }
+            paid.record(id, day, share);
+            queue.add(id, new com.cobbletowers.persistence.PendingTowerReward(run.runId(), Math.max(1, floor), TrickRules.CANDY_CORN, share, now));
         }
+        paid.checkpoint(server);
         queue.checkpoint(server);
         return amount;
     }

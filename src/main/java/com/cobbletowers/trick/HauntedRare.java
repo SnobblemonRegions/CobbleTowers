@@ -4,6 +4,7 @@ import com.cobblemon.mod.common.Cobblemon;
 import com.cobblemon.mod.common.api.pokemon.PokemonProperties;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import com.cobbletowers.TowerLog;
+import com.cobbletowers.encounter.EncounterSeed;
 import com.cobbletowers.network.ClientUi;
 import com.cobbletowers.network.HauntedRareTrayPayload;
 import com.cobbletowers.persistence.PersistedParticipant;
@@ -71,8 +72,9 @@ public final class HauntedRare {
 
     /** A treat of this floor was opened: if the seed put a rare in it, tells every online player and opens the throws. */
     public static void offer(MinecraftServer server, PersistedRun run, int floor) {
-        if (!CatchRules.treatHasRare(run.seed(), floor) || BY_RUN.containsKey(run.runId())) return;
-        Rare rare = new Rare(server, floor, CatchRules.species(run.seed(), floor), CatchRules.level(floor));
+        long seed = EncounterSeed.hidden(run.seed(), run.runId());   // not the run code's seed: a code can be written by hand
+        if (!CatchRules.treatHasRare(seed, floor) || BY_RUN.containsKey(run.runId())) return;
+        Rare rare = new Rare(server, floor, CatchRules.species(seed, floor), CatchRules.level(floor));
         BY_RUN.put(run.runId(), rare);
         TowerLog.info("Run {} floor {}: a Haunted {} (level {}) hides in the treat", run.runId(), floor, rare.species, rare.level);
         for (PersistedParticipant participant : run.participants()) {
@@ -129,7 +131,7 @@ public final class HauntedRare {
         if (used >= CatchRules.THROWS) return "You are out of throws.";
         int number = used + 1;
         int chance = CatchRules.chancePercent(number, rare.floor);
-        boolean landed = CatchRules.lands(chance, run.seed(), rare.floor, id.getLeastSignificantBits(), number);
+        boolean landed = CatchRules.lands(chance, EncounterSeed.hidden(run.seed(), run.runId()), rare.floor, id.getLeastSignificantBits(), number);
         if (landed && !grant(player, rare)) {
             String line = "Your PC could not take it; clear a box and throw again.";
             tray(player, rare, line);

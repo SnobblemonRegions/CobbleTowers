@@ -29,6 +29,20 @@ public final class EncounterSeed {
         return x ^ (x >>> 31);
     }
 
+    /** Mixed in by {@link #hidden}; any odd 64-bit constant not used above. */
+    private static final long HIDDEN_MIX = 0x94D049BB133111EBL ^ 0x2545F4914F6CDD1DL;
+
+    /**
+     * The seed for draws that pay something (the Trick or Treat coin, relics, the Haunted rare). A run's own seed is
+     * printed as a shareable run code, and a code can be written by hand, so a payout drawn from it alone is a payout a
+     * player can choose. The run id is made by the server, saved with the run and sent to no client, so mixing it in keeps
+     * the draw stable across restarts and out of the player's reach. Opponents, bosses and drafts keep the plain seed, so a
+     * run code still replays them.
+     */
+    public static long hidden(long runSeed, UUID runId) {
+        return scramble(runSeed ^ forNewRun(runId) ^ HIDDEN_MIX);
+    }
+
     /** A run's own seed, for a run that has to be given one rather than restoring it. */
     public static long forNewRun(UUID runId) {
         return scramble(runId.getMostSignificantBits() ^ Long.rotateLeft(runId.getLeastSignificantBits(), 32));
