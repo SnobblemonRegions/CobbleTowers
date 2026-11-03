@@ -93,4 +93,12 @@ class TrickRulesTest {
         org.junit.jupiter.api.Assertions.assertEquals(3, mimic.ordinal());
         org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of(TrickRules.MIMIC_ASPECT), mimic.aspects());
     }
+
+    @Test
+    void aTreatPaysCandyCornThatGrowsWithTheFloor() {
+        org.junit.jupiter.api.Assertions.assertEquals("spookysurge:candy_corn", TrickRules.CANDY_CORN.toString());
+        org.junit.jupiter.api.Assertions.assertEquals(5, TrickRules.candyCorn(0));
+        org.junit.jupiter.api.Assertions.assertEquals(23, TrickRules.candyCorn(9));
+        org.junit.jupiter.api.Assertions.assertEquals(5, TrickRules.candyCorn(-3));
+    }
 }

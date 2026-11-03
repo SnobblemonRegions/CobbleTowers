@@ -42,4 +42,12 @@ class CatchRulesTest {
         assertFalse(CatchRules.lands(0, 9, 2, 1234L, 1));
         assertTrue(CatchRules.lands(100, 9, 2, 1234L, 1));
     }
+
+    @Test
+    void aPlayerMayCatchTwoADay() {
+        assertTrue(CatchRules.mayCatch(0));
+        assertTrue(CatchRules.mayCatch(1));
+        assertFalse(CatchRules.mayCatch(2));
+        assertFalse(CatchRules.mayCatch(5));
+    }
 }

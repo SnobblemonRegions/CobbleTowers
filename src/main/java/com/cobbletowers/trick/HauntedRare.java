@@ -8,6 +8,9 @@ import com.cobbletowers.network.ClientUi;
 import com.cobbletowers.network.HauntedRareTrayPayload;
 import com.cobbletowers.persistence.PersistedParticipant;
 import com.cobbletowers.persistence.PersistedRun;
+import com.cobbletowers.persistence.TowerRareCatchStore;
+import com.cobbletowers.trial.TrialClock;
+import com.cobbletowers.trial.TrialService;
 import com.cobbletowers.runtime.TowerRuns;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,6 +56,12 @@ public final class HauntedRare {
 
     private static final Map<UUID, Rare> BY_RUN = new HashMap<>();
 
+    private static int caughtToday(MinecraftServer server, UUID player) {
+        return TowerRareCatchStore.get(server).catchesOn(player, TrialClock.dayKey(TrialService.today()));
+    }
+
+    private static final String LIMIT_LINE = "You have already caught " + CatchRules.DAILY_CATCH_LIMIT + " Haunted rares today. Come back tomorrow.";
+
     private HauntedRare() {}
 
     /** Whether a rare is out for this run (a click on the vault then throws). */
@@ -70,6 +79,11 @@ public final class HauntedRare {
             ServerPlayer player = server.getPlayerList().getPlayer(participant.playerId());
             if (player == null) continue;
             rare.members.add(player.getUUID());
+            if (!CatchRules.mayCatch(caughtToday(server, player.getUUID()))) {
+                player.sendSystemMessage(Component.literal("A Haunted " + pretty(rare.species) + " hides among the candy. " + LIMIT_LINE).withStyle(ChatFormatting.GRAY));
+                tray(player, rare, LIMIT_LINE);
+                continue;
+            }
             player.sendSystemMessage(Component.literal("A Haunted " + pretty(rare.species) + " (Lv " + rare.level + ") hides among the candy! You have "
                     + CatchRules.THROWS + " throws: right-click the vault or ").withStyle(ChatFormatting.GOLD).append(throwButton()));
             tray(player, rare, "A Haunted " + pretty(rare.species) + " hides in the candy. Right-click the vault to throw.");
@@ -110,6 +124,7 @@ public final class HauntedRare {
         if (rare == null) return "There is no Haunted rare here.";
         UUID id = player.getUUID();
         if (rare.caught.contains(id)) return "You already caught it.";
+        if (!CatchRules.mayCatch(caughtToday(player.server, id))) return LIMIT_LINE;
         int used = rare.used(id);
         if (used >= CatchRules.THROWS) return "You are out of throws.";
         int number = used + 1;
@@ -124,6 +139,7 @@ public final class HauntedRare {
         String line;
         if (landed) {
             rare.caught.add(id);
+            TowerRareCatchStore.get(player.server).record(id, TrialClock.dayKey(TrialService.today()));
             TowerLog.info("Run {}: {} caught the Haunted {} on throw {}", run.runId(), player.getGameProfile().getName(), rare.species, number);
             line = "Caught! The Haunted " + pretty(rare.species) + " went to your PC.";
         } else if (number < CatchRules.THROWS) {

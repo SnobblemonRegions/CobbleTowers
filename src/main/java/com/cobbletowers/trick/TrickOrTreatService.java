@@ -200,6 +200,8 @@ public final class TrickOrTreatService {
             }
         }
         creditEach(server, run, purse);
+        int candy = queueCandyCorn(server, run, active.floor());
+        if (candy > 0) relicLine += " and " + candy + " Candy Corn";
         TowerLog.info("Run {} treat on floor {}: {} CobbleDollars each{}", run.runId(), active.floor(), purse, relicLine);
         for (PersistedParticipant participant : run.participants()) {
             ServerPlayer player = server.getPlayerList().getPlayer(participant.playerId());
@@ -320,6 +322,22 @@ public final class TrickOrTreatService {
     }
 
     // ---- housekeeping ----------------------------------------------------------------------------
+
+    /**
+     * Queues Candy Corn for every player; the usual loot delivery hands it over (and holds it for /tower claim if the inventory is full).
+     * Returns the amount each gets, 0 when SpookySurge is not installed.
+     */
+    private static int queueCandyCorn(MinecraftServer server, PersistedRun run, int floor) {
+        if (!net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(TrickRules.CANDY_CORN)) return 0;
+        int amount = TrickRules.candyCorn(floor);
+        var queue = com.cobbletowers.persistence.TowerPendingRewardStore.get(server);
+        long now = System.currentTimeMillis();
+        for (PersistedParticipant participant : run.participants()) {
+            queue.add(participant.playerId(), new com.cobbletowers.persistence.PendingTowerReward(run.runId(), Math.max(1, floor), TrickRules.CANDY_CORN, amount, now));
+        }
+        queue.checkpoint(server);
+        return amount;
+    }
 
     private static void creditEach(MinecraftServer server, PersistedRun run, int amount) {
         if (amount <= 0) return;

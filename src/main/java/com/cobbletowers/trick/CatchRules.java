@@ -14,6 +14,8 @@ public final class CatchRules {
     public static final int RARE_PERCENT = 15;
     /** Throws each player gets at the rare. */
     public static final int THROWS = 3;
+    /** How many Haunted rares one player can catch in a day. */
+    public static final int DAILY_CATCH_LIMIT = 2;
     /** The wild level of the rare, set from the floor so deeper vaults hold stronger ones. */
     public static final int BASE_LEVEL = 20;
 
@@ -24,6 +26,11 @@ public final class CatchRules {
     static final int ORDINAL_BASE = 7_000_041;
 
     private CatchRules() {}
+
+    /** Whether a player who caught {@code caughtToday} rares today may catch another. */
+    public static boolean mayCatch(int caughtToday) {
+        return caughtToday < DAILY_CATCH_LIMIT;
+    }
 
     /** Whether the treat of this floor also holds a rare. */
     public static boolean treatHasRare(long runSeed, int floorIndex) {
