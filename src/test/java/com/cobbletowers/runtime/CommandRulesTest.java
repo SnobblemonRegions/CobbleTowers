@@ -41,6 +41,19 @@ class CommandRulesTest {
     }
 
     @Test
+    @DisplayName("the World Boss warp and return are blocked, the rest of /cobbleraids is not")
+    void theWorldBossWarpAndReturnAreBlockedButTheRestOfTheCommandIsNot() {
+        for (String line : new String[] {"cobbleraids worldboss warp", "/cobbleraids worldboss return", "/CobbleRaids:cobbleraids worldboss warp",
+                "cobbleraids:cobbleraids worldboss return", "  /cobbleraids   worldboss   return  ", "cobbleraids worldboss warp now"}) {
+            assertTrue(CommandRules.isBlocked(line, DEFAULTS), line + " should be blocked");
+        }
+        for (String line : new String[] {"cobbleraids leave", "cobbleraids worldboss status", "cobbleraids worldboss join", "cobbleraids worldboss me",
+                "cobbleraids worldboss", "cobbleraids"}) {
+            assertFalse(CommandRules.isBlocked(line, DEFAULTS), line + " should work (it is the way to fight, or to leave a raid)");
+        }
+    }
+
+    @Test
     @DisplayName("an operator cannot block the way out, even by listing it")
     void theWayOutCannotBeBlocked() {
         Set<String> mistaken = new HashSet<>(DEFAULTS);
