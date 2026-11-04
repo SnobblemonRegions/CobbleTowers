@@ -24,4 +24,17 @@ class TowerRareCatchStoreTest {
         restored.reset(player);
         assertEquals(0, restored.catchesOn(player, "2026-11-03"));
     }
+
+    @Test
+    void aFailedGrantGivesTheCountBackAndNeverGoesBelowNothing() {
+        TowerRareCatchStore store = new TowerRareCatchStore();
+        UUID player = new UUID(8, 8);
+        store.record(player, "2026-11-04");
+        store.record(player, "2026-11-04");
+        assertEquals(1, store.undo(player, "2026-11-04"));
+        assertEquals(1, store.catchesOn(player, "2026-11-04"));
+        assertEquals(0, store.undo(player, "2026-11-04"));
+        assertEquals(0, store.undo(player, "2026-11-04"), "undoing with nothing recorded stays at nothing");
+        assertEquals(0, store.catchesOn(player, "2026-11-04"));
+    }
 }
