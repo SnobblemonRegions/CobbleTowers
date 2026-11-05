@@ -87,8 +87,9 @@ nothing here to export, because nothing here is a possession.
 
 **Reviewed exception, 2026-11-05: the goblin's Mystery Bag** (`vendor_services/mystery_bag.json`, 500 CobbleDollars, 2 per run). It is the one service that
 hands over items: a random AscensionLib currency, rolled on the server (`MysteryBag`, odds out of 1000) and paid through the pending-reward queue, so a full
-inventory holds the prize for `/tower claim`. Resonance Dust is half of all bags and pays 40 to 60; every other currency pays one; the Unique Catalyst is the
-jackpot at 0.5%. The wallet it spends is earned only in the tower and already trimmed by the daily completion budget, so the bag converts tower earnings and
+inventory holds the prize for `/tower claim`. Resonance Dust is two bags in three (67.6%) and pays 40 to 60; every other currency pays one; the epic and legendary
+currencies together are 5.4% and the Unique Catalyst is the jackpot at 0.1% (one bag in a thousand). Bags may be traded
+(owner decision, 2026-11-05), which is why the good materials are kept very rare. The wallet it spends is earned only in the tower and already trimmed by the daily completion budget, so the bag converts tower earnings and
 opens no new income. It refuses (and refunds) when AscensionLib is not installed. The Tower Mark, boss-loot and respec currencies are low-weighted on purpose.
 
 `VendorServices.apply(effect, ServerPlayer target)` -- for `FULL_HEAL`, every `Pokemon` in

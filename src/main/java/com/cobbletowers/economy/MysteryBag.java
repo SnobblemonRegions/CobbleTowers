@@ -31,31 +31,32 @@ public final class MysteryBag {
     public record Prize(String material, int amount) {}
 
     /**
-     * The odds, out of 1000. Resonance Dust is by far the most common and pays a handful (40 to 60); every other currency pays one. The rest follow the
-     * library's own rarity ladder, so each step up is rarer than the one below it:
+     * The odds, out of 1000. Resonance Dust is the large majority of bags (two in three) and pays a handful (40 to 60); every other currency pays one.
+     * The rest follow the library's own rarity ladder, so each step up is rarer than the one below it, and the good materials are very rare because bags
+     * can be traded (owner decision, 2026-11-05):
      * <ul>
-     *   <li>COMMON, 50%: Resonance Dust;</li>
-     *   <li>UNCOMMON, 25%: Facet 14%, Scouter 11%;</li>
-     *   <li>RARE, 14%: Tower Mark 7%, Unique Fragment 7% (a Catalyst takes 100 Fragments, so a Fragment is no shortcut to the jackpot);</li>
-     *   <li>EPIC, 9.5%: Ascension Core 3%, Ascension Sigil 2%, Hourglass of Undoing 2%, Apex Shard 1.5%, Spooky Essence 1%;</li>
-     *   <li>LEGENDARY, 1.5%: Unbinding Prism 1%, and the jackpot, the Unique Catalyst, at 0.5% (one bag in two hundred).</li>
+     *   <li>COMMON, 67.6%: Resonance Dust;</li>
+     *   <li>UNCOMMON, 19%: Facet 11%, Scouter 8%;</li>
+     *   <li>RARE, 8%: Tower Mark 4%, Unique Fragment 4% (a Catalyst takes 100 Fragments, so a Fragment is no shortcut to the jackpot);</li>
+     *   <li>EPIC, 5%: Ascension Core 1.5%, Ascension Sigil 1%, Hourglass of Undoing 1%, Apex Shard 0.8%, Spooky Essence 0.7%;</li>
+     *   <li>LEGENDARY, 0.4%: Unbinding Prism 0.3%, and the jackpot, the Unique Catalyst, at 0.1% (one bag in a thousand).</li>
      * </ul>
      * The Tower Mark, the boss-loot currencies and the respec items are kept thin on purpose: they are earned by clearing the tower and are not meant to
      * be bought in bulk.
      */
     static final List<Odds> ODDS = List.of(
-            new Odds("resonance_dust", 500, 40, 60),
-            Odds.one("facet", 140),
-            Odds.one("scouter", 110),
-            Odds.one("tower_mark", 70),
-            Odds.one("unique_fragment", 70),
-            Odds.one("ascension_core", 30),
-            Odds.one("ascension_sigil", 20),
-            Odds.one("rank_respec", 20),
-            Odds.one("apex_shard", 15),
-            Odds.one("spooky_essence", 10),
-            Odds.one("unique_respec", 10),
-            Odds.one("unique_catalyst", 5));
+            new Odds("resonance_dust", 676, 40, 60),
+            Odds.one("facet", 110),
+            Odds.one("scouter", 80),
+            Odds.one("tower_mark", 40),
+            Odds.one("unique_fragment", 40),
+            Odds.one("ascension_core", 15),
+            Odds.one("ascension_sigil", 10),
+            Odds.one("rank_respec", 10),
+            Odds.one("apex_shard", 8),
+            Odds.one("spooky_essence", 7),
+            Odds.one("unique_respec", 3),
+            Odds.one("unique_catalyst", 1));
 
     private MysteryBag() {}
 

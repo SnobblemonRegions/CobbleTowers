@@ -62,10 +62,11 @@ class MysteryBagTest {
     }
 
     @Test
-    @DisplayName("Resonance Dust is the most common prize and pays about 50; every other currency pays exactly one")
+    @DisplayName("Resonance Dust is most of the bags and pays about 50; every other currency pays exactly one")
     void dustIsTheCommonPrize() {
         MysteryBag.Odds dust = line("resonance_dust");
-        assertEquals(500, dust.weight());
+        assertEquals(676, dust.weight());
+        assertTrue(dust.weight() * 2 > MysteryBag.total(MysteryBag.ODDS), "dust must be a strict majority of the bags");
         assertEquals(40, dust.min());
         assertEquals(60, dust.max());
         for (MysteryBag.Odds other : MysteryBag.ODDS) {
@@ -77,10 +78,10 @@ class MysteryBagTest {
     }
 
     @Test
-    @DisplayName("the Unique Catalyst is the rarest prize in the bag, one in two hundred")
+    @DisplayName("the Unique Catalyst is the rarest prize in the bag, one in a thousand")
     void theCatalystIsTheJackpot() {
         MysteryBag.Odds catalyst = line("unique_catalyst");
-        assertEquals(5, catalyst.weight());
+        assertEquals(1, catalyst.weight());
         for (MysteryBag.Odds other : MysteryBag.ODDS) {
             if (other != catalyst) assertTrue(other.weight() > catalyst.weight(), other.material() + " is as rare as the catalyst");
         }
@@ -98,6 +99,14 @@ class MysteryBagTest {
 
         assertTrue(common > uncommon && uncommon > rare && rare > epic && epic > legendary,
                 common + " > " + uncommon + " > " + rare + " > " + epic + " > " + legendary);
+    }
+
+    @Test
+    @DisplayName("bags can be traded, so the good materials (epic and legendary together) stay under one bag in ten")
+    void theGoodMaterialsAreVeryRare() {
+        int good = line("ascension_core").weight() + line("ascension_sigil").weight() + line("rank_respec").weight()
+                + line("apex_shard").weight() + line("spooky_essence").weight() + line("unique_respec").weight() + line("unique_catalyst").weight();
+        assertTrue(good * 10 < MysteryBag.total(MysteryBag.ODDS), "epic and legendary are " + good + " of " + MysteryBag.total(MysteryBag.ODDS));
     }
 
     @Test
