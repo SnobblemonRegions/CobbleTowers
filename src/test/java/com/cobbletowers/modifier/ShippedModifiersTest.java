@@ -38,10 +38,10 @@ class ShippedModifiersTest {
     }
 
     @Test
-    @DisplayName("eighty-one modifiers ship (29 ordinary, 38 relics, 14 tag bonuses), and every one parses and does something its type applies")
+    @DisplayName("eighty-one modifiers ship (29 ordinary, 40 relics, 14 tag bonuses), and every one parses and does something its type applies")
     void allShip() throws IOException {
         assertEquals(81, load().size());
-        assertEquals(38, load().values().stream().filter(ModifierDefinition::relic).count());
+        assertEquals(40, load().values().stream().filter(ModifierDefinition::relic).count());
         assertEquals(14, load().values().stream().filter(m -> m.tagBonus().isPresent()).count());
     }
 

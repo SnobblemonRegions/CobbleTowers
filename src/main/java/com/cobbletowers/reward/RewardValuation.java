@@ -101,7 +101,7 @@ public final class RewardValuation {
                 RewardTableDefinition.Entry rolled = RewardDraw.pickItem(runSeed, entry.floorIndex(), ordinal, pool, weightPercent);
                 int amount = RewardDraw.rollAmount(runSeed, entry.floorIndex(), ordinal, rolled.minAmount(), rolled.maxAmount());
                 int grown = amount + amount * table.growthPercentPerFloor() * floor / 100;
-                int worth = effects.applyReward(grown) * customs.rewardPercent(runSeed, entry.floorIndex(), ordinal) / 100;
+                int worth = scaled(rolled, grown, effects, customs, runSeed, entry.floorIndex(), ordinal);
                 if (worth > 0) grants.add(new Grant(rolled.item(), worth));
             }
         }
@@ -128,9 +128,16 @@ public final class RewardValuation {
                     reward.get().bonusPool(), weightPercent);
             int amount = RewardDraw.rollAmount(runSeed, entry.floorIndex(), ordinal, rolled.minAmount(), rolled.maxAmount());
             int grown = amount + amount * table.growthPercentPerFloor() * growthFloor(entry.floorIndex(), cycleLength) / 100;
-            int worth = effects.applyReward(grown) * customs.rewardPercent(runSeed, entry.floorIndex(), ordinal) / 100;
+            int worth = scaled(rolled, grown, effects, customs, runSeed, entry.floorIndex(), ordinal);
             if (worth > 0) grants.add(new Grant(rolled.item(), worth));
         }
+    }
+
+    /** A rolled amount after the drafted loot multipliers; Raid Points are never multiplied (balance phase 2). */
+    private static int scaled(RewardTableDefinition.Entry rolled, int grown, ModifierEffects effects,
+                              com.cobbletowers.modifier.CustomEffects customs, long runSeed, int floorIndex, int ordinal) {
+        if (com.cobbletowers.economy.RaidPointsCurrency.ITEM_ID.equals(rolled.item())) return grown;
+        return effects.applyReward(grown) * customs.rewardPercent(runSeed, floorIndex, ordinal) / 100;
     }
 
     /**

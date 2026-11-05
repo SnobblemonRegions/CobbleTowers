@@ -9,6 +9,16 @@ public final class ScoutingTiers {
 
     private ScoutingTiers() {}
 
+    /**
+     * The tier for a run at a Threat band (balance phase 2): {@code threat_N} from {@link com.cobbletowers.ascension.ThreatPolicy#bandFor} when the run
+     * picked a band and AscensionLib has Threat on; otherwise the floor tiers below, exactly as before.
+     */
+    public static String tierFor(int entryThreat, int ascension, int runFloor, boolean milestoneBoss, boolean champion, boolean threatOn) {
+        int band = com.cobbletowers.ascension.ThreatPolicy.bandFor(entryThreat, ascension, champion);
+        if (threatOn && band > 0) return com.cobbletowers.ascension.ThreatPolicy.tierId(band);
+        return tierFor(runFloor, milestoneBoss);
+    }
+
     public static String tierFor(int runFloor, boolean milestoneBoss) {
         if (milestoneBoss) return "boss";
         if (runFloor >= 10) return "trial_rank_3";

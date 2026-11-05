@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 9,
+  "revision": 10,
   "display_name": "Rootvale Tower Rewards",
   "growth_percent_per_floor": 8,
   "tiers": {
@@ -597,7 +597,7 @@
         },
         {
           "item": "cobbleraids:raid_points",
-          "amount": 25
+          "amount": 10
         }
       ],
       "bonus_rolls": 2,
@@ -652,7 +652,7 @@
         },
         {
           "item": "cobbleraids:raid_points",
-          "amount": 75
+          "amount": 25
         }
       ],
       "bonus_rolls": 3,

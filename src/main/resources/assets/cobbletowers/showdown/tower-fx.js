@@ -235,7 +235,56 @@ const OPERATIONS = {
   resist: (battle, op, rules) => addDamageRule(battle, op, rules, 'taken'),
   suppress_items: (battle, op) => applySuppressItems(battle, op),
   drain: (battle, op, rules) => addDrainRule(battle, op, rules),
+  enrage: (battle, op, rules) => addEnrageRule(battle, op, rules),
+  cap: (battle, op, rules) => addCapRule(battle, op, rules),
 };
+
+/**
+ * Balance phase 2: a `cap` op bounds what a side's damage rules can add up to, in percent. Relics stack
+ * multiplicatively, so without one three offense relics made a boss trivial; past the cap more relics change nothing.
+ * A side without a cap op is unbounded, as before.
+ */
+function addCapRule(battle, op, rules) {
+  for (const side of sidesOf(battle, op)) {
+    rules.caps[side.id] = {dealt: clamp(op.dealt, 100, 300, 300), taken: clamp(op.taken, 1, 100, 1)};
+  }
+}
+
+/** Records an enrage rule: every `every` turns the named sides' actives gain +1 Attack and Special Attack. */
+function addEnrageRule(battle, op, rules) {
+  const sides = sidesOf(battle, op).map(side => side.id);
+  if (!sides.length) throw new Error('enrage needs a side');
+  rules.enrage.push({sides, every: clamp(op.every, 1, 20, 4)});
+}
+
+/**
+ * Wraps the turn hook on this battle only (endTurn in current Showdown, nextTurn in older builds); fails open, since a
+ * missed enrage is a small bug and a throw hangs the battle.
+ */
+function wrapEnrage(battle, rules) {
+  const hook = typeof battle.endTurn === 'function' ? 'endTurn' : 'nextTurn';
+  const original = battle[hook];
+  if (typeof original !== 'function') {
+    note(battle, 'Tower enrage effects are not available in this simulator.');
+    return;
+  }
+  battle[hook] = function () {
+    const result = original.apply(this, arguments);
+    try {
+      const turn = this.turn;
+      for (const rule of rules.enrage) {
+        if (!(turn > 1) || (turn - 1) % rule.every !== 0) continue;
+        for (const pokemon of activesOf(this.sides.filter(side => side && rule.sides.includes(side.id)))) {
+          this.add('-message', `${pokemon.name} is enraged!`);
+          this.boost({atk: 1, spa: 1}, pokemon, pokemon, null, false, true);
+        }
+      }
+    } catch (err) {
+      /* see above */
+    }
+    return result;
+  };
+}
 
 function matches(rule, sideId, type) {
   return rule.sides.includes(sideId) && (rule.type === 'any' || rule.type === type);
@@ -257,14 +306,23 @@ function wrapDamage(battle, rules) {
     try {
       if (typeof damage !== 'number' || !(damage > 0) || !pokemon || !target) return damage;
       const type = move && move.type;
-      let scaled = damage;
+      // The product of every matching rule, in percent, then clamped (a side's cap op); one modify call, so
+      // the rounding no longer depends on how many relics are held.
+      let dealt = 100;
       for (const rule of rules.dealt) {
-        if (matches(rule, pokemon.side.id, type)) scaled = Math.max(1, battle.modify(scaled, rule.percent, 100));
+        if (matches(rule, pokemon.side.id, type)) dealt = dealt * rule.percent / 100;
       }
+      let taken = 100;
       for (const rule of rules.taken) {
-        if (matches(rule, target.side.id, type)) scaled = Math.max(1, battle.modify(scaled, rule.percent, 100));
+        if (matches(rule, target.side.id, type)) taken = taken * rule.percent / 100;
       }
-      return scaled;
+      const attackerCap = rules.caps[pokemon.side.id];
+      const targetCap = rules.caps[target.side.id];
+      if (attackerCap) dealt = Math.min(dealt, attackerCap.dealt);
+      if (targetCap) taken = Math.max(taken, targetCap.taken);
+      const percent = Math.round(dealt * taken / 100);
+      if (percent === 100) return damage;
+      return Math.max(1, battle.modify(damage, percent, 100));
     } catch (err) {
       return damage;
     }
@@ -306,7 +364,7 @@ function applyTowerFx(battle) {
   battle.towerFxApplied = true;
   if (fx.length > MAX_OPS) note(battle, `Only the first ${MAX_OPS} tower effects were applied.`);
 
-  const rules = {dealt: [], taken: [], drain: []};
+  const rules = {dealt: [], taken: [], drain: [], enrage: [], caps: {}};
   let applied = 0;
   for (const op of fx.slice(0, MAX_OPS)) {
     const name = op && typeof op === 'object' ? op.op : undefined;
@@ -321,6 +379,7 @@ function applyTowerFx(battle) {
   }
   if (rules.dealt.length || rules.taken.length) wrapDamage(battle, rules);
   if (rules.drain.length) wrapDrain(battle, rules);
+  if (rules.enrage.length) wrapEnrage(battle, rules);
   applied += battle.towerFxPreApplied || 0;
   if (applied > 0) note(battle, 'Tower effects are in play.');
   // To the server log, not just the battle log: the Java side logs what it HANDED to Showdown, and only this line

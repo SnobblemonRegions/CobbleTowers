@@ -119,6 +119,9 @@
 .fd .seg button { padding: calc(var(--u) * .55) calc(var(--u) * 1.1); border: 0; border-radius: calc(var(--u) * 1); background: var(--surf2); font: 600 calc(var(--u) * 1.2) Outfit; color: var(--mut); cursor: pointer; }
 .fd .seg button.on { background: var(--pri); color: #fff; } .fd .seg button:disabled { cursor: default; opacity: .7; }
 .fd .seg button:focus-visible { outline: 3px solid var(--pri); outline-offset: 2px; }
+/* Threat picker (balance phase 2): advice as colour, never a lock. */
+.fd .seg.threat button.tone-good { box-shadow: inset 0 -3px 0 #5f9a3c; } .fd .seg.threat button.tone-warn { box-shadow: inset 0 -3px 0 #d9a02f; }
+.fd .seg.threat button.tone-bad { box-shadow: inset 0 -3px 0 #b8382f; } .fd .lbl .hint { font-weight: 400; color: var(--mut); }
 .fd .trow.dl { grid-template-columns: calc(var(--u) * 11) 1fr; padding: calc(var(--u) * .4); gap: calc(var(--u) * 1); } .fd .trow.dl .pbox { width: calc(var(--u) * 11); height: calc(var(--u) * 4.2); border-radius: calc(var(--u) * .7); }
 .fd .trow.dl b { font-size: calc(var(--u) * 1.5); } .fd .trow.dl small { margin: calc(var(--u) * .1) 0 0; } .fd .trow:disabled { cursor: default; opacity: .75; }
 .fd .dseats { display: flex; flex-direction: column; gap: calc(var(--u) * .9); padding: calc(var(--u) * .4) calc(var(--u) * 1.2) calc(var(--u) * 1); overflow-y: auto; flex: 1; min-height: 0; scrollbar-width: thin; }

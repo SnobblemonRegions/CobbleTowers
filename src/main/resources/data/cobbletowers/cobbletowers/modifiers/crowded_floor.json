@@ -1,12 +1,18 @@
 {
   "schema_version": 1,
-  "revision": 1,
-  "type": "encounter",
+  "revision": 2,
+  "type": "custom",
   "display_name": "Crowded Floor",
   "risk": "severe",
   "weight": 60,
-  "stack_limit": 2,
+  "stack_limit": 1,
   "effect": {
-    "extra_opponents": 1
+    "battle": [
+      {
+        "op": "enrage",
+        "side": "foe",
+        "every": 4
+      }
+    ]
   }
 }

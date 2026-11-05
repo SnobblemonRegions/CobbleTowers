@@ -35,6 +35,10 @@ public final class AscensionLibRewards {
     private static Method settleTrial;
     private static Method settleCompletion;
     private static Method completionExtras;
+    // Balance phase 2: AscensionLib's Threat calls, each optional (an older library pays through the calls above).
+    private static Method settleBossThreat;
+    private static Method settleCompletionThreat;
+    private static Method completionExtrasThreat;
     private static int tickCounter;
 
     private AscensionLibRewards() {}
@@ -67,9 +71,15 @@ public final class AscensionLibRewards {
     /** Pays a milestone boss victory from the library's bands to {@code players}, every member of the run. */
     public static void settleMilestone(MinecraftServer server, UUID encounterId, String outcome, int fromFloor,
                                        int bossFloor, Collection<UUID> players, long now) {
+        settleMilestone(server, encounterId, outcome, fromFloor, bossFloor, players, now, 0);
+    }
+
+    /** As above for a fight at a Threat band (1-7; 0 for none). */
+    public static void settleMilestone(MinecraftServer server, UUID encounterId, String outcome, int fromFloor,
+                                       int bossFloor, Collection<UUID> players, long now, int threat) {
         // Flushed to disk before the attempt: this is real value, and a crash must not forget it is owed.
         submit(server, new PendingLibSettlement(encounterId, PendingLibSettlement.Kind.MILESTONE, outcome, fromFloor,
-                bossFloor, false, List.copyOf(players), now, 0), true);
+                bossFloor, false, List.copyOf(players), now, 0).withThreat(threat), true);
     }
 
     /**
@@ -104,8 +114,14 @@ public final class AscensionLibRewards {
      */
     public static void settleCompletion(MinecraftServer server, UUID encounterId, String outcome, int bossFloor, int cycle,
                                         int challengeCards, boolean flawless, String towerId, Collection<UUID> players, long now) {
+        settleCompletion(server, encounterId, outcome, bossFloor, cycle, challengeCards, flawless, towerId, players, now, 0);
+    }
+
+    /** As above for a champion fought at a Threat band (1-7; 0 for none): the library pays the band's chest when it has Threat on. */
+    public static void settleCompletion(MinecraftServer server, UUID encounterId, String outcome, int bossFloor, int cycle,
+                                        int challengeCards, boolean flawless, String towerId, Collection<UUID> players, long now, int threat) {
         submit(server, new PendingLibSettlement(encounterId, PendingLibSettlement.Kind.COMPLETION, outcome, challengeCards, bossFloor,
-                flawless, List.copyOf(players), now, 0, cycle, towerId), true);
+                flawless, List.copyOf(players), now, 0, cycle, towerId).withThreat(threat), true);
     }
 
     /** Tries every unconfirmed settlement again; gives up on, and says so for, any older than a week. */
@@ -220,6 +236,10 @@ public final class AscensionLibRewards {
     private static Map<?, ?> extras(PendingLibSettlement settlement, UUID player) {
         if (resolve(PendingLibSettlement.Kind.COMPLETION) == null || completionExtras == null) return null;
         try {
+            // The same form as the settlement, so the armor and tickets match the chest that was paid.
+            if (settlement.threat() > 0 && completionExtrasThreat != null && settleCompletionThreat != null)
+                return completionExtrasThreat.invoke(null, settlement.encounterId(), player, settlement.cycle(), settlement.fromFloor(),
+                        settlement.keenEyeFloor(), settlement.threat()) instanceof Map<?, ?> map ? map : null;
             return completionExtras.invoke(null, settlement.encounterId(), player, settlement.cycle(), settlement.fromFloor(),
                     settlement.keenEyeFloor()) instanceof Map<?, ?> map ? map : null;
         } catch (ReflectiveOperationException | RuntimeException | LinkageError ex) {
@@ -233,11 +253,18 @@ public final class AscensionLibRewards {
         Method method = resolve(settlement.kind());
         if (method == null) return null;
         try {
+            boolean threat = settlement.threat() > 0;
             Object result = switch (settlement.kind()) {
-                case MILESTONE -> method.invoke(null, settlement.encounterId(), settlement.outcome(), settlement.fromFloor(),
-                        settlement.bossFloor(), settlement.players());
-                case COMPLETION -> method.invoke(null, settlement.encounterId(), settlement.outcome(), settlement.bossFloor(),
-                        settlement.cycle(), settlement.fromFloor(), settlement.keenEyeFloor(), settlement.players());
+                case MILESTONE -> threat && settleBossThreat != null
+                        ? settleBossThreat.invoke(null, settlement.encounterId(), settlement.outcome(), settlement.fromFloor(),
+                                settlement.bossFloor(), settlement.players(), settlement.threat())
+                        : method.invoke(null, settlement.encounterId(), settlement.outcome(), settlement.fromFloor(),
+                                settlement.bossFloor(), settlement.players());
+                case COMPLETION -> threat && settleCompletionThreat != null && completionExtrasThreat != null
+                        ? settleCompletionThreat.invoke(null, settlement.encounterId(), settlement.outcome(), settlement.bossFloor(),
+                                settlement.cycle(), settlement.fromFloor(), settlement.keenEyeFloor(), settlement.players(), settlement.threat())
+                        : method.invoke(null, settlement.encounterId(), settlement.outcome(), settlement.bossFloor(),
+                                settlement.cycle(), settlement.fromFloor(), settlement.keenEyeFloor(), settlement.players());
                 case TRIAL -> method.invoke(null, settlement.encounterId(), settlement.outcome(), settlement.bossFloor(),
                         settlement.players());
                 case SCOUTER_DROPS -> method.invoke(null, settlement.encounterId(), settlement.outcome(),
@@ -278,12 +305,26 @@ public final class AscensionLibRewards {
                     settleCompletion = null;
                     completionExtras = null;
                 }
+                try {
+                    // Balance phase 2 (AscensionLib balance phase 1): pay by Threat band. Missing, a Threat run pays through the calls above.
+                    settleBossThreat = rewards.getMethod("settleTowerBoss", UUID.class, String.class, int.class, int.class, Collection.class, int.class);
+                    settleCompletionThreat = rewards.getMethod("settleTowerCompletion", UUID.class, String.class, int.class, int.class,
+                            int.class, boolean.class, Collection.class, int.class);
+                    completionExtrasThreat = rewards.getMethod("towerCompletionExtras", UUID.class, UUID.class, int.class, int.class, boolean.class, int.class);
+                } catch (NoSuchMethodException missing) {
+                    settleBossThreat = null;
+                    settleCompletionThreat = null;
+                    completionExtrasThreat = null;
+                }
             } catch (ReflectiveOperationException | LinkageError ex) {
                 settleBoss = null;
                 settleScouters = null;
                 settleTrial = null;
                 settleCompletion = null;
                 completionExtras = null;
+                settleBossThreat = null;
+                settleCompletionThreat = null;
+                completionExtrasThreat = null;
                 TowerLog.error("AscensionLib is installed but " + REWARDS + " does not match what CobbleTowers expects",
                         ex);
             }

@@ -27,6 +27,23 @@ public final class AscensionFx {
     }
 
     /**
+     * As above, for a boss-rush tower (balance phase 2): there are no waves to add opponents to, so the extra opponents
+     * an Ascension would bring become an enrage instead ({@link AscensionPolicy#enrageEvery}).
+     */
+    public static JsonArray enemy(int ascension, boolean bossRush) {
+        JsonArray ops = enemy(ascension);
+        int every = bossRush ? AscensionPolicy.enrageEvery(ascension) : 0;
+        if (every > 0) {
+            JsonObject op = new JsonObject();
+            op.addProperty("op", "enrage");
+            op.addProperty("side", "foe");
+            op.addProperty("every", every);
+            ops.add(op);
+        }
+        return ops;
+    }
+
+    /**
      * One operation carries at most {@link AscensionPolicy#MAX_EVS_PER_OPERATION}; a deeper Ascension sends several.
      */
     private static void addChunks(JsonArray ops, String side, int total) {

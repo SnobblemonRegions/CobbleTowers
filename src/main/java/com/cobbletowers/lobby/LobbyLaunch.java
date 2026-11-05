@@ -251,7 +251,9 @@ final class LobbyLaunch {
                                             long now) {
         long seed = lobby.seed().orElseGet(() -> server.overworld().getRandom().nextLong());
         int startAt = lobby.ascension();
-        RunOptions options = RunOptions.of(lobby.playlist());
+        // Balance phase 2: the band picked at the door rides on the run; with AscensionLib's Threat off the run keeps the floor tiers.
+        RunOptions options = RunOptions.of(lobby.playlist())
+                .withEntryThreat(com.cobbletowers.economy.AscensionLibScouting.threatEnabled() ? lobby.entryThreat() : 0);
         List<ResourceLocation> trialModifiers = List.of();
         List<ResourceLocation> startingRelics = List.of();
         if (lobby.trial().isPresent()) {

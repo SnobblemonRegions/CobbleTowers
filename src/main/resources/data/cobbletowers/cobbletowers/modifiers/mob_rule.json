@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "revision": 1,
-  "type": "encounter",
+  "revision": 2,
+  "type": "custom",
   "display_name": "Mob Rule",
   "risk": "severe",
   "weight": 35,
@@ -11,6 +11,12 @@
     "cobbletowers:gauntlet"
   ],
   "effect": {
-    "extra_opponents": 2
+    "battle": [
+      {
+        "op": "enrage",
+        "side": "foe",
+        "every": 2
+      }
+    ]
   }
 }

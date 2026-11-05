@@ -67,9 +67,14 @@ final class FloorBoss {
         // opponent fight would be there twice. Put the real ones away first.
         for (ServerPlayer player : standing) TowerEncounters.recallParty(player);
 
+        // Balance phase 2: drafted boss levels the level cap swallowed come back as boss health.
+        var effects = DraftService.effects(run);
+        int clamped = TowerLevelPolicy.levelsClampedAway(TowerEncounters.levelsOf(run, standing), run.floorIndex(),
+                effects.bossLevelOffset(), boss.get().level());
+        if (effects.bossLevelOffset() > 0) effects = effects.withClampedLevels(Math.min(clamped, effects.bossLevelOffset()));
         Optional<UUID> started = TowerBossAdapter.start(
                 server, setup.level(), standing, boss.get(), setup.presentation(0), round.runId(), round.floorIndex(),
-                DraftService.effects(run),
+                effects,
                 // Declared inside the adapter, once the encounter id exists and before the boss battle starts.
                 encounterId -> FloorScouting.declareBoss(server, setup, boss.get(), standing, encounterId));
         if (started.isEmpty()) return false;
