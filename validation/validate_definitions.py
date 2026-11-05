@@ -174,9 +174,39 @@ def check_doors(floor_id: str, layout: dict, size, occupied: set, supporting: se
         x, y, z = pedestal.get("x", 0), pedestal.get("y", 0), pedestal.get("z", 0)
         if (x, y - 1, z) not in supporting or (x, y, z) in occupied or (x, y + 1, z) in occupied:
             problems.append(f"{where} pedestal ({x},{y},{z}) is not somewhere to stand")
+        check_lane_stair(where, door, layout, size, occupied, supporting, problems)
     xs = [d.get("pedestal", {}).get("x", 0) for d in doors]
     if xs != sorted(xs):
         problems.append(f"{floor_id} doors are not listed left to right (west to east): pedestal x {xs}")
+
+
+def check_lane_stair(where: str, door: dict, layout: dict, size, occupied: set, supporting: set, problems: list[str]) -> None:
+    """A door's own stair (P58): `stair_top` is the open landing the party stands on, `arrival` is a spot to stand on the floor above; both or neither,
+    and a floor with lane stairs has no shared gate B."""
+    top, arrival = door.get("stair_top"), door.get("arrival")
+    if (top is None) != (arrival is None):
+        problems.append(f"{where} has only one of stair_top and arrival; they go together")
+        return
+    if top is None:
+        return
+    if layout.get("gate_b") is not None:
+        problems.append(f"{where} has a stair of its own but its floor still has a gate_b")
+    low, high = top.get("min"), top.get("max")
+    if not (isinstance(low, list) and isinstance(high, list) and len(low) == 3 and len(high) == 3) or any(a > b for a, b in zip(low, high)):
+        problems.append(f"{where} stair_top is not a box")
+    elif any(a < 0 for a in low) or any(b >= limit for b, limit in zip(high, size)):
+        problems.append(f"{where} stair_top is outside the structure")
+    else:
+        feet = low[1]
+        bad = [(x, feet, z) for x in range(low[0], high[0] + 1) for z in range(low[2], high[2] + 1)
+               if (x, feet - 1, z) not in supporting or any((x, y, z) in occupied for y in range(feet, high[1] + 1))]
+        if bad:
+            problems.append(f"{where} stair_top is not an open landing: {len(bad)} of its columns are blocked or have no floor, for example {bad[0]}")
+    x, y, z = arrival.get("x", 0), arrival.get("y", 0), arrival.get("z", 0)
+    if not (0 <= x < size[0] and 0 <= y < size[1] and 0 <= z < size[2]):
+        problems.append(f"{where} arrival ({x},{y},{z}) is outside the structure")
+    elif (x, y - 1, z) not in supporting or (x, y, z) in occupied or (x, y + 1, z) in occupied:
+        problems.append(f"{where} arrival ({x},{y},{z}) is not somewhere to stand")
 
 
 def check_gates(floor_id: str, layout: dict, size, occupied: set, problems: list[str]) -> None:

@@ -169,6 +169,7 @@ public final class TowerEncounters {
                     arrival.getX() + 0.5, arrival.getY(), arrival.getZ() + 0.5)) continue;
             player.teleportTo(setup.level(), arrival.getX() + 0.5 + ordinal * 2, arrival.getY(),
                     arrival.getZ() + 0.5, entry.yaw(), 0.0f);
+            com.cobbletowers.route.LaneStairs.fadeIn(player);   // a change of floor is never a cut (P58)
         }
     }
 

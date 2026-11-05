@@ -101,6 +101,27 @@ public final class TowerDoors {
     }
 
     /**
+     * The lane whose door is open on the run's current floor, or -1 when none is. A door counts as open when the middle of its doorway is air, or
+     * when it is a Trick or Treat door standing open.
+     */
+    public static int openLane(MinecraftServer server, PersistedRun run) {
+        Located at = locate(server, run);
+        if (at == null) return -1;
+        List<FloorDoor> doors = at.layout.doors();
+        for (int lane = 0; lane < doors.size(); lane++) {
+            FloorDoor door = doors.get(lane);
+            if (TrickDoors.isTrick(door, at.origin)) {
+                if (TrickDoors.isOpen(door, at.origin)) return lane;
+                continue;
+            }
+            FloorBox box = door.open();
+            BlockPos centre = box.minIn(at.origin).offset((box.maxX() - box.minX()) / 2, (box.maxY() - box.minY()) / 2, 0);
+            if (at.level.isLoaded(centre) && at.level.getBlockState(centre).isAir()) return lane;
+        }
+        return -1;
+    }
+
+    /**
      * Shuts and darkens every door of the run's current floor, as the floor begins. A door with a player in it is left open, and logged: bars
      * would trap them.
      * @return the blocks changed

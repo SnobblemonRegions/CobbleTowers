@@ -138,6 +138,12 @@ public final class RoomDresser {
                 new StructurePlaceSettings().setIgnoreEntities(true), level.getRandom(), Block.UPDATE_CLIENTS);
     }
 
+    /** The kind of stop dressed behind door {@code door} for the run's open draft (a {@link RouteGraph.Kind} name), empty when none is known. */
+    public static Optional<String> kindBehind(UUID runId, int door) {
+        List<String> kinds = DRESSED.getOrDefault(runId, List.of());
+        return door >= 0 && door < kinds.size() && !kinds.get(door).isEmpty() ? Optional.of(kinds.get(door)) : Optional.empty();
+    }
+
     /** The run's intermission is over: the next one dresses afresh. */
     public static void forget(UUID runId) {
         DRESSED.remove(runId);
