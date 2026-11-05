@@ -94,5 +94,12 @@ Not live before the event ends. The change moves anchors, boxes and the walk log
   checks that none falls back to the generic set and that props stand behind the party for both yaws. An unknown or missing kind reads as a battle (`Kind.parse`).
 * **Fade on every teleport** (2026-11-05): the cycle-end teleport goes through `TowerEncounters.arrive`, which fades in. The spectator anchor, the vendor stranded-party
   teleport, the spectator revival landing and both run-exit teleports now call `LaneStairs.fadeIn` too. Spectator-follow (`Watching`) is left as a cut on purpose.
+* **Event flow at the door** (2026-11-05, owner TODOs #3, #4, #5, #8): an event round's two cards stand **beside the door the party chose** (`PedestalRules.beside`: the
+  accept on the player's right, the refusal on their left, facing the door), no longer at the far left and right doors, so nobody walks to the end of the hall and
+  back. The door of the chosen lane lights up and opens only once **every pick is made** (`DraftService.doorMayOpen` / `openDoorIfDone`: no open event round or
+  relic draft); a battle lane has no event, so it still opens at once. Every refusal reads "Refuse ...", says what is given up, shows as a grey pedestal and answers
+  in words of its own (`IntermissionEvents.isRefusal`). Refusing a rest pays every player `restPurse(floor)` CobbleDollars (50 + 10 per floor, at least twice the
+  vendor's 25 CobbleDollar heal); the heal stays free. **Not built:** the agreed "+15% loot on the floor you press on through", which needs a per-floor flag
+  persisted in the run (a schema change); modifiers have no per-floor expiry.
 * **Not done**: rig proof (`walk_tower_test.py` still describes the old corridor and gate B), a real-client look (which also has to confirm the new fades and that the
   dressings do not crowd the way to the arena door), the east-masonry alcoves.

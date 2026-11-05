@@ -50,6 +50,30 @@ public final class PedestalRules {
     /** Floor-level centre of one pedestal. */
     public record Slot(double x, double y, double z) {}
 
+    /** How far each of a door's two event cards stands from the door's own pedestal, sideways. */
+    public static final double BESIDE_DOOR = 1.6;
+
+    /**
+     * Where an event round's cards stand: beside the door the party chose, so nobody walks to the far end of the hall and back (TODO #5). Card 0 (the
+     * accept) stands on the player's right and card 1 (the refusal) on their left, facing the door, so the sides are the same in every room. One card
+     * stands on the door's own pedestal. Any other count is left to the usual layout.
+     * @param door the door's pedestal
+     * @param facingX the direction the player faces, toward the door (east is +x), any length
+     * @param facingZ as above (south is +z); a direction of no length counts as south
+     */
+    public static Optional<List<Slot>> beside(Slot door, double facingX, double facingZ, int count) {
+        if (count == 1) return Optional.of(List.of(door));
+        if (count != 2) return Optional.empty();
+        double length = Math.hypot(facingX, facingZ);
+        double fx = length < 1e-6 ? 0 : facingX / length;
+        double fz = length < 1e-6 ? 1 : facingZ / length;
+        double rightX = -fz;
+        double rightZ = fx;
+        return Optional.of(List.of(
+                new Slot(door.x() + rightX * BESIDE_DOOR, door.y(), door.z() + rightZ * BESIDE_DOOR),
+                new Slot(door.x() - rightX * BESIDE_DOOR, door.y(), door.z() - rightZ * BESIDE_DOOR)));
+    }
+
     public static String runTag(UUID runId) {
         return RUN_PREFIX + runId;
     }

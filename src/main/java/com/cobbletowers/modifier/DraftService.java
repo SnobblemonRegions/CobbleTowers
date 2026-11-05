@@ -350,8 +350,8 @@ public final class DraftService {
 
         if (draft.route()) {
             next = next.withRouteStep(draft.floorIndex(), draft.lanes().get(result.cardIndex()), draft.kinds().get(result.cardIndex()));
-            // A walkable tower: the door of the chosen lane lights up and opens.
-            com.cobbletowers.route.TowerDoors.chosen(server, run, draft.lanes().get(result.cardIndex()));
+            // A walkable tower: the door of the chosen lane lights up and opens, but only once every pick is made (openDoorIfDone): a lane whose room
+            // asks something of the party keeps its door shut until the party has answered, so nobody stands at an open door with a pick still to make.
             String arena = draft.arenas().get(result.cardIndex());
             if (!arena.isEmpty()) {
                 ResourceLocation place = ResourceLocation.tryParse(arena);
@@ -376,6 +376,7 @@ public final class DraftService {
                 TowerLog.info("Run {} opened an EVENT room ({}) at floor {}", runId, duel.get(), draft.floorIndex());
             }
             TowerRuns.save(server, afterRelic, true);
+            openDoorIfDone(server, afterRelic, draft.floorIndex());
             return resolved;
         }
 
@@ -402,6 +403,7 @@ public final class DraftService {
             }
         }
         TowerRuns.save(server, after, true);
+        openDoorIfDone(server, after, draft.floorIndex());
         TowerLog.info("Run {} drafted {}{} at floor {}{}", runId, won, draft.lockIn() ? " (LOCKED IN)" : "",
                 draft.floorIndex(), result.byTieBreak() ? " on a seed tie-break" : "");
         TowerDefinitionRegistry.content().modifier(won).ifPresent(modifier ->
@@ -455,7 +457,22 @@ public final class DraftService {
                 player.sendSystemMessage(net.minecraft.network.chat.Component.literal(o.message()));
             }
         });
+        openDoorIfDone(server, run.withModifiers(base.withDraft(resolved), now), resolved.floorIndex());
         return resolved;
+    }
+
+    /**
+     * Whether the door of the lane taken on {@code floorIndex} may open now: a lane was taken, and no pick is still open (an event room's choice or a
+     * relic draft is another pick). A battle lane has nothing more to ask, so its door opens as soon as the lane is chosen, as it always did.
+     */
+    public static boolean doorMayOpen(RunModifierState state, int floorIndex) {
+        return state.laneAt(floorIndex) >= 0 && !state.hasOpenDraft();
+    }
+
+    /** Opens the door of the lane taken on this floor if every pick is made. Never throws: the vote must not fail over a door. */
+    private static void openDoorIfDone(MinecraftServer server, PersistedRun run, int floorIndex) {
+        if (!doorMayOpen(run.modifiers(), floorIndex)) return;
+        com.cobbletowers.route.TowerDoors.chosen(server, run, run.modifiers().laneAt(floorIndex));
     }
 
     /** Clears a settled draft as the run leaves its intermission; an open one stays and blocks it. */

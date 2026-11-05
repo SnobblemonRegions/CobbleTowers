@@ -164,6 +164,25 @@ public final class PedestalService {
         return PedestalRules.atDoors(lanes, doors, count);
     }
 
+    /**
+     * An event round's two cards beside the door the party chose (TODO #5), or empty when this is not an event round, the lane is unknown or the floor
+     * has no such door; the caller then uses the usual layout.
+     */
+    private static Optional<List<PedestalRules.Slot>> besideChosenDoor(PersistedRun run, com.cobbletowers.definition.FloorLayout layout, BlockPos origin, int count) {
+        var draft = run.modifiers().draft().filter(d -> d.event());
+        if (draft.isEmpty()) return Optional.empty();
+        int lane = run.modifiers().laneAt(draft.get().floorIndex());
+        if (lane < 0 || lane >= layout.doors().size()) return Optional.empty();
+        var door = layout.doors().get(lane);
+        BlockPos stand = door.pedestal().in(origin);
+        PedestalRules.Slot at = new PedestalRules.Slot(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5);
+        BlockPos low = door.open().minIn(origin);
+        BlockPos high = door.open().maxIn(origin);
+        double doorX = (low.getX() + high.getX() + 1) / 2.0;
+        double doorZ = (low.getZ() + high.getZ() + 1) / 2.0;
+        return PedestalRules.beside(at, doorX - at.x(), doorZ - at.z(), count);
+    }
+
     /** Puts the pedestals up or brings them in step with the draft. Idempotent; safe to call at any time. */
     public static void sync(MinecraftServer server, PersistedRun run) {
         if (!enabled(run)) return;
@@ -188,7 +207,8 @@ public final class PedestalService {
         BlockPos vendor = layout.get().exit().in(origin.get());
         BlockPos toward = layout.get().spectator().in(origin.get());
         int count = draft.cards().size();
-        List<PedestalRules.Slot> slots = atDoors(run, layout.get(), origin.get(), count)
+        List<PedestalRules.Slot> slots = besideChosenDoor(run, layout.get(), origin.get(), count)
+                .or(() -> atDoors(run, layout.get(), origin.get(), count))
                 .orElseGet(() -> PedestalRules.layout(vendor.getX() + 0.5, vendor.getZ() + 0.5,
                         toward.getX() + 0.5, toward.getZ() + 0.5, vendor.getY(), count));
         boolean settled = draft.state() == 2;
@@ -208,7 +228,8 @@ public final class PedestalService {
             PedestalHolo.Holo holo = PedestalHolo.build(card, card.votes(), voters, settled, draft.chosen() == i);
             holos.add(holo);
             names.add(card.displayName());
-            styles.add(PedestalStyle.styleFor(card.risk()));
+            boolean refusal = IntermissionEvents.Option.fromCard(card.id()).filter(IntermissionEvents::isRefusal).isPresent();
+            styles.add(refusal ? PedestalStyle.refusal() : PedestalStyle.styleFor(card.risk()));
             votes[i] = card.votes();
             signature.append('|').append(holo.name().getString()).append(holo.big().getString()).append(holo.body().getString());
         }
