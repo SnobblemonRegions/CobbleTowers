@@ -18,7 +18,7 @@ class TowerListingTest {
 
     private static final ResourceLocation EVENT = TestRuns.id("event");
     private static final long OPENS = Instant.parse("2026-10-31T04:00:00Z").toEpochMilli();
-    private static final long CLOSES = Instant.parse("2026-11-07T05:00:00Z").toEpochMilli();
+    private static final long CLOSES = Instant.parse("2026-11-09T05:00:00Z").toEpochMilli();
 
     private static TowerContent content() {
         TowerContent base = TestRuns.content();
