@@ -60,7 +60,7 @@ class DraftArenaTest {
             for (int i = 1; i <= 6; i++) {
                 ResourceLocation id = TestRuns.id(tower.getPath() + "_f" + i);
                 boolean boss = tower.equals(HOME) && i == 6;
-                floors.put(id, new FloorDefinition(id, i, TestRuns.id("pool"), boss ? Optional.of(MilestoneKind.BOSS) : Optional.empty(), Optional.empty(), List.of(),
+                floors.put(id, new FloorDefinition(id, i, boss ? Optional.of(MilestoneKind.BOSS) : Optional.empty(), Optional.empty(), List.of(),
                         Optional.of(layout("battle_tower_" + tower.getPath(), 10 * i, homeIsWalkable && tower.equals(HOME))), Optional.empty()));
                 ids.add(id);
             }
@@ -73,7 +73,7 @@ class DraftArenaTest {
             towers.put(tower, new TowerDefinition(tower, tower.getPath(), 1, 3, TestRuns.id("standard"), base.rewardTables().keySet().iterator().next(), ids, milestoneIds,
                     Optional.empty(), Optional.empty()));
         }
-        return TowerContent.of(towers, floors, base.pools(), base.rulesets(), milestones, base.bossPools(), base.modifiers(), base.rewardTables(), base.regionalThemes(),
+        return TowerContent.of(towers, floors, base.rulesets(), milestones, base.bossPools(), base.modifiers(), base.rewardTables(), base.regionalThemes(),
                 base.vendorServices(), base.scoutingProfiles(), base.digests());
     }
 

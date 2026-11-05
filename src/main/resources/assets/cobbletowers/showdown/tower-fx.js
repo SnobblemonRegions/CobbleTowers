@@ -47,6 +47,11 @@ function sidesOf(battle, op) {
   return sides;
 }
 
+/** A rule's optional tag, so a later `clear` op can take it back out (a phase swapping the rule the one before it set). */
+function tagOf(op) {
+  return typeof op.tag === 'string' && op.tag ? op.tag.slice(0, 40) : undefined;
+}
+
 function activesOf(sides) {
   const out = [];
   for (const side of sides) {
@@ -141,7 +146,7 @@ function applySuppressItems(battle, op) {
 function addDrainRule(battle, op, rules) {
   const sides = sidesOf(battle, op).map(side => side.id);
   if (sides.length === 0) return;
-  rules.drain.push({sides, percent: clamp(op.percent, 1, 50, 10)});
+  rules.drain.push({sides, percent: clamp(op.percent, 1, 50, 10), tag: tagOf(op)});
 }
 
 /** Records a damage rule; the wrapper that enforces it is installed once, after every operation has run. */
@@ -150,7 +155,7 @@ function addDamageRule(battle, op, rules, key) {
   if (type === null) throw new Error(`${op.type} is not a type`);
   const sides = sidesOf(battle, op).map(side => side.id);
   if (sides.length === 0) return;
-  rules[key].push({sides, type, percent: clamp(op.percent, 1, 300, 100)});
+  rules[key].push({sides, type, percent: clamp(op.percent, 1, 300, 100), tag: tagOf(op)});
 }
 
 /**
@@ -237,7 +242,136 @@ const OPERATIONS = {
   drain: (battle, op, rules) => addDrainRule(battle, op, rules),
   enrage: (battle, op, rules) => addEnrageRule(battle, op, rules),
   cap: (battle, op, rules) => addCapRule(battle, op, rules),
+  heal: (battle, op) => applyHealTo(battle, op),
+  cure: (battle, op) => applyCure(battle, op),
+  clear: (battle, op, rules) => applyClear(battle, op, rules),
+  phase: (battle, op, rules) => addPhase(battle, op, rules),
 };
+
+// ---- boss phases (P58) -----------------------------------------------------------------------------------------
+// A `phase` op names the side it watches (the boss), a trigger and a bundle of the operations above. The watcher fires
+// each phase once, from the action hook (HP) and the turn hook (turn number), and says so in the battle log and the
+// server log. Everything here fails open: a phase that throws is skipped, never a hung battle.
+
+const MAX_PHASES = 6;
+const MAX_PHASE_OPS = 8;
+/** What a phase may do. `phase` itself is left out: a phase cannot create phases. */
+const PHASE_OPS = ['weather', 'terrain', 'boost', 'status', 'sidecondition', 'heal', 'cure', 'damage', 'resist', 'drain',
+  'enrage', 'clear'];
+
+/** Restores the named sides' actives up to `to_percent` of their maximum HP, never lowers them. */
+function applyHealTo(battle, op) {
+  const percent = clamp(op.to_percent, 1, 100, 0);
+  if (percent === 0) throw new Error('heal needs to_percent');
+  for (const pokemon of activesOf(sidesOf(battle, op))) {
+    const target = Math.floor(pokemon.maxhp * percent / 100);
+    if (target > pokemon.hp) battle.heal(target - pokemon.hp, pokemon, pokemon);
+  }
+}
+
+/** Takes the named sides' actives back to zero on every stat stage that is below it. */
+function applyCure(battle, op) {
+  for (const pokemon of activesOf(sidesOf(battle, op))) {
+    let cleared = false;
+    for (const stat of Object.keys(pokemon.boosts)) {
+      if (pokemon.boosts[stat] < 0) {
+        pokemon.boosts[stat] = 0;
+        cleared = true;
+      }
+    }
+    if (cleared) battle.add('-clearnegativeboost', pokemon, '[silent]');
+  }
+}
+
+/** Removes every damage, resist, drain and enrage rule that carries `tag`. */
+function applyClear(battle, op, rules) {
+  const tag = tagOf(op);
+  if (!tag) throw new Error('clear needs a tag');
+  for (const key of ['dealt', 'taken', 'drain', 'enrage']) rules[key] = rules[key].filter(rule => rule.tag !== tag);
+}
+
+function addPhase(battle, op, rules) {
+  if (rules.phases.length >= MAX_PHASES) throw new Error('too many phases');
+  const watches = sidesOf(battle, op).map(side => side.id);
+  if (!watches.length) throw new Error('a phase needs the side it watches');
+  const when = op.when && typeof op.when === 'object' ? op.when : {};
+  const hpBelow = when.hp_below === undefined ? 0 : clamp(when.hp_below, 1, 99, 0);
+  const turn = when.turn === undefined ? 0 : clamp(when.turn, 2, 50, 0);
+  if (!hpBelow && !turn) throw new Error('a phase needs when.hp_below or when.turn');
+  const todo = (Array.isArray(op.do) ? op.do : []).slice(0, MAX_PHASE_OPS)
+    .filter(inner => inner && typeof inner === 'object' && PHASE_OPS.includes(inner.op));
+  rules.phases.push({id: String(op.id || 'phase').slice(0, 40), watches, hpBelow, turn,
+    announce: String(op.announce || '').slice(0, 160), todo, fired: false});
+}
+
+function firePhase(battle, rules, phase) {
+  phase.fired = true;   // first, so a throwing effect can never fire it twice
+  if (phase.announce) note(battle, phase.announce);
+  let applied = 0;
+  for (const inner of phase.todo) {
+    try {
+      OPERATIONS[inner.op](battle, inner, rules);
+      applied++;
+    } catch (err) {
+      note(battle, `A phase effect (${inner.op}) could not be applied: ${err && err.message}`);
+    }
+  }
+  try {
+    console.log(`[CobbleTowers] Phase ${phase.id} fired (${applied} of ${phase.todo.length} effect(s))`);
+  } catch (err) {
+    /* logging is never worth a battle */
+  }
+}
+
+/** The lowest HP percentage among the watched sides' Pokemon still standing, or 100 if none is. */
+function lowestHpPercent(battle, phase) {
+  let lowest = 100;
+  for (const pokemon of activesOf(battle.sides.filter(side => side && phase.watches.includes(side.id)))) {
+    lowest = Math.min(lowest, pokemon.hp * 100 / pokemon.maxhp);
+  }
+  return lowest;
+}
+
+function checkPhases(battle, rules) {
+  for (const phase of rules.phases) {
+    if (phase.fired) continue;
+    try {
+      const due = (phase.turn && battle.turn >= phase.turn) || (phase.hpBelow && lowestHpPercent(battle, phase) < phase.hpBelow);
+      if (due) firePhase(battle, rules, phase);
+    } catch (err) {
+      phase.fired = true;   // a phase that cannot even be checked is dropped, not retried every action
+    }
+  }
+}
+
+/** Watches the battle for the phases' triggers: after every action (HP) and after every turn change (turn number). */
+function wrapPhases(battle, rules) {
+  const run = battle.runAction;
+  if (typeof run === 'function') {
+    battle.runAction = function () {
+      const result = run.apply(this, arguments);
+      try {
+        checkPhases(this, rules);
+      } catch (err) {
+        /* see checkPhases */
+      }
+      return result;
+    };
+  }
+  const hook = typeof battle.endTurn === 'function' ? 'endTurn' : 'nextTurn';
+  const turnHook = battle[hook];
+  if (typeof turnHook === 'function') {
+    battle[hook] = function () {
+      const result = turnHook.apply(this, arguments);
+      try {
+        checkPhases(this, rules);
+      } catch (err) {
+        /* see checkPhases */
+      }
+      return result;
+    };
+  }
+}
 
 /**
  * Balance phase 2: a `cap` op bounds what a side's damage rules can add up to, in percent. Relics stack
@@ -254,7 +388,7 @@ function addCapRule(battle, op, rules) {
 function addEnrageRule(battle, op, rules) {
   const sides = sidesOf(battle, op).map(side => side.id);
   if (!sides.length) throw new Error('enrage needs a side');
-  rules.enrage.push({sides, every: clamp(op.every, 1, 20, 4)});
+  rules.enrage.push({sides, every: clamp(op.every, 1, 20, 4), tag: tagOf(op)});
 }
 
 /**
@@ -364,7 +498,7 @@ function applyTowerFx(battle) {
   battle.towerFxApplied = true;
   if (fx.length > MAX_OPS) note(battle, `Only the first ${MAX_OPS} tower effects were applied.`);
 
-  const rules = {dealt: [], taken: [], drain: [], enrage: [], caps: {}};
+  const rules = {dealt: [], taken: [], drain: [], enrage: [], caps: {}, phases: []};
   let applied = 0;
   for (const op of fx.slice(0, MAX_OPS)) {
     const name = op && typeof op === 'object' ? op.op : undefined;
@@ -377,9 +511,12 @@ function applyTowerFx(battle) {
       note(battle, `A tower effect (${name}) could not be applied: ${err && err.message}`);
     }
   }
-  if (rules.dealt.length || rules.taken.length) wrapDamage(battle, rules);
-  if (rules.drain.length) wrapDrain(battle, rules);
-  if (rules.enrage.length) wrapEnrage(battle, rules);
+  // A phase can add rules later, so with any phase present every wrapper is installed now (each is cheap and fails open).
+  const phased = rules.phases.length > 0;
+  if (phased || rules.dealt.length || rules.taken.length) wrapDamage(battle, rules);
+  if (phased || rules.drain.length) wrapDrain(battle, rules);
+  if (phased || rules.enrage.length) wrapEnrage(battle, rules);
+  if (phased) wrapPhases(battle, rules);
   applied += battle.towerFxPreApplied || 0;
   if (applied > 0) note(battle, 'Tower effects are in play.');
   // To the server log, not just the battle log: the Java side logs what it HANDED to Showdown, and only this line

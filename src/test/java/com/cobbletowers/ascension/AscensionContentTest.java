@@ -27,7 +27,7 @@ class AscensionContentTest {
         TowerDefinition tower = new TowerDefinition(plain.id(), plain.displayName(), plain.schemaVersion(),
                 plain.revision(), plain.rulesetId(), plain.rewardTableId(), plain.floorIds(), plain.milestoneIds(),
                 plain.regionalTheme(), plain.scoutingProfile(), ascends);
-        return TowerContent.of(Map.of(TestRuns.TOWER, tower), base.floors(), base.pools(), base.rulesets(),
+        return TowerContent.of(Map.of(TestRuns.TOWER, tower), base.floors(), base.rulesets(),
                 base.milestones(), base.bossPools(), Map.of(), base.rewardTables(), base.regionalThemes(),
                 base.vendorServices(), base.scoutingProfiles(), base.digests());
     }
@@ -63,12 +63,11 @@ class AscensionContentTest {
     }
 
     @Test
-    @DisplayName("Ascension adds opponents, boss health and reward factor to the modifiers' own effects, and the base cycle adds nothing")
+    @DisplayName("Ascension adds boss health and reward factor to the modifiers' own effects, and the base cycle adds nothing")
     void effectsGrow() {
         ModifierEffects base = ModifierEffects.NONE;
         assertEquals(base, base.withAscension(0));
         ModifierEffects deep = base.withAscension(3);
-        assertEquals(1, deep.extraOpponents());
         assertEquals(136, deep.bossHealthPercent());
         assertEquals(AscensionPolicy.rewardPercent(3), deep.rewardPercent());
         assertTrue(deep.changesBattleRules(), "a bigger boss pool is a battle rule");
@@ -77,8 +76,8 @@ class AscensionContentTest {
     private static Map<ResourceLocation, ModifierDefinition> pool() {
         Map<ResourceLocation, ModifierDefinition> all = new HashMap<>();
         for (ModifierDefinition modifier : List.of(
-                TestRuns.modifier("brutal", "enemy", "\"level_offset\":4", "\"risk\":\"severe\""),
-                TestRuns.modifier("crowded", "encounter", "\"extra_opponents\":1", "\"risk\":\"moderate\""),
+                TestRuns.modifier("brutal", "enemy", "\"boss_level_offset\":4", "\"risk\":\"severe\""),
+                TestRuns.modifier("crowded", "enemy", "\"boss_level_offset\":2", "\"risk\":\"moderate\""),
                 TestRuns.modifier("rain", "field", "\"weather\":\"raindance\"", "\"risk\":\"moderate\""),
                 TestRuns.modifier("soft", "enemy", "\"boss_health_percent\":70", "\"risk\":\"minor\""),
                 TestRuns.modifier("bounty", "reward", "\"reward_percent\":150", "\"risk\":\"moderate\""),

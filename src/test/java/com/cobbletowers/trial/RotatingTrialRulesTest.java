@@ -130,7 +130,7 @@ class RotatingTrialRulesTest {
         Map<ResourceLocation, ModifierDefinition> all = new HashMap<>();
         for (ModifierDefinition m : List.of(
                 TestRuns.modifier("gem", "reward", "\"reward_percent\":125", "\"relic\":true", "\"tags\":[\"economy\"]"),
-                TestRuns.modifier("brutal", "enemy", "\"level_offset\":3", "\"risk\":\"severe\""))) all.put(m.id(), m);
+                TestRuns.modifier("brutal", "enemy", "\"boss_level_offset\":3", "\"risk\":\"severe\""))) all.put(m.id(), m);
         return TestRuns.contentWith(all);
     }
 

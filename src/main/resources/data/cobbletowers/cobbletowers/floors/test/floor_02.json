@@ -1,6 +1,5 @@
 {
   "index": 2,
-  "encounter_pool": "cobbletowers:neutral_common",
   "layout": {
     "structure": "cobbletowers:poke_tower",
     "entry": {

@@ -76,11 +76,13 @@ final class FloorBoss {
                 server, setup.level(), standing, boss.get(), setup.presentation(0), round.runId(), round.floorIndex(),
                 effects,
                 // Declared inside the adapter, once the encounter id exists and before the boss battle starts.
-                encounterId -> FloorScouting.declareBoss(server, setup, boss.get(), standing, encounterId));
+                encounterId -> FloorScouting.declareBoss(server, setup, boss.get(), standing, encounterId),
+                setup.content().milestoneAt(run.towerId(), round.floorIndex())
+                        .map(com.cobbletowers.definition.MilestoneDefinition::phases).orElseGet(com.google.gson.JsonArray::new));
         if (started.isEmpty()) return false;
 
         TowerEncounters.putRound(
-                new TowerEncounters.Round(round.runId(), round.floorIndex(), TowerEncounters.Phase.BOSS, round.byPlayer(), round.waves(),
+                new TowerEncounters.Round(round.runId(), round.floorIndex(), TowerEncounters.Phase.BOSS, round.byPlayer(),
                         round.startedAt()));
         return true;
     }
@@ -97,7 +99,7 @@ final class FloorBoss {
     }
 
     /** The definition a milestone floor is meant to finish with, if this is one. */
-    private static Optional<ResourceLocation> handpickedBoss(TowerContent content, TowerDefinition tower,
+    static Optional<ResourceLocation> handpickedBoss(TowerContent content, TowerDefinition tower,
                                                             FloorDefinition floor) {
         if (floor.milestone().isEmpty()) return Optional.empty();
         return content.milestoneAt(tower.id(), floor.index()).flatMap(MilestoneDefinition::raidDefinitionId);

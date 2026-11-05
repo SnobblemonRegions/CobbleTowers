@@ -402,10 +402,10 @@ public final class RunsCommand {
         // TDS #60: state, modifiers, seed and last transition, all keyed by run.
         ModifierEffects effects = DraftService.effects(run);
         source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT,
-                "  modifiers: %d drafted (%d locked in)  ->  level %+d, +%d opponent(s), boss level %+d,"
+                "  modifiers: %d drafted (%d locked in)  ->  boss level %+d,"
                         + " boss hp %d%%, reward %d%%",
                 run.modifiers().accumulated().size(), run.modifiers().lockedIn().size(),
-                effects.levelOffset(), effects.extraOpponents(), effects.bossLevelOffset(),
+                effects.bossLevelOffset(),
                 effects.bossHealthPercent(), effects.rewardPercent())), false);
         for (ResourceLocation modifier : run.modifiers().accumulated()) {
             source.sendSuccess(() -> Component.literal("    " + modifier
@@ -429,9 +429,7 @@ public final class RunsCommand {
                         + (draft.decidedByTieBreak() ? " (tie-break)" : "")
                         : " OPEN, " + draft.votes().size() + " vote(s)")), false));
         TowerEncounters.of(runId).ifPresent(round -> source.sendSuccess(() -> Component.literal(
-                "  fighting now: " + round.phase() + " " + round.byPlayer()
-                        + (round.waves().values().stream().anyMatch(wave -> wave.remaining() > 0)
-                        ? "  waves " + round.waves() : "")), false));
+                "  fighting now: " + round.phase() + " " + round.byPlayer()), false));
         TowerBossAdapter.of(runId).ifPresent(boss -> source.sendSuccess(() -> Component.literal(
                 "  boss: " + boss.definition() + " at level " + boss.level()), false));
         for (PersistedParticipant participant : run.participants()) {
@@ -657,6 +655,8 @@ public final class RunsCommand {
             return 0;
         }
 
+        // Floors are bosses now: clearing one by command must end the fight still open, or the next floor's boss is refused ("already in a battle").
+        if (event == RunEvent.ENCOUNTER_RESOLVED_CLEARED) com.cobbletowers.battle.cobbleraids.TowerBossAdapter.abort(runId);
         RunTransitionService.Outcome outcome =
                 RunTransitionService.apply(source.getServer(), runId, event, System.currentTimeMillis());
         if (outcome instanceof RunTransitionService.Move move) {

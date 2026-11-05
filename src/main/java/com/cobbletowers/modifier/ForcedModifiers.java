@@ -23,7 +23,7 @@ public final class ForcedModifiers {
     /** Whether a modifier is the kind an Ascension may force. */
     public static boolean forcible(ModifierDefinition modifier) {
         boolean hardens = switch (modifier.type()) {
-            case ENEMY, ENCOUNTER, FIELD, PLAYER_CONSTRAINT -> true;
+            case ENEMY, FIELD, PLAYER_CONSTRAINT -> true;
             case REWARD, SCOUTING, CUSTOM -> false;
         };
         return hardens && modifier.risk() != RiskTier.MINOR;

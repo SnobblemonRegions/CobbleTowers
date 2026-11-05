@@ -19,7 +19,7 @@ class ModifierEffectsTest {
     @DisplayName("nothing held is nothing changed")
     void neutral() {
         assertEquals(ModifierEffects.NONE, ModifierEffects.of(List.of()));
-        assertEquals(0, ModifierEffects.NONE.levelOffset());
+        assertEquals(0, ModifierEffects.NONE.bossLevelOffset());
         assertEquals(100, ModifierEffects.NONE.bossHealthPercent());
         assertEquals(100, ModifierEffects.NONE.rewardPercent());
     }
@@ -27,9 +27,9 @@ class ModifierEffectsTest {
     @Test
     @DisplayName("offsets add up")
     void offsetsAdd() {
-        ModifierDefinition three = TestRuns.modifier("three", "enemy", "\"level_offset\":3");
-        ModifierDefinition four = TestRuns.modifier("four", "enemy", "\"level_offset\":4");
-        assertEquals(7, ModifierEffects.of(List.of(three, four)).levelOffset());
+        ModifierDefinition three = TestRuns.modifier("three", "enemy", "\"boss_level_offset\":3");
+        ModifierDefinition four = TestRuns.modifier("four", "enemy", "\"boss_level_offset\":4");
+        assertEquals(7, ModifierEffects.of(List.of(three, four)).bossLevelOffset());
     }
 
     @Test
@@ -60,27 +60,19 @@ class ModifierEffectsTest {
     }
 
     @Test
-    @DisplayName("extra opponents add up across copies")
-    void extraOpponentsAdd() {
-        ModifierDefinition crowd = TestRuns.modifier("crowd", "encounter", "\"extra_opponents\":1",
-                "\"stack_limit\":3");
-        assertEquals(3, ModifierEffects.of(List.of(crowd, crowd, crowd)).extraOpponents());
-    }
-
-    @Test
     @DisplayName("a modifier whose effect does not match its type is refused at load")
     void typeMustMatchEffect() {
         // The mistake content makes: copy a modifier, change its type, forget the payload. Without
         // this the file loads, the card drafts, and it does nothing that its type is applied by.
         assertThrows(IllegalArgumentException.class,
-                () -> TestRuns.modifier("mislabelled", "reward", "\"level_offset\":3"));
+                () -> TestRuns.modifier("mislabelled", "reward", "\"boss_level_offset\":3"));
     }
 
     @Test
     @DisplayName("every type is offerable now that every field has somewhere to go")
     void everyTypeIsOfferable() {
         // P8b gave these three a road across the encounter boundary, so all three are real cards.
-        assertTrue(TestRuns.modifier("real", "enemy", "\"level_offset\":1").effectiveNow());
+        assertTrue(TestRuns.modifier("real", "enemy", "\"boss_level_offset\":1").effectiveNow());
         assertTrue(TestRuns.modifier("paid", "reward", "\"reward_percent\":120").effectiveNow());
         assertTrue(TestRuns.modifier("weather", "field", "\"weather\":\"raindance\"").effectiveNow());
         assertTrue(TestRuns.modifier("no_items", "player_constraint", "\"allow_items\":false").effectiveNow());
@@ -91,7 +83,7 @@ class ModifierEffectsTest {
     @DisplayName("a card that would do nothing cannot be defined at all")
     void inertCardsCannotExist() {
         // A definition whose effect changes nothing matches no type and is refused by the constructor.
-        for (String type : new String[] {"enemy", "encounter", "player_constraint", "field", "reward"}) {
+        for (String type : new String[] {"enemy", "player_constraint", "field", "reward"}) {
             assertThrows(IllegalArgumentException.class,
                     () -> TestRuns.modifier("empty_" + type, type, ""),
                     type + " accepted an effect that changes nothing");
@@ -103,7 +95,7 @@ class ModifierEffectsTest {
     void permissionsOnlyNarrow() {
         ModifierDefinition noSwitch = TestRuns.modifier("no_switch", "player_constraint",
                 "\"allow_switching\":false");
-        ModifierDefinition ordinary = TestRuns.modifier("ordinary", "enemy", "\"level_offset\":1");
+        ModifierDefinition ordinary = TestRuns.modifier("ordinary", "enemy", "\"boss_level_offset\":1");
 
         // Order must not matter: an ordinary modifier drafted after a restriction cannot hand the
         // permission back, because its own effect says "switching allowed" simply by not mentioning it.
@@ -141,7 +133,7 @@ class ModifierEffectsTest {
         assertTrue(ModifierEffects.of(List.of(
                 TestRuns.modifier("tough", "enemy", "\"boss_health_percent\":130"))).changesBattleRules());
         assertFalse(ModifierEffects.of(List.of(
-                TestRuns.modifier("plain", "enemy", "\"level_offset\":2"))).changesBattleRules(),
+                TestRuns.modifier("plain", "enemy", "\"boss_level_offset\":2"))).changesBattleRules(),
                 "a level offset is not a battle rule; it is applied when the opponent is drawn");
     }
 

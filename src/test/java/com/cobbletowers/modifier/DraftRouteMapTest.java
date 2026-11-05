@@ -38,7 +38,7 @@ class DraftRouteMapTest {
         List<ResourceLocation> ids = new ArrayList<>();
         for (int i = 1; i <= 6; i++) {
             ResourceLocation id = TestRuns.id("mapped_f" + i);
-            floors.put(id, new FloorDefinition(id, i, TestRuns.id("pool"), i == 6 ? Optional.of(MilestoneKind.BOSS) : Optional.empty(), Optional.empty(), List.of(),
+            floors.put(id, new FloorDefinition(id, i, i == 6 ? Optional.of(MilestoneKind.BOSS) : Optional.empty(), Optional.empty(), List.of(),
                     Optional.empty(), Optional.empty()));
             ids.add(id);
         }
@@ -48,7 +48,7 @@ class DraftRouteMapTest {
         Map<ResourceLocation, TowerDefinition> towers = new LinkedHashMap<>();
         towers.put(HOME, new TowerDefinition(HOME, "Mapped", 1, 1, TestRuns.id("standard"), base.rewardTables().keySet().iterator().next(), ids, List.of(boss.id()),
                 Optional.empty(), Optional.empty(), false, Optional.empty(), false, routeMap));
-        return TowerContent.of(towers, floors, base.pools(), base.rulesets(), milestones, base.bossPools(), base.modifiers(), base.rewardTables(), base.regionalThemes(),
+        return TowerContent.of(towers, floors, base.rulesets(), milestones, base.bossPools(), base.modifiers(), base.rewardTables(), base.regionalThemes(),
                 base.vendorServices(), base.scoutingProfiles(), base.digests());
     }
 

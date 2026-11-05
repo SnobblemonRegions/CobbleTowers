@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 class ModifierResolverTest {
 
     private static ModifierDefinition enemy(String path, String... extra) {
-        return TestRuns.modifier(path, "enemy", "\"level_offset\":3", extra);
+        return TestRuns.modifier(path, "enemy", "\"boss_level_offset\":3", extra);
     }
 
     @Nested

@@ -14,7 +14,8 @@ const opt = (name, fallback) => {
 };
 const SHOWDOWN = path.resolve(opt('showdown-dir', process.env.SHOWDOWN_DIR || 'showdown'));
 const FX_FILE = path.resolve(__dirname, '../../src/main/resources/assets/cobbletowers/showdown/tower-fx.js');
-const POOLS = path.resolve(__dirname, '../../src/main/resources/data/cobbletowers/cobbletowers/encounter_pools');
+// Species the sims fight against. Tooling data only: the mod has no ordinary-opponent pools (every floor is a boss).
+const POOLS = path.resolve(__dirname, 'sim_opponents');
 const TRIALS = Number(opt('trials', 120));
 const MAX_A = Number(opt('max-ascension', 30));
 const STEP = Number(opt('step', 2));

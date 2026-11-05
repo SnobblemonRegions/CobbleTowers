@@ -55,7 +55,7 @@ def supports(name: str, properties: dict) -> bool:
     if name.endswith("_stairs"):
         return properties.get("half") == "top"
     return not any(weak in name for weak in NON_SUPPORTING)
-KINDS = ("towers", "floors", "encounter_pools", "rulesets", "milestones", "boss_pools", "modifiers",
+KINDS = ("towers", "floors", "rulesets", "milestones", "boss_pools", "modifiers",
          "reward_tables", "vendor_services", "scouting_profiles", "regional_themes", "achievements", "playlists", "trial_pools", "contract_templates", "seasons")
 MAX_PARTY = 6
 MIN_LEVEL, MAX_LEVEL = 1, 100
@@ -210,8 +210,7 @@ def check_modifiers(content: dict, problems: list[str]) -> None:
     that need the whole loaded set, which is the part Java cannot do until a server is running.
     """
     effect_fields_by_type = {
-        "enemy": ("level_offset", "boss_level_offset", "boss_health_percent"),
-        "encounter": ("extra_opponents",),
+        "enemy": ("boss_level_offset", "boss_health_percent"),
         "player_constraint": ("banned_moves", "allow_switching", "allow_items"),
         "field": ("weather", "terrain"),
         "reward": ("reward_percent",),
@@ -604,8 +603,6 @@ def main() -> None:
                 continue
             if floor.get("index") != position:
                 problems.append(f"{floor_id} has index {floor.get('index')} but is floor {position} of {tower_id}")
-            if floor.get("encounter_pool") not in content["encounter_pools"]:
-                problems.append(f"{floor_id} names encounter pool {floor.get('encounter_pool')}, which does not exist")
             override = floor.get("ruleset_override")
             if override is not None and override not in content["rulesets"]:
                 problems.append(f"{floor_id} names ruleset override {override}, which does not exist")
@@ -669,18 +666,38 @@ def main() -> None:
             if not milestone_floors.get(floor.get("index")):
                 problems.append(f"{floor_id} names no boss_pool and no milestone boss, so it cannot be finished")
 
-    for pool_id, pool in content["encounter_pools"].items():
-        entries = pool.get("entries", [])
-        if not entries:
-            problems.append(f"{pool_id} has no entries")
-        for entry in entries:
-            if "species" not in entry:
-                problems.append(f"{pool_id} has an entry with no species")
-            if entry.get("weight", 100) < 1:
-                problems.append(f"{pool_id} has an entry with weight {entry.get('weight')}; weights must be >= 1")
-        regional_pool = pool.get("regional_pool")
-        if regional_pool is not None and regional_pool not in content["regional_themes"]:
-            problems.append(f"{pool_id} names regional pool {regional_pool}, which does not exist")
+    phase_ops = ("weather", "terrain", "boost", "status", "sidecondition", "heal", "cure", "damage", "resist", "drain",
+                 "enrage", "clear")
+    for milestone_id, milestone in content["milestones"].items():
+        phases = milestone.get("phases", [])
+        if len(phases) > 3:
+            problems.append(f"{milestone_id} has {len(phases)} phases; a boss has at most 3")
+        seen_phase_ids = set()
+        for phase in phases:
+            phase_id = phase.get("id", "")
+            if not phase_id or phase_id in seen_phase_ids:
+                problems.append(f"{milestone_id} has a phase with a missing or repeated id '{phase_id}'")
+            seen_phase_ids.add(phase_id)
+            if phase.get("side") not in ("foe", "self", "both"):
+                problems.append(f"{milestone_id} phase {phase_id} needs side foe (the boss)")
+            when = phase.get("when", {})
+            hp_below, turn = when.get("hp_below"), when.get("turn")
+            if hp_below is None and turn is None:
+                problems.append(f"{milestone_id} phase {phase_id} needs when.hp_below or when.turn")
+            if hp_below is not None and not 1 <= hp_below <= 99:
+                problems.append(f"{milestone_id} phase {phase_id} has hp_below {hp_below}; must be 1..99")
+            if turn is not None and not 2 <= turn <= 50:
+                problems.append(f"{milestone_id} phase {phase_id} has turn {turn}; must be 2..50")
+            if not phase.get("announce"):
+                problems.append(f"{milestone_id} phase {phase_id} has no announce line; phases are announced")
+            if not phase.get("name"):
+                problems.append(f"{milestone_id} phase {phase_id} has no name; the boss card lists it")
+            effects = phase.get("do", [])
+            if not effects or len(effects) > 8:
+                problems.append(f"{milestone_id} phase {phase_id} needs 1..8 effects, has {len(effects)}")
+            for effect in effects:
+                if effect.get("op") not in phase_ops:
+                    problems.append(f"{milestone_id} phase {phase_id} uses op '{effect.get('op')}', which a phase cannot")
 
     for ruleset_id, ruleset in content["rulesets"].items():
         levels = ruleset.get("enemy_level", {})

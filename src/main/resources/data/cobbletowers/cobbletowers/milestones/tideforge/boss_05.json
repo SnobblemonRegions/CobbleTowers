@@ -2,5 +2,30 @@
   "floor": 5,
   "kind": "boss",
   "raid_definition": "cobbleraids:regieleki",
-  "banks_rewards": true
+  "banks_rewards": true,
+  "phases": [
+    {
+      "id": "overclock",
+      "name": "Overclock",
+      "side": "foe",
+      "when": { "hp_below": 60 },
+      "announce": "Regieleki overclocks! It is faster, and its shell is thinner.",
+      "do": [
+        { "op": "boost", "side": "foe", "stat": "spe", "stages": 2 },
+        { "op": "terrain", "id": "electricterrain" },
+        { "op": "resist", "side": "foe", "percent": 115, "tag": "overclock" }
+      ]
+    },
+    {
+      "id": "overload",
+      "name": "Overload",
+      "side": "foe",
+      "when": { "hp_below": 30 },
+      "announce": "Regieleki overloads! It lashes out wildly, but its speed is spent.",
+      "do": [
+        { "op": "enrage", "side": "foe", "every": 3 },
+        { "op": "boost", "side": "foe", "stat": "spe", "stages": -2 }
+      ]
+    }
+  ]
 }

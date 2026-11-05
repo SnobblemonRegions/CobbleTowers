@@ -1,6 +1,5 @@
 {
   "index": 3,
-  "encounter_pool": "cobbletowers:duskvale_common",
   "layout": {
     "structure": "cobbletowers:battle_tower_duskvale",
     "entry": {

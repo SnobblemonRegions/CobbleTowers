@@ -1,6 +1,5 @@
 {
   "index": 8,
-  "encounter_pool": "cobbletowers:tideforge_common",
   "layout": {
     "structure": "cobbletowers:battle_tower_tideforge",
     "entry": {

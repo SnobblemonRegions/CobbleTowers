@@ -9,9 +9,6 @@ public interface FloorView {
     /** 1-based, and contiguous within a tower. */
     int index();
 
-    /** The pool this floor's opponents are drawn from. */
-    ResourceLocation encounterPoolId();
-
     /** Present on a milestone floor only. */
     Optional<MilestoneKind> milestone();
 }

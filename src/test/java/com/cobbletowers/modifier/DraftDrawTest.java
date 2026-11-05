@@ -20,7 +20,7 @@ class DraftDrawTest {
     private static List<ModifierDefinition> pool(int size) {
         List<ModifierDefinition> pool = new ArrayList<>();
         for (int i = 0; i < size; i++) {
-            pool.add(TestRuns.modifier("modifier_" + i, "enemy", "\"level_offset\":" + (i + 1)));
+            pool.add(TestRuns.modifier("modifier_" + i, "enemy", "\"boss_level_offset\":" + (i + 1)));
         }
         return pool;
     }
@@ -81,8 +81,8 @@ class DraftDrawTest {
     @Test
     @DisplayName("weight decides how often a card comes up")
     void weighted() {
-        ModifierDefinition common = TestRuns.modifier("common", "enemy", "\"level_offset\":1", "\"weight\":900");
-        ModifierDefinition rare = TestRuns.modifier("rare", "enemy", "\"level_offset\":2", "\"weight\":100");
+        ModifierDefinition common = TestRuns.modifier("common", "enemy", "\"boss_level_offset\":1", "\"weight\":900");
+        ModifierDefinition rare = TestRuns.modifier("rare", "enemy", "\"boss_level_offset\":2", "\"weight\":100");
 
         int commonFirst = 0;
         for (int floor = 1; floor <= 200; floor++) {

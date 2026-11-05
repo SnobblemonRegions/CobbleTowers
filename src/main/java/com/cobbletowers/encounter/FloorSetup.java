@@ -1,7 +1,6 @@
 package com.cobbletowers.encounter;
 
 import com.cobbletowers.TowerLog;
-import com.cobbletowers.definition.EncounterPoolDefinition;
 import com.cobbletowers.definition.FloorDefinition;
 import com.cobbletowers.definition.FloorLayout;
 import com.cobbletowers.definition.RegionalThemeDefinition;
@@ -23,7 +22,7 @@ import net.minecraft.server.level.ServerLevel;
  * Content is looked up afresh each time so a datapack reload cannot leave it stale.
  */
 record FloorSetup(PersistedRun run, TowerContent content, TowerDefinition tower, FloorDefinition floor,
-                  FloorLayout layout, EncounterPoolDefinition pool, RulesetDefinition ruleset,
+                  FloorLayout layout, RulesetDefinition ruleset,
                   Optional<RegionalThemeDefinition> theme, ServerLevel level, BlockPos origin) {
 
     /** Empty when the floor cannot be fought on; {@code report} logs why (the floor start does, later calls do not). */
@@ -38,12 +37,11 @@ record FloorSetup(PersistedRun run, TowerContent content, TowerDefinition tower,
             }
             return Optional.empty();
         }
-        EncounterPoolDefinition pool = content.pools().get(floor.get().encounterPoolId());
         RulesetDefinition ruleset = RulesetResolver.forRun(content, run, floor.get().rulesetOverride());
-        if (pool == null || ruleset == null) {
+        if (ruleset == null) {
             if (report) {
-                TowerLog.error("Floor {} names content that is not loaded (pool {}, ruleset {})",
-                        floor.get().id(), floor.get().encounterPoolId(), tower.rulesetId());
+                TowerLog.error("Floor {} names content that is not loaded (ruleset {})",
+                        floor.get().id(), tower.rulesetId());
             }
             return Optional.empty();
         }
@@ -63,8 +61,8 @@ record FloorSetup(PersistedRun run, TowerContent content, TowerDefinition tower,
             }
             return Optional.empty();
         }
-        Optional<RegionalThemeDefinition> theme = pool.regionalPool().flatMap(content::regionalTheme);
-        return Optional.of(new FloorSetup(run, content, tower, floor.get(), layout, pool, ruleset, theme, level,
+        Optional<RegionalThemeDefinition> theme = tower.regionalTheme().flatMap(content::regionalTheme);
+        return Optional.of(new FloorSetup(run, content, tower, floor.get(), layout, ruleset, theme, level,
                 origin.get()));
     }
 

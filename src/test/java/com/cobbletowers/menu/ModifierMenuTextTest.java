@@ -27,8 +27,8 @@ class ModifierMenuTextTest {
     @Test
     @DisplayName("what helps the player is marked good and what hurts is marked bad")
     void directions() {
-        List<String> lines = lines("\"level_offset\":3,\"boss_health_percent\":80,\"reward_percent\":125,\"allow_items\":false,\"scouting_bonus\":1");
-        assertTrue(has(lines, ModifierMenuText.BAD, "Foes rise 3 levels"), lines.toString());
+        List<String> lines = lines("\"boss_level_offset\":3,\"boss_health_percent\":80,\"reward_percent\":125,\"allow_items\":false,\"scouting_bonus\":1");
+        assertTrue(has(lines, ModifierMenuText.BAD, "The champion stands 3 levels taller"), lines.toString());
         assertTrue(has(lines, ModifierMenuText.GOOD, "frail: only 80%"), lines.toString());
         assertTrue(has(lines, ModifierMenuText.GOOD, "Loot swells"), lines.toString());
         assertTrue(has(lines, ModifierMenuText.BAD, "No items in battle"), lines.toString());
@@ -38,11 +38,10 @@ class ModifierMenuTextTest {
     @Test
     @DisplayName("the opposite effect flips the colour")
     void flipped() {
-        List<String> lines = lines("\"level_offset\":-2,\"boss_health_percent\":150,\"reward_percent\":60,\"extra_opponents\":2");
-        assertTrue(has(lines, ModifierMenuText.GOOD, "Foes fall 2 levels"), lines.toString());
+        List<String> lines = lines("\"boss_level_offset\":-2,\"boss_health_percent\":150,\"reward_percent\":60");
+        assertTrue(has(lines, ModifierMenuText.GOOD, "The champion is weakened by 2 levels"), lines.toString());
         assertTrue(has(lines, ModifierMenuText.BAD, "The boss endures: 150%"), lines.toString());
         assertTrue(has(lines, ModifierMenuText.BAD, "Loot shrinks"), lines.toString());
-        assertTrue(has(lines, ModifierMenuText.BAD, "2 more challengers"), lines.toString());
     }
 
     @Test

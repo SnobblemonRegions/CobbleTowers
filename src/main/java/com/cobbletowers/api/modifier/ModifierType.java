@@ -7,11 +7,8 @@ package com.cobbletowers.api.modifier;
  */
 public enum ModifierType {
 
-    /** The opponents themselves: level, count, how a pool is weighted. */
+    /** The boss: its level and health. Towers have no other opponents. */
     ENEMY,
-
-    /** The shape of a floor's encounters rather than the opponents in them. */
-    ENCOUNTER,
 
     /** What the party may do in a battle: items, switching, banned moves. Effective in P8b. */
     PLAYER_CONSTRAINT,

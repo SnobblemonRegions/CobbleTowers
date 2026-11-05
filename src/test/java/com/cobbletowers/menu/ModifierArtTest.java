@@ -33,11 +33,10 @@ class ModifierArtTest {
     @Test
     @DisplayName("enemy and constraint modifiers get their own scenes")
     void otherTypes() {
-        assertEquals("enemy:veteran", ModifierArt.theme(TestRuns.modifier("tough", "enemy", "\"level_offset\":3")));
+        assertEquals("enemy:champion", ModifierArt.theme(TestRuns.modifier("tough", "enemy", "\"boss_level_offset\":3")));
         assertEquals("enemy:tough", ModifierArt.theme(TestRuns.modifier("wall", "enemy", "\"boss_health_percent\":130")));
         assertEquals("enemy:fragile", ModifierArt.theme(TestRuns.modifier("soft", "enemy", "\"boss_health_percent\":70")));
         assertEquals("constraint:no_switch", ModifierArt.theme(TestRuns.modifier("locked", "player_constraint", "\"allow_switching\":false")));
-        assertEquals("encounter:crowd", ModifierArt.theme(TestRuns.modifier("mob", "encounter", "\"extra_opponents\":2")));
     }
 
     @Test
