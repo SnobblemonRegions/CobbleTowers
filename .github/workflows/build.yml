@@ -50,7 +50,19 @@ jobs:
         run: |
           for schematic in validation/schematics/*.schem; do
             name="$(basename "$schematic" .schem)"
-            python3 validation/schem_to_structure.py --check "$schematic"               "src/main/resources/data/cobbletowers/structure/${name}.nbt"
+            # The Battle Tower is one schematic recoloured into four structures; retheme_schem.py checks those below.
+            [ "$name" = "battle_tower" ] && continue
+            # The Hollow's Eve generator writes hollow_tower.schem; its structure is committed as battle_tower_halloween.nbt.
+            structure="$name"
+            [ "$name" = "hollow_tower" ] && structure="battle_tower_halloween"
+            python3 validation/schem_to_structure.py --check "$schematic" "src/main/resources/data/cobbletowers/structure/${structure}.nbt"
+          done
+          python3 validation/retheme_schem.py --check
+          # BlockArchitect-style builds ship as .mcfunction (setblock lists).
+          for build in validation/schematics/*.mcfunction; do
+            [ -e "$build" ] || continue
+            name="$(basename "$build" .mcfunction)"
+            python3 validation/mcfunction_to_structure.py --check "$build" "src/main/resources/data/cobbletowers/structure/${name}.nbt"
           done
 
       - name: Validate the bundled tower definitions
