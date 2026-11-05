@@ -83,7 +83,11 @@ public final class VendorPurchaseService {
         TowerWalletStore.get(server).checkpoint(server);
 
         try {
-            VendorServices.apply(service.get().effect(), target);
+            if (service.get().effect() == com.cobbletowers.definition.VendorEffect.MYSTERY_BAG) {
+                VendorServices.openBag(server, target, run.runId(), run.floorIndex());
+            } else {
+                VendorServices.apply(service.get().effect(), target);
+            }
         } catch (RuntimeException ex) {
             // Charged and flushed above: a service that did nothing must not cost anything.
             TowerLog.error("Run " + runId + ": " + serviceId + " threw after " + payingPlayerId + " was charged; refunding", ex);

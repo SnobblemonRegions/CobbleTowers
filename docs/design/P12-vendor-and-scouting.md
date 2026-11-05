@@ -76,7 +76,7 @@ registry `load()`/digest/cross-reference discipline every other kind already fol
 VendorServiceDefinition(
     id, schemaVersion, revision, displayName,
     priceCobbleDollars: int,
-    effect: VendorEffect,     // FULL_HEAL, CURE_STATUS  (TDS #20 C: recovery, not exportable items)
+    effect: VendorEffect,     // FULL_HEAL, CURE_STATUS, MYSTERY_BAG  (TDS #20 C: recovery, not exportable items; the bag is the one exception)
     maxPurchasesPerRun: int)  // 0 means unlimited
 ```
 
@@ -84,6 +84,12 @@ TDS #20 C rules out selling temporary items outright ("primarily direct healing 
 exportable temporary items, preventing tower-shop exploitation"), so `VendorEffect` is a closed enum of
 what a service actually *does* to a target's live party, not an item stack handed over -- there is
 nothing here to export, because nothing here is a possession.
+
+**Reviewed exception, 2026-11-05: the goblin's Mystery Bag** (`vendor_services/mystery_bag.json`, 500 CobbleDollars, 2 per run). It is the one service that
+hands over items: a random AscensionLib currency, rolled on the server (`MysteryBag`, odds out of 1000) and paid through the pending-reward queue, so a full
+inventory holds the prize for `/tower claim`. Resonance Dust is half of all bags and pays 40 to 60; every other currency pays one; the Unique Catalyst is the
+jackpot at 0.5%. The wallet it spends is earned only in the tower and already trimmed by the daily completion budget, so the bag converts tower earnings and
+opens no new income. It refuses (and refunds) when AscensionLib is not installed. The Tower Mark, boss-loot and respec currencies are low-weighted on purpose.
 
 `VendorServices.apply(effect, ServerPlayer target)` -- for `FULL_HEAL`, every `Pokemon` in
 `Cobblemon.INSTANCE.getStorage().getParty(target)` has its current health set to its max; for

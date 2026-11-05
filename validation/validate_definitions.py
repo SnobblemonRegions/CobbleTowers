@@ -404,7 +404,7 @@ def check_reward_tables(content: dict, problems: list[str]) -> None:
 
 def check_vendor_services(content: dict, problems: list[str]) -> None:
     """Structural checks only, the same posture as {@code check_reward_tables}."""
-    known_effects = ("full_heal", "cure_status")
+    known_effects = ("full_heal", "cure_status", "mystery_bag")
     for service_id, service in content["vendor_services"].items():
         for field in ("schema_version", "display_name", "price_cobble_dollars", "effect"):
             if field not in service:
