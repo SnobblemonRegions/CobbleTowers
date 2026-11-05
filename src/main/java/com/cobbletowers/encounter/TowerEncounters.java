@@ -451,6 +451,7 @@ public final class TowerEncounters {
         FloorAnchor anchor = layout.get().spectator();
         BlockPos where = anchor.in(origin.get());
         player.teleportTo(level, where.getX() + 0.5, where.getY(), where.getZ() + 0.5, anchor.yaw(), 0.0f);
+        com.cobbletowers.route.LaneStairs.fadeIn(player);
         return true;
     }
 

@@ -24,7 +24,10 @@ public final class LaneArrival {
      */
     public record Prop(int back, int side, int up, BlockState block) {}
 
-    /** The props for a kind of stop (a {@link RouteGraph.Kind} name); a kind with no dressing of its own gets {@link #generic()}. */
+    /**
+     * The props for a kind of stop (a {@link RouteGraph.Kind} name). An unknown or missing name is read as a battle ({@code Kind.parse}), so
+     * {@link #generic()} is only reached by a kind added to the enum without a dressing of its own.
+     */
     public static List<Prop> propsFor(String kind) {
         return switch (RouteGraph.Kind.parse(kind == null ? "" : kind.toUpperCase(Locale.ROOT))) {
             case BATTLE -> List.of(

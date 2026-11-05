@@ -90,6 +90,9 @@ Not live before the event ends. The change moves anchors, boxes and the walk log
   (`LaneStairs.everyoneOnLanding`) or the deadline, fades (`FADE_OUT_MILLIS` of blindness), then `LaneStairs.transfer` teleports the team to the lane's arrival, dresses it
   (`LaneArrival`, by the kind `RoomDresser.kindBehind` reports) and the walk becomes the 45 s walk into the arena. Any other teleport into a floor fades in
   (`TowerEncounters.arrive`).
-* **Not done**: rig proof (`walk_tower_test.py` still describes the old corridor and gate B), a real-client look, the east-masonry alcoves, `LaneArrival` dressings for
-  shrine, gambler, vault, pool and trick or treat (they use the generic purple set), the fade on the cycle-end teleport (it goes through `arrive`, so it is covered if it
-  uses it; verify).
+* **Arrival dressings** (`LaneArrival`): every `RouteGraph.Kind` has its own props (battle, forge, library, rest, shrine, gambler, vault, pool, trick or treat); `LaneArrivalTest`
+  checks that none falls back to the generic set and that props stand behind the party for both yaws. An unknown or missing kind reads as a battle (`Kind.parse`).
+* **Fade on every teleport** (2026-11-05): the cycle-end teleport goes through `TowerEncounters.arrive`, which fades in. The spectator anchor, the vendor stranded-party
+  teleport, the spectator revival landing and both run-exit teleports now call `LaneStairs.fadeIn` too. Spectator-follow (`Watching`) is left as a cut on purpose.
+* **Not done**: rig proof (`walk_tower_test.py` still describes the old corridor and gate B), a real-client look (which also has to confirm the new fades and that the
+  dressings do not crowd the way to the arena door), the east-masonry alcoves.
