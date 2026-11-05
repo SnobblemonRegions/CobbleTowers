@@ -1,13 +1,15 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "type": "enemy",
   "display_name": "Sharpened Claws",
   "risk": "moderate",
   "weight": 120,
   "stack_limit": 3,
-  "excludes": ["cobbletowers:double_trouble"],
+  "excludes": [
+    "cobbletowers:double_trouble"
+  ],
   "effect": {
-    "level_offset": 3
+    "boss_level_offset": 2
   }
 }

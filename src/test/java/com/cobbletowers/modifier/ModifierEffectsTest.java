@@ -33,12 +33,14 @@ class ModifierEffectsTest {
     }
 
     @Test
-    @DisplayName("percentages compound rather than add")
-    void percentagesCompound() {
+    @DisplayName("reward percentages add, and the total is capped at x3 (balance phase 2)")
+    void rewardPercentagesAdd() {
         ModifierDefinition half = TestRuns.modifier("half", "reward", "\"reward_percent\":150");
-        // Adding would give 200%; compounding gives 225%, which is what "half as much again, twice"
-        // actually means -- and what each card claims on its own.
-        assertEquals(225, ModifierEffects.of(List.of(half, half)).rewardPercent());
+        assertEquals(200, ModifierEffects.of(List.of(half, half)).rewardPercent(), "+50% and +50% is +100%");
+        ModifierDefinition cut = TestRuns.modifier("cut", "reward", "\"reward_percent\":80");
+        assertEquals(130, ModifierEffects.of(List.of(half, cut)).rewardPercent());
+        assertEquals(ModifierEffects.MAX_REWARD_PERCENT,
+                ModifierEffects.of(List.of(half, half, half, half, half)).rewardPercent(), "capped at x3");
     }
 
     @Test
@@ -141,5 +143,14 @@ class ModifierEffectsTest {
         assertFalse(ModifierEffects.of(List.of(
                 TestRuns.modifier("plain", "enemy", "\"level_offset\":2"))).changesBattleRules(),
                 "a level offset is not a battle rule; it is applied when the opponent is drawn");
+    }
+
+    @Test
+    @DisplayName("boss levels the cap took away come back as +3% boss health each (balance phase 2)")
+    void clampedLevelsBecomeHealth() {
+        assertEquals(109, ModifierEffects.NONE.withClampedLevels(3).bossHealthPercent());
+        assertEquals(ModifierEffects.NONE, ModifierEffects.NONE.withClampedLevels(0));
+        ModifierDefinition frail = TestRuns.modifier("frail", "enemy", "\"boss_health_percent\":70");
+        assertEquals(74, ModifierEffects.of(List.of(frail)).withClampedLevels(2).bossHealthPercent(), "70 x 1.06, rounded down");
     }
 }

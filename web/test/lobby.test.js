@@ -82,3 +82,17 @@ test('small helpers', () => {
   assert.equal(regionOf('cobbletowers:duskvale'), 'duskvale');
   assert.equal(regionOf('cobbletowers:test'), 'neutral');
 });
+
+test('the Threat picker colours the bands by advice and cycles 0-VI (balance phase 2)', async () => {
+  const { threatView } = await import('../src/lobby.js');
+  assert.equal(threatView(undefined, true), null);
+  assert.equal(threatView({ chosen: 0, advice: 3, offered: false }, true), null, 'not offered: no picker');
+  const t = threatView({ chosen: 4, advice: 3, offered: true }, true);
+  assert.equal(t.label, 'Threat IV');
+  assert.equal(t.tone, 'warn');
+  assert.equal(t.adviceLabel, 'Recommended: Threat III');
+  assert.deepEqual(t.bands.map((b) => b.tone), ['plain', 'good', 'good', 'good', 'warn', 'bad', 'bad']);
+  assert.equal(threatView({ chosen: 6, advice: 3, offered: true }, true).next, 0);
+  const v = lobbyView(play({ options: { depth: { chosen: 0, max: 0, offered: false }, modes: { ids: [], names: [], chosen: '', rental: false, readiness: readiness() }, threat: { chosen: 2, advice: 2, offered: true } } }));
+  assert.equal(v.threat.tone, 'good');
+});

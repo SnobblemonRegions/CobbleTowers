@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "display_name": "Tideforge Tower",
   "ruleset": "cobbletowers:tideforge",
   "reward_table": "cobbletowers:tideforge",
@@ -22,5 +22,6 @@
     "cobbletowers:tideforge/boss_05",
     "cobbletowers:tideforge/champion_10"
   ],
-  "ascension": true
+  "ascension": true,
+  "boss_rush": true
 }

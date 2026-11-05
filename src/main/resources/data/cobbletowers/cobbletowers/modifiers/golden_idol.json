@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "type": "reward",
   "display_name": "Golden Idol",
   "risk": "moderate",
@@ -13,6 +13,6 @@
   ],
   "effect": {
     "reward_percent": 140,
-    "level_offset": 2
+    "boss_level_offset": 2
   }
 }

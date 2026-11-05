@@ -25,6 +25,9 @@ public record CustomEffects(Set<CustomBehavior> behaviors, JsonArray ops) {
     static final int WHEEL_JACKPOT_PERCENT = 400;
     static final int WHEEL_CONSOLATION_PERCENT = 50;
     static final int BLACK_MARKET_PRICE_PERCENT = 50;
+    /** Balance phase 2: the party's relics together deal at most x1.35 and take at least x0.80 (tower-fx.js {@code cap}). */
+    public static final int DEALT_CAP = 135;
+    public static final int TAKEN_FLOOR = 80;
 
     public CustomEffects {
         behaviors = Set.copyOf(behaviors);
@@ -72,21 +75,17 @@ public record CustomEffects(Set<CustomBehavior> behaviors, JsonArray ops) {
     /** Logical battle operations for the player's side, merged with a worn armor set's. */
     public JsonArray battleOps() {
         JsonArray ops = new JsonArray();
+        // Balance phase 2: percent damage instead of stat stages, so relics stay inside the cap op below and cannot be
+        // multiplied again by in-battle setup moves.
         if (has(CustomBehavior.GLASS_CANNON)) {
-            ops.add(op("boost", "stat", "atk", "stages", 2));
-            ops.add(op("boost", "stat", "spa", "stages", 2));
+            ops.add(op("damage", "percent", 140, "type", "any"));
             ops.add(op("hp", "percent", 60));
         }
         if (has(CustomBehavior.SWIFT_START)) ops.add(op("boost", "stat", "spe", "stages", 1));
-        if (has(CustomBehavior.IRON_HIDE)) {
-            ops.add(op("boost", "stat", "def", "stages", 1));
-            ops.add(op("boost", "stat", "spd", "stages", 1));
-        }
-        if (has(CustomBehavior.WAR_BANNER)) {
-            ops.add(op("boost", "stat", "atk", "stages", 1));
-            ops.add(op("boost", "stat", "spa", "stages", 1));
-        }
+        if (has(CustomBehavior.IRON_HIDE)) ops.add(op("resist", "percent", 92, "type", "any"));
+        if (has(CustomBehavior.WAR_BANNER)) ops.add(op("damage", "percent", 110, "type", "any"));
         ops.addAll(this.ops);
+        if (!ops.isEmpty()) ops.add(op("cap", "dealt", DEALT_CAP, "taken", TAKEN_FLOOR));
         return ops;
     }
 

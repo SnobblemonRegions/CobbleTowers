@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "revision": 1,
-  "type": "encounter",
+  "revision": 2,
+  "type": "custom",
   "display_name": "Gauntlet",
   "risk": "moderate",
   "weight": 70,
@@ -10,7 +10,13 @@
     "cobbletowers:crowded_floor"
   ],
   "effect": {
-    "extra_opponents": 1,
+    "battle": [
+      {
+        "op": "enrage",
+        "side": "foe",
+        "every": 5
+      }
+    ],
     "reward_percent": 120
   }
 }

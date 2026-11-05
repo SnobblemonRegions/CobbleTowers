@@ -60,6 +60,8 @@ export function DeskLobby({ state }) {
         <div class="dctl">
           ${v.modes ? html`<span class="lbl">Mode</span><div class="seg">${v.modes.ids.map((id, i) => html`<button key=${id} class=${v.modes.chosen === id ? 'on' : ''} disabled=${!v.modes.enabled} aria-pressed=${v.modes.chosen === id}
             onClick=${() => play('SET_PLAYLIST', id)}>${v.modes.names[i]}</button>`)}</div>` : null}
+          ${v.threat ? html`<span class="lbl">Threat${v.threat.adviceLabel ? html` <span class="hint">(${v.threat.adviceLabel})</span>` : null}</span><div class="seg threat">${v.threat.bands.map((b) => html`<button key=${b.band} class=${(v.threat.chosen === b.band ? 'on ' : '') + 'tone-' + b.tone} disabled=${!v.threat.enabled} aria-pressed=${v.threat.chosen === b.band}
+            onClick=${() => play('SET_THREAT', String(b.band))}>${b.label}</button>`)}</div>` : null}
           ${v.depth ? html`<button class="dbtn gh dsm" disabled=${!v.depth.enabled} title=${v.depth.none ? 'No Ascension reached yet' : ''} onClick=${() => play('SET_ASCENSION', String(v.depth.next))}>Start at: ${v.depth.label}</button>` : null}
           ${v.confirm ? html`<button class="dbtn dsm" onClick=${() => play('CONFIRM_MODE')}>Confirm mode</button>` : null}
           ${v.draft ? html`<button class="dbtn gh dsm" onClick=${() => act('RentalDraftAction', { action: 'OPEN', a: 0, b: 0 })}>Draft your team</button>

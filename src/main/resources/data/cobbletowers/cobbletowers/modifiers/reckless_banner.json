@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "type": "custom",
   "display_name": "Reckless Banner",
   "risk": "moderate",
@@ -16,12 +16,13 @@
       {
         "op": "damage",
         "side": "self",
-        "percent": 125
+        "percent": 120,
+        "type": "any"
       },
       {
         "op": "resist",
         "side": "self",
-        "percent": 115
+        "percent": 112
       }
     ]
   }

@@ -354,6 +354,33 @@ public final class LobbyService {
         return level == 0 ? "Starting from the first floor." : "Starting at Ascension " + level + ".";
     }
 
+    /**
+     * The host picks the Threat band the team enters at (balance phase 2): 1-6, or 0 for none. Every band is open to every team; the lobby shows the
+     * library's advice beside the choice. Needs AscensionLib's Threat system to be on.
+     */
+    public static String setThreat(MinecraftServer server, ServerPlayer player, int band) {
+        TowerLobby lobby = BY_HOST.get(player.getUUID());
+        if (lobby == null) return lobbyOf(player.getUUID()).isPresent() ? "Only the host can choose the Threat." : "Pick a tower first.";
+        if (lobby.counting()) return "The run is already starting.";
+        if (lobby.trial().isPresent()) return "A trial sets its own difficulty. Choose a tower to leave the trial.";
+        if (!com.cobbletowers.economy.AscensionLibScouting.threatEnabled()) return "Threat bands are not switched on on this server.";
+        if (band < 0 || band > com.cobbletowers.ascension.ThreatPolicy.MAX_ENTRY) return "Pick a Threat from 1 to 6 (0 for none).";
+        lobby.setEntryThreat(band);
+        broadcast(server, lobby, "");
+        if (band == 0) return "No Threat band: the tower uses its floor tiers.";
+        int advice = com.cobbletowers.economy.AscensionLibScouting.recommendedThreat(lobby.team());
+        String verdict = band <= advice ? "your team is built for it" : band == advice + 1 ? "a stretch for your team" : "well above what your team is built for";
+        return "Entering at Threat " + roman(band) + " (" + verdict + "; advised Threat " + roman(advice) + ").";
+    }
+
+    /** I to VII. */
+    static String roman(int band) {
+        return switch (band) {
+            case 1 -> "I"; case 2 -> "II"; case 3 -> "III"; case 4 -> "IV"; case 5 -> "V"; case 6 -> "VI"; case 7 -> "VII";
+            default -> String.valueOf(band);
+        };
+    }
+
     /** The host confirms; the countdown runs and {@link #tick} launches the run when it ends. */
     public static String start(MinecraftServer server, ServerPlayer host) {
         TowerLobby lobby = BY_HOST.get(host.getUUID());
@@ -606,6 +633,7 @@ public final class LobbyService {
         List<PlayStatePayload.Member> members = new ArrayList<>();
         int countdown = -1;
         PlayStatePayload.Depth depth = PlayStatePayload.Depth.none();
+        PlayStatePayload.Threat threat = PlayStatePayload.Threat.none();
         PlayStatePayload.Modes modes = PlayStatePayload.Modes.none();
         if (lobby != null) {
             long now = System.currentTimeMillis();
@@ -624,6 +652,9 @@ public final class LobbyService {
             countdown = lobby.secondsLeft(now);
             TowerDefinition chosen = content.towers().get(lobby.tower());
             depth = new PlayStatePayload.Depth(lobby.ascension(), maxAscension(server, lobby), chosen != null && chosen.ascension());
+            boolean threatOn = com.cobbletowers.economy.AscensionLibScouting.threatEnabled() && lobby.trial().isEmpty();
+            threat = threatOn ? new PlayStatePayload.Threat(lobby.entryThreat(),
+                    com.cobbletowers.economy.AscensionLibScouting.recommendedThreat(lobby.team()), true) : PlayStatePayload.Threat.none();
             List<String> modeIds = new ArrayList<>();
             List<String> modeNames = new ArrayList<>();
             for (PlaylistDefinition playlist : PlaylistRegistry.all()) {
@@ -638,7 +669,7 @@ public final class LobbyService {
         List<PlayStatePayload.Roster> rosters = lobby != null && (role == 1 || role == 3) ? rosters(server, player, lobby) : List.of();
         return new PlayStatePayload(towers,
                 new PlayStatePayload.Lobby(role, selected, hostName, members, countdown,
-                        new PlayStatePayload.Options(depth, modes, rosters)), levels, message, open);
+                        new PlayStatePayload.Options(depth, modes, rosters, threat)), levels, message, open);
     }
 
     /**

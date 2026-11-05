@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "type": "enemy",
   "display_name": "Seasoned Ranks",
   "risk": "moderate",
@@ -11,6 +11,6 @@
     "cobbletowers:sharpened_claws"
   ],
   "effect": {
-    "level_offset": 5
+    "boss_level_offset": 3
   }
 }

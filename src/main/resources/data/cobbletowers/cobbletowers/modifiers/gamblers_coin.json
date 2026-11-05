@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "type": "reward",
   "display_name": "Gambler's Coin",
   "risk": "moderate",
@@ -12,7 +12,13 @@
     "risk"
   ],
   "effect": {
-    "reward_percent": 150,
-    "extra_opponents": 1
+    "battle": [
+      {
+        "op": "enrage",
+        "side": "foe",
+        "every": 4
+      }
+    ],
+    "reward_percent": 150
   }
 }

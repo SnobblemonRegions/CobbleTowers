@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "type": "custom",
   "display_name": "Glass Cannon",
   "risk": "severe",
@@ -8,5 +8,10 @@
   "stack_limit": 1,
   "effect": {
     "custom": "glass_cannon"
-  }
+  },
+  "relic": true,
+  "tags": [
+    "offense",
+    "risk"
+  ]
 }
