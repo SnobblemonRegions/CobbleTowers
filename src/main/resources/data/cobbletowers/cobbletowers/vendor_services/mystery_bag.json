@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "revision": 1,
+  "display_name": "Mystery Bag",
+  "price_cobble_dollars": 500,
+  "effect": "mystery_bag",
+  "max_purchases_per_run": 2
+}

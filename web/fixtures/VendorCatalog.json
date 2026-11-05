@@ -14,6 +14,12 @@
         "displayName": "Full Heal",
         "priceCobbleDollars": 25,
         "remainingPurchases": -1
+      },
+      {
+        "id": "cobbletowers:mystery_bag",
+        "displayName": "Mystery Bag",
+        "priceCobbleDollars": 500,
+        "remainingPurchases": 2
       }
     ],
     "team": [

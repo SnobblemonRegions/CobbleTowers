@@ -226,7 +226,7 @@ public final class DraftService {
     static int detourFor(TowerContent content, PersistedRun run, int floor, List<String> places) {
         if (run.options().isTrial() || !content.towers().containsKey(run.towerId())) return -1;
         // A walkable tower is climbed, not left: no lane may send the party to another building and back.
-        if (content.floorAt(run.towerId(), floor).flatMap(f -> f.layout()).map(layout -> layout.gateB().isPresent()).orElse(false)) return -1;
+        if (content.floorAt(run.towerId(), floor).flatMap(f -> f.layout()).map(layout -> layout.walkable()).orElse(false)) return -1;
         if (content.milestoneAt(run.towerId(), floor + 1).isPresent() || content.floorAt(run.towerId(), floor + 1).flatMap(f -> f.layout()).isEmpty()) return -1;
         int lane = com.cobbletowers.route.RouteGraph.detourLane(run.seed(), floor);
         if (lane < 0) return -1;

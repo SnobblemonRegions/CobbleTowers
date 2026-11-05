@@ -1,6 +1,7 @@
 package com.cobbletowers.vendor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Optional;
@@ -52,6 +53,31 @@ class VendorNpcRulesTest {
         assertTrue(VendorNpcRules.isGoblinWitch(com.cobbletowers.CobbleTowers.id("halloween")));
         assertTrue(!VendorNpcRules.isGoblinWitch(com.cobbletowers.CobbleTowers.id("neutral")));
         assertTrue(!VendorNpcRules.witchGreeting(1).isEmpty());
+    }
+
+    @Test
+    void theWitchSpeaksOnEveryFloorAndNeverRepeatsOnTheNext() {
+        for (int floor = 1; floor <= 12; floor++) {
+            assertTrue(!VendorNpcRules.witchGreeting(floor).isBlank(), "floor " + floor + " is silent");
+            if (floor > 1) assertNotEquals(VendorNpcRules.witchGreeting(floor - 1), VendorNpcRules.witchGreeting(floor), "floors " + (floor - 1) + " and " + floor);
+        }
+    }
+
+    @Test
+    void theWitchTalksDifferentlyEarlyMiddleLateAndAtTheBoss() {
+        java.util.Set<String> bands = new java.util.HashSet<>();
+        for (int floor : new int[] {1, 4, 7, 10}) {
+            String line = VendorNpcRules.witchGreeting(floor);
+            assertTrue(bands.add(line), "floor " + floor + " repeats an earlier band's line");
+        }
+        assertTrue(VendorNpcRules.witchGreeting(10).contains("last door"));
+    }
+
+    @Test
+    void aFloorOutsideTheTowerStillGetsAGreeting() {
+        assertEquals(VendorNpcRules.witchGreeting(1), VendorNpcRules.witchGreeting(0));
+        assertEquals(VendorNpcRules.witchGreeting(1), VendorNpcRules.witchGreeting(-5));
+        assertTrue(!VendorNpcRules.witchGreeting(99).isBlank());
     }
 
     @Test

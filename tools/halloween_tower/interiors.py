@@ -323,35 +323,44 @@ def decorate_hall(t, f: int, top: int, accent: str, hall: tuple, outer_west: boo
             t.set(x, top - 1, z, "minecraft:cobweb")
 
 
-# ---- the corridor behind the chambers -----------------------------------------------------------------------------------------------
+# ---- the lane stubs behind the chambers (P58) ---------------------------------------------------------------------------------------
 
-def decorate_corridor(t, f: int, top: int, accent: str, x0: int, x1: int, z0: int, z1: int, ground: int, doorways: list) -> None:
-    """The three-wide passage behind the chambers (x x0..x1, z z0..z1): a pointed vault of ribs every six blocks, a purple runner between
-    obsidian edges, candle niches cut into the outer wall, hanging lamps over the runner and bone-white studs along the sill."""
+def decorate_stub(t, f: int, top: int, accent: str, c: int, dx: int, lo: int, hi: int, end: int, z0: int, z1: int, ground: int, steps: int) -> None:
+    """One lane's own way up, behind its chamber (x lo..hi, z z0..z1): a short vestibule under a lit lamp, a stair of {steps} steps with candle niches
+    cut into the outer wall, a landing paved with a purple runner, and at its end an arch of crying obsidian round a glowing window: the threshold.
+    Nothing hangs over the stair or the landing (the landing has three clear blocks, the same as the head height of a walk)."""
     mid = (z0 + z1) // 2
-    for x in range(x0, x1 + 1):
-        t.set(x, ground, z0, TRIM if x % 4 else GILDED)
-        t.set(x, ground, mid, PURPLE)
-        t.set(x, ground, z1, TRIM if x % 4 else GILDED)
-    ribs = list(range(x0 + 3, x1 - 1, 6))
-    for x in ribs:
-        t.fill(x, x, f + 4, f + 4, z0, z0, slab(BRICK, "top"))      # the haunches
-        t.fill(x, x, f + 4, f + 4, z1, z1, slab(BRICK, "top"))
-        t.fill(x, x, f + 5, top, z0, z0, BRICKS)
-        t.fill(x, x, f + 5, top, z1, z1, BRICKS)
-        t.fill(x, x, f + 6, top, mid, mid, BRICKS)                   # the crown
-        t.set(x, f + 5, mid, slab(BRICK, "top"))
-        t.set(x, f + 3, z0 - 1, jack("south"))                       # a lit face in the outer wall at every rib
-    for x in range(x0 + 6, x1 - 2, 6):                               # hanging lamps between the ribs
-        hang(t, x, top, mid, SOUL if (x // 6) % 2 else FIRE, 2)
-    for x in range(x0 + 6, x1 - 2, 6):                               # candle niches in the outer wall between the ribs
-        t.set(x, f + 1, z0 - 1, "minecraft:air")
-        t.set(x, f + 2, z0 - 1, "minecraft:air")
-        t.set(x, f + 1, z0 - 1, "minecraft:candle[candles=4,lit=true]")
-    for x in range(x0, x1 + 1, 9):
-        if not any(abs(x - d) <= 2 for d in doorways):
-            t.set(x, top, z1, "minecraft:cobweb")
-            t.set(x, top - 1, z1, "minecraft:cobweb")
+    # the vestibule: the doorway columns and what is beside them, floored like the chamber behind it
+    vest = range(c - 1, c + 2)
+    for x in vest:
+        for z in range(z0, z1 + 1):
+            t.set(x, ground, z, PURPLE if z == mid else (TRIM if x != c else GILDED))
+    hang(t, c, top, mid, SOUL if accent == PURPLE else FIRE, 2)
+    t.set(c, top + 1, mid, SHROOM)
+    # the stair: a lit niche in the outer wall beside every other step
+    for i in range(1, steps + 1):
+        x = c + dx * (1 + i)
+        if i % 2:
+            t.set(x, f + i + 1, z0 - 1, CANDLES)
+    # the landing: floor of the stone it was built from, a runner, a border
+    land0 = c + dx * (2 + steps)
+    xs = range(min(land0, end), max(land0, end) + 1)
+    for x in xs:
+        t.set(x, f + steps - 1, z0, TRIM)
+        t.set(x, f + steps - 1, mid, PURPLE)
+        t.set(x, f + steps - 1, z1, TRIM)
+        t.set(x, f + steps + 2, z0 - 1, BRICKS)               # a rib's worth of lit stone in the outer wall over the landing
+    for x in xs:
+        t.set(x, top + 1, mid, SHROOM)
+    t.set(land0, f + steps + 1, z0 - 1, jack("south"))
+    t.set(end, f + steps + 1, z0 - 1, jack("south"))
+    # the arch in the end wall: obsidian jambs and lintel, a glass window lit from behind
+    wall = end + dx
+    t.fill(wall, wall, f + steps, f + steps + 2, z0, z0, TRIM)
+    t.fill(wall, wall, f + steps, f + steps + 2, z1, z1, TRIM)
+    t.fill(wall, wall, f + steps + 2, f + steps + 2, z0, z1, TRIM)
+    t.fill(wall, wall, f + steps, f + steps + 1, mid, mid, MAGENTA)
+    t.fill(wall + dx, wall + dx, f + steps, f + steps + 1, mid, mid, SHROOM)
 
 
 # ---- the spectator gallery ----------------------------------------------------------------------------------------------------------

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Proves P55's walkable Hollow's Eve against a real server: a team climbs from floor 1 to floor 10 on foot, and the cycle's end is left by teleport.
+"""Proves P55/P58's walkable Hollow's Eve against a real server: a team climbs from floor 1 to floor 10 by the lane stairs, and the cycle's end is left by teleport.
 
 Two real (headless, physics-on) players start a Halloween run. Floors are cleared by operator event (as intermission_test.py does), then everything
-between floors is the real thing: gate A opens when a floor is won, the vendor stands in its room, the walk to the stair is made with real
-collision, gate B opens when the team is ready, the stair is climbed, and the next floor begins by itself when both players reach the arena door,
-without anyone being teleported. The last floor of the cycle has no stair, so readying up there starts the next cycle by teleport.
+between floors is the real thing: gate A opens when a floor is won, the vendor stands in its room, the vote opens one door, and the team walks through it
+and its chamber and up that lane's own five-step stair with real collision. When both are on the landing the screen fades and the server takes them to that
+lane's arrival hall on the next floor (checked: position, level, dressing), they walk into the arena, and the next floor begins by itself when both reach
+its door, without anyone being teleported there. There is no gate B. The last floor of the cycle has no stair, so readying up there starts the next cycle by teleport.
 
 Needs the Halloween tower open outside its window (-Dcobbletowers.ignoreWindows=true), RCON on port 25575, and mineflayer and vec3 on NODE_PATH.
 
@@ -198,19 +199,6 @@ def route_to_vendor(floor: int) -> list[tuple[float, float]]:
     return [(mx(floor, x), z) for x, z in ((30, 45), (46, 43), (48, 38), (48, 31))]
 
 
-def route_through_door(door_x: int, floor: int) -> list[tuple[float, float]]:
-    """From in front of a door through it, its chamber and its back doorway into the corridor and on east to gate B."""
-    return [(door_x, 26), (door_x, 12), (door_x, 7), (door_x, 3), (mx(floor, 66), 3)]
-
-
-def route_to_stair(floor: int) -> list[tuple[float, float]]:
-    """Along the corridor, through gate B, to the north end of the stair hall and up the stair to the floor above."""
-    return [(mx(floor, x), z) for x, z in ((82, 3), (86, 4), (86, 16.5))]
-
-
-def route_to_arena(next_floor: int) -> list[tuple[float, float]]:
-    """Own-frame waypoints of the floor above: from the top of the stair down the arrival hall to just inside the arena door."""
-    return [(mx(next_floor, x), z) for x, z in ((10, 24), (10, 48), (21.5, 48))]
 
 
 def trick_card(server_dir: Path, run: str, floor: int) -> int:
@@ -315,8 +303,7 @@ def main() -> None:
                 at = f"floor {floor}"
                 check(f"{at}: gate A is shut while the floor is fought", gate_is(rcon, origin, lay["gate_a"], "minecraft:iron_bars"),
                       "gate A middle is " + what_is(rcon, origin, door_centre(lay["gate_a"])) + "; " + run_line(rcon)[-90:])
-                if "gate_b" in lay:
-                    check(f"{at}: gate B is shut too", gate_is(rcon, origin, lay["gate_b"], "minecraft:iron_bars"))
+                check(f"{at}: there is no shared gate B (P58: every lane has its own stair)", "gate_b" not in lay)
                 if not win_floor(rcon, floor):
                     raise RuntimeError(f"{at} never reached its intermission: " + run_line(rcon))
                 check(f"{at}: winning it opens gate A", gate_is(rcon, origin, lay["gate_a"], "minecraft:air"))
@@ -374,9 +361,9 @@ def main() -> None:
                 play(rcon, A, "ready")
                 play(rcon, B, "ready")
 
-                if "gate_b" not in lay:
+                if "stair_top" not in doors[0]:
                     # the last floor of a cycle has no stair: the next cycle begins by teleport
-                    check(f"{at}: the cycle's last floor has no stair gate", True)
+                    check(f"{at}: the cycle's last floor has no lane stairs", True)
                     if floor < 10 or top < 10:
                         break
                     opened = wait_state(rcon, "ENCOUNTER_ACTIVE", seconds=40, floor=11)
@@ -389,35 +376,53 @@ def main() -> None:
                     check("and the doors and gates of floor 1, left open by the first cycle, are shut again",
                           all(door_shut(rcon, origin, d)
                               for d in layout_of(1)["doors"])
-                          and gate_is(rcon, origin, layout_of(1)["gate_a"], "minecraft:iron_bars")
-                          and gate_is(rcon, origin, layout_of(1)["gate_b"], "minecraft:iron_bars"))
+                          and gate_is(rcon, origin, layout_of(1)["gate_a"], "minecraft:iron_bars"))
                     break
 
-                opened = wait_for(lambda: gate_is(rcon, origin, lay["gate_b"], "minecraft:air"), 20)
-                check(f"{at}: everyone ready opens gate B after the countdown", opened)
                 line = run_line(rcon)
                 check(f"{at}: the next floor waits for the climb", "INTERMISSION" in line and f"floor {floor}" in line, line[-120:])
                 if lane < 0:
-                    lane = next((i for i, d in enumerate(doors) if door_open(rcon, origin, d)), -1)
-                    check(f"{at}: a floor with no route lanes opens a door of its own", lane >= 0)
+                    lane = wait_for(lambda: any(door_open(rcon, origin, d) for d in doors), 20) and next(
+                        (i for i, d in enumerate(doors) if door_open(rcon, origin, d)), -1)
+                    check(f"{at}: a floor with no route lanes opens a door of its own", lane is not False and lane >= 0)
+                    lane = lane if lane is not False else -1
+                if lane < 0:
+                    raise RuntimeError(f"{at}: no door open to climb through")
 
-                # through the chosen door, along the corridor and up the stair, then down the arrival hall to the next arena
+                # through the chosen door and its chamber, then up that lane's own stair to the landing
                 door_x = doors[lane]["pedestal"]["x"] - offset()[0]
-                problems = walk(list(by_name.values()), origin, route_through_door(door_x, floor) + route_to_stair(floor), seconds=30)
-                check(f"{at}: both players walk through the chosen door, its chamber and the corridor and climb the stair", not problems, "; ".join(problems)[:240])
-                gained = [position(rcon, n)[1] - origin[1] for n in (A, B)]
-                want = layout_of(floor + 1)["entry"]["y"]
-                check(f"{at}: the stair rises ten blocks", all(abs(y - want) < 0.6 for y in gained), f"y {gained}, wanted {want}")
+                top_box = doors[lane]["stair_top"]
+                land_x = (top_box["min"][0] + top_box["max"][0]) / 2 - offset()[0]
+                problems = walk(list(by_name.values()), origin, [(door_x, 26), (door_x, 12), (door_x, 7), (door_x, 3), (land_x, 3)], seconds=30)
+                check(f"{at}: both players walk through the chosen door and its chamber and up lane {lane}'s own stair", not problems, "; ".join(problems)[:240])
+                # the fade and the move happen on their own once the whole team is on the landing: read where they are after it
+                arrival = doors[lane]["arrival"]
+                nxt = layout_of(floor + 1)
+                wanted = (origin[0] + arrival["x"] + 0.5, origin[1] + arrival["y"], origin[2] + arrival["z"] + 0.5)
 
-                problems = walk(list(by_name.values()), origin, route_to_arena(floor + 1), seconds=40)
-                check(f"floor {floor + 1}: the team walks from the stair to the arena door", not problems, "; ".join(problems)[:240])
+                def at_arrival() -> bool:
+                    return all(abs(p[0] - wanted[0]) < 3.5 and abs(p[1] - wanted[1]) < 0.6 and abs(p[2] - wanted[2]) < 3.5
+                               for p in (position(rcon, n) for n in (A, B)))
+
+                check(f"{at}: the whole team on the landing is faded and taken to lane {lane}'s arrival on the next floor", wait_for(at_arrival, 25),
+                      f"at {[position(rcon, n) for n in (A, B)]}, wanted {wanted}")
+                line = run_line(rcon)
+                check(f"{at}: the next floor still waits for the walk into the arena", "INTERMISSION" in line and f"floor {floor}" in line, line[-120:])
+                check(f"{at}: the team is on the next floor's level, ten blocks above this one",
+                      abs(wanted[1] - (origin[1] + lay["entry"]["y"] + 10)) < 0.01, f"y {wanted[1]}")
+                behind = -1 if arrival["yaw"] == 270 else 1
+                spot = (arrival["x"] + behind * 4, arrival["y"], arrival["z"] - 1)
+                check(f"{at}: the arrival hall is dressed for the route", not block_is(rcon, origin, spot, "minecraft:air"),
+                      f"{what_is(rcon, origin, spot)} at {spot}")
+
+                problems = walk(list(by_name.values()), origin, [(mx(floor + 1, 10), 48), (mx(floor + 1, 21.5), 48)], seconds=40)
+                check(f"floor {floor + 1}: the team walks from its arrival into the arena", not problems, "; ".join(problems)[:240])
                 if not wait_state(rcon, "ENCOUNTER_ACTIVE", seconds=20, floor=floor + 1):
                     raise RuntimeError(f"floor {floor + 1} never opened after the walk: " + run_line(rcon))
-                # nobody was moved: they stand where they stopped, three blocks from the anchor, not on it
-                nxt = layout_of(floor + 1)["entry"]
+                # nobody was moved to the arena door: they stand where they stopped, near the door, not on the anchor
                 spots = [position(rcon, n) for n in (A, B)]
-                stayed = all(abs(s[0] - (origin[0] + offset()[0] + mx(floor + 1, 21.5) + 0.5)) < 2.0 for s in spots)
-                check(f"floor {floor + 1}: begins where the team stands, nobody is teleported", stayed, f"at {spots}, anchor {nxt}")
+                stayed = all(abs(sp[0] - (origin[0] + offset()[0] + mx(floor + 1, 21.5) + 0.5)) < 2.0 for sp in spots)
+                check(f"floor {floor + 1}: begins where the team stands, nobody is teleported to the door", stayed, f"at {spots}, anchor {nxt['entry']}")
         print()
     finally:
         for walker in walkers:

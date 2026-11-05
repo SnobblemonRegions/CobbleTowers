@@ -93,6 +93,56 @@ public final class IntermissionRound {
 
     public void cancelWalk() {
         walkEndsAt = -1;
+        climbLane = -1;
+        fadeEndsAt = -1;
+        transferred = false;
+    }
+
+    // ---- the lane stair (P58): climb to the landing, fade, be taken to the arrival, then walk into the arena ----
+
+    private int climbLane = -1;
+    private long fadeEndsAt = -1;
+    private boolean transferred;
+
+    /** The team is to climb the stair of {@code lane}; until it has been taken up, the walk is the climb. */
+    public void beginClimb(int lane) {
+        climbLane = lane;
+        fadeEndsAt = -1;
+        transferred = false;
+    }
+
+    /** The lane being climbed, or -1 when this walk has no lane stair. */
+    public int climbLane() {
+        return climbLane;
+    }
+
+    /** The team is on the landing and the screen is going dark; the move happens {@code millis} from {@code now}. */
+    public void beginFade(long now, long millis) {
+        fadeEndsAt = now + millis;
+    }
+
+    public boolean fading() {
+        return fadeEndsAt >= 0 && !transferred;
+    }
+
+    public boolean fadeDue(long now) {
+        return fading() && now >= fadeEndsAt;
+    }
+
+    /** The team has been taken up: from here the walk is from the arrival hall to the arena door, with a new deadline. */
+    public void markTransferred(long now, long millis) {
+        transferred = true;
+        fadeEndsAt = -1;
+        beginWalk(now, millis);
+    }
+
+    public boolean transferred() {
+        return transferred;
+    }
+
+    /** Whether this walk is still on its stair: a lane was chosen and nobody has been taken up. */
+    public boolean climbing() {
+        return climbLane >= 0 && !transferred;
     }
 
     public boolean walking() {

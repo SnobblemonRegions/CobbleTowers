@@ -219,11 +219,13 @@ public final class RunExitService {
             if (overworld == null) return;
             BlockPos spawn = overworld.getSharedSpawnPos();
             player.teleportTo(overworld, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, 0.0f, 0.0f);
+            com.cobbletowers.route.LaneStairs.fadeIn(player);
             TowerLog.info("Sent {} out of the tower to the overworld spawn ({})", player.getUUID(),
                     point.isPresent() ? "their starting place was unavailable" : "no starting place was recorded");
         } else {
             ReturnPoint at = point.get();
             player.teleportTo(level, at.x(), at.y(), at.z(), at.yaw(), at.pitch());
+            com.cobbletowers.route.LaneStairs.fadeIn(player);
             TowerLog.info("Sent {} out of the tower back to {} at {}, {}, {}", player.getUUID(), at.dimension(),
                     Math.round(at.x()), Math.round(at.y()), Math.round(at.z()));
         }

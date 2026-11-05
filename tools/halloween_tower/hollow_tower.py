@@ -10,14 +10,17 @@ then a two-block slab that is the next floor's ground.
 
 One floor (unmirrored, odd floors), from the arrival side to the stair:
 
-    x:  0-1 wall | 2-17 ARRIVAL hall | 18-19 wall | 20-76 ARENA / INTER | 77-78 wall | 79-94 STAIR hall | 95-96 wall
+    x:  0-1 wall | 2-17 ARRIVAL hall | 18-19 wall | 20-76 ARENA / INTER | 77-78 wall | 79-94 solid masonry | 95-96 wall
     z:  0-1 wall | 2-20 INTER (x 20-76) | 21-22 wall (GATE A, x 45-51) | 23-72 ARENA | 73-74 wall | 75-94 GALLERY
 
-    arrive by the stair of the floor below (north end of the ARRIVAL hall) -> walk south to the door at z 46-50 -> ARENA
-    fight -> GATE A opens -> INTER (vendor and the three modifier pedestals) -> GATE B (x 77-78, z 9-13) -> STAIR hall -> climb
+    arrive in the ARRIVAL hall by the lane stair of the floor below (a fade and a teleport, P58) -> walk to the door at z 46-50 -> ARENA
+    fight -> GATE A opens -> INTER (vendor and the three modifier pedestals) -> a door -> its chamber -> the chamber's back doorway
+    -> that lane's own stub (z 2-4): five steps up and a landing under an arch; stepping on the landing is the threshold (P58)
 
-Even floors are the mirror image (x -> 96 - x), so the stair of one floor lands in the ARRIVAL hall of the next. Floor 10 has no
-stair: after its champion the run completes or starts a new cycle by teleport, never on foot.
+There is no shared corridor and no gate B: the three stubs never meet, so the party can only climb the lane the vote opened.
+
+Even floors are the mirror image (x -> 96 - x). Floor 10 has no stubs: after its champion the run completes or starts a new cycle
+by teleport, never on foot.
 
 Nothing here touches Minecraft. The output is a Sponge .schem (mcschematic), converted to the vanilla .nbt by
 validation/schem_to_structure.py, plus layout.json with every anchor and gate box for the floor definitions.
@@ -45,7 +48,6 @@ MID_X = 48
 
 # ---- the zones (unmirrored x) ------------------------------------------------------------------------------------------------
 ARRIVAL = (2, 17)
-STAIR_HALL = (79, 94)
 ROOMS_X = (20, 76)
 ARENA_X = ROOMS_X
 ARENA_Z = (37, 72)
@@ -53,19 +55,20 @@ GATE_A_Z = (35, 36)         # arena | intermission room wall
 INTER_Z = (23, 34)
 DOOR_WALL_Z = (21, 22)      # intermission room | the three route chambers
 CHAMBER_Z = (6, 20)
-CORRIDOR_Z = (2, 4)         # behind the chambers; leads east to gate B and the stair hall
 GALLERY_Z = (75, 94)
 DOOR_Z = (46, 50)           # arrival hall -> arena, in the wall x 18..19
 GATE_A_X = (45, 51)
-GATE_B_Z = (2, 4)           # corridor -> stair hall, in the wall x 77..78
+STUB_Z = (2, 4)             # the three lane stubs run along the outer north wall, behind the chambers
+STUB_STEPS = 5              # a lane stair is five steps, so the landing is feet + 5: three blocks of headroom under the slab
+STUB_LANDING = 3            # and a landing this long after the last step; the last two columns are the threshold
+LANE_DX = (-1, 1, 1)        # which way each chamber's stair climbs from its back doorway (unmirrored): lane 0 west, lanes 1 and 2 east
+ARRIVAL_X = 10              # lane arrival anchors stand here in the arrival hall, one per lane
+ARRIVAL_ZS = (41, 48, 55)   # lane 0 is on the left of somebody walking from the hall into the arena
 CHAMBER_CENTERS = (36, 48, 60)   # one door, one chamber and one pedestal each, in unmirrored x
 CHAMBER_HALF = 5            # a chamber is 11 wide
 DOOR_HALF = 2               # a door is 5 wide, 6 high
 PEDESTAL_Z = 27             # the pedestals stand here, in front of their doors
 VENDOR = (27, 31)
-STAIR_X = (85, 87)
-STAIR_Z0 = 6                # step i (1..10) is at z = 5 + i
-HOLE_Z = (10, 15)
 
 AIR = "minecraft:air"
 SOLID_FACE = {"minecraft:cobweb"}
@@ -187,6 +190,8 @@ def build_floor(t: Tower, floor: int) -> None:
     t.fill(18, 19, f, top, 2, 72, PLAIN_WALL)                 # arrival hall | rooms
     t.fill(77, 78, f, top, 2, 72, PLAIN_WALL)                 # rooms | stair hall
     t.fill(20, 76, f, top, GATE_A_Z[0], GATE_A_Z[1], PLAIN_WALL)   # arena | intermission room
+    t.fill(79, 94, f, top, 2, 72, PLAIN_WALL)                 # the old stair hall is solid masonry now (P58): no stair needs it
+    t.fill(20, 76, f, top, STUB_Z[0], STUB_Z[1], PLAIN_WALL)  # and so is the strip behind the chambers, until the lane stubs are cut into it
     t.fill(2, 94, f, top, 73, 74, PLAIN_WALL)                 # rooms | gallery
     t.fill(24, 72, f + 2, f + 5, 73, 74, GLASS)               # the gallery looks into the arena through a long window
     # behind the intermission room: the door wall, three chambers (the rest is solid) and the corridor behind them
@@ -201,16 +206,47 @@ def build_floor(t: Tower, floor: int) -> None:
     t.air(18, 19, f, f + 5, DOOR_Z[0], DOOR_Z[1])
     t.air(GATE_A_X[0], GATE_A_X[1], f, f + 5, GATE_A_Z[0], GATE_A_Z[1])
     t.fill(GATE_A_X[0], GATE_A_X[1], f, f + 5, GATE_A_Z[0], GATE_A_Z[1], BARS)
-    t.air(77, 78, f, f + 3, GATE_B_Z[0], GATE_B_Z[1])
-    t.fill(77, 78, f, f + 3, GATE_B_Z[0], GATE_B_Z[1], BARS)
     # windows in the outer walls of both halls and the gallery
     for z in range(8, 70, 8):
         t.fill(0, 1, f + 2, f + 5, z, z + 2, GLASS)
-        t.fill(95, 96, f + 2, f + 5, z, z + 2, GLASS)
     for x in range(8, 90, 12):
         t.fill(x, x + 2, f + 2, f + 5, 95, 96, GLASS)
         t.fill(x, x + 2, f + 2, f + 5, 0, 1, GLASS)
+    if floor < FLOORS:
+        for lane, c in enumerate(CHAMBER_CENTERS):
+            cut_stub(t, f, top, c, LANE_DX[lane])
+    else:
+        for c in CHAMBER_CENTERS:                                       # floor 10 is left by teleport: its chambers are dead ends
+            t.fill(c - 1, c + 1, f, f + 3, CHAMBER_Z[0] - 1, CHAMBER_Z[0] - 1, PLAIN_WALL)
     decorate(t, floor, f, top)
+
+
+def stub_span(c: int, dx: int) -> tuple[int, int, int, int]:
+    """The columns of a lane stub: (first x of the air, last x of the air, first step x, threshold x) in unmirrored floor coordinates.
+    The air runs from the chamber's doorway columns (c-1..c+1) out along the stair and the landing; the end wall is one past it."""
+    steps_end = c + dx * (1 + STUB_STEPS)
+    land_end = steps_end + dx * STUB_LANDING
+    lo, hi = (land_end, c + 1) if dx < 0 else (c - 1, land_end)
+    return lo, hi, c + dx * 2, land_end
+
+
+def cut_stub(t: Tower, f: int, top: int, c: int, dx: int) -> None:
+    """One lane's own way up (P58): from the chamber's back doorway, a flat three-wide vestibule, five steps and a landing under an arch.
+    The party never reaches the next floor on foot: the last two columns of the landing are the threshold that fades and teleports."""
+    z0, z1 = STUB_Z
+    lo, hi, first_step, end = stub_span(c, dx)
+    t.air(lo, hi, f, top, z0, z1)
+    facing = "west" if dx < 0 else "east"
+    step = STAIR_BLOCK.replace("facing=south", f"facing={facing}")
+    for i in range(1, STUB_STEPS + 1):
+        x = c + dx * (1 + i)
+        y = f + i - 1
+        if y - 1 >= f:
+            t.fill(x, x, f, y - 1, z0, z1, PLAIN_WALL)
+        t.fill(x, x, y, y, z0, z1, step)
+    land0 = c + dx * (2 + STUB_STEPS)
+    t.fill(min(land0, end), max(land0, end), f, f + STUB_STEPS - 1, z0, z1, PLAIN_WALL)       # the landing is solid up to its floor
+    t.fill(end + dx, end + dx, f, top, z0, z1, PLAIN_WALL)                                    # the end wall
 
 
 def noise(x: int, z: int, salt: int = 0) -> int:
@@ -332,44 +368,19 @@ def decorate(t: Tower, floor: int, f: int, top: int) -> None:
         t.fill(c - 1, c + 1, ground, ground, CHAMBER_Z[0], CHAMBER_Z[1], PURPLE)
         for z in (9, 13, 17):
             t.set(c, f + CLEAR, z, LANTERN)
-    # the corridor behind the chambers
-    interiors.decorate_corridor(t, f, top, accent, ARENA_X[0], ARENA_X[1], CORRIDOR_Z[0], CORRIDOR_Z[1], ground, list(CHAMBER_CENTERS))
+    # the lane stubs behind the chambers
+    if floor < FLOORS:
+        for lane, c in enumerate(CHAMBER_CENTERS):
+            lo, hi, first_step, end = stub_span(c, LANE_DX[lane])
+            interiors.decorate_stub(t, f, top, accent, c, LANE_DX[lane], lo, hi, end, STUB_Z[0], STUB_Z[1], ground, STUB_STEPS)
     # halls: ribbed naves with a runner, lit pilasters and hanging lamps
     interiors.decorate_hall(t, f, top, accent, ARRIVAL, True, 2, 72, ground)
-    interiors.decorate_hall(t, f, top, accent, STAIR_HALL, False, 2, 72, ground)
     # gallery: a long hall behind the arena window
     interiors.decorate_gallery(t, f, top, accent, 2, 94, GALLERY_Z[0], GALLERY_Z[1], ground, (44, 52), (24, 72))
     # webs above head height only (feet + 3 and up), in corners of the arena, the vendor's room and the gallery
     for x, z in ((20, 37), (76, 37), (20, 72), (76, 72), (20, 23), (76, 23), (2, 75), (94, 75), (2, 94), (94, 94)):
         t.set(x, top, z, COBWEB)
         t.set(x, top - 1, z, COBWEB)
-
-
-# ---- stairs ------------------------------------------------------------------------------------------------------------------
-
-def build_stair(t: Tower, floor: int) -> None:
-    """The stair that leaves {floor} for {floor + 1}: ten steps south, a hole in the slab above, rails around it up there."""
-    f = feet(floor)
-    t.mirror = mirrored(floor)
-    slab_lo, slab_hi = f + CLEAR, f + CLEAR + 1
-    x0, x1 = STAIR_X
-    # side walls of the stair, beyond the first steps; the entrance is open from the hall side at z 5..9
-    t.fill(x1 + 1, x1 + 1, f, slab_hi, 5, 16, PLAIN_WALL)
-    t.fill(x0 - 1, x0 - 1, f, slab_hi, 10, 16, PLAIN_WALL)
-    # the hole in the slab above
-    t.air(x0, x1, slab_lo, slab_hi, HOLE_Z[0], HOLE_Z[1])
-    for i in range(1, 11):
-        z = STAIR_Z0 - 1 + i
-        y = f + i - 1
-        # solid support below the step, down to the ground
-        if y - 1 >= f:
-            t.fill(x0, x1, f, y - 1, z, z, PLAIN_WALL)
-        t.fill(x0, x1, y, y, z, z, STAIR_BLOCK)
-    # rails on the ground above (floor + 1 feet level), so nobody walks into the hole from the north or the sides
-    up = f + PITCH
-    t.fill(x0 - 1, x0 - 1, up, up, HOLE_Z[0], HOLE_Z[1], WALL_CAP)
-    t.fill(x1 + 1, x1 + 1, up, up, HOLE_Z[0], HOLE_Z[1], WALL_CAP)
-    t.fill(x0, x1, up, up, HOLE_Z[0] - 1, HOLE_Z[0] - 1, WALL_CAP)
 
 
 # ---- the crown and the exterior ----------------------------------------------------------------------------------------------
@@ -414,8 +425,6 @@ def build() -> Tower:
     t = Tower()
     for floor in range(1, FLOORS + 1):
         build_floor(t, floor)
-    for floor in range(1, FLOORS):
-        build_stair(t, floor)
     build_crown(t)
     t.mirror = False
     return t
@@ -438,11 +447,16 @@ def layout(floor: int) -> dict:
     # the doors in physical west-to-east order, which is left to right for somebody facing them: lane 0 is the left door on every floor
     doors = []
     for c in sorted(CHAMBER_CENTERS, key=lambda c: mx(floor, c)):
-        doors.append({
+        lane = len(doors)
+        door = {
             "open": box(floor, c - DOOR_HALF, c + DOOR_HALF, f, f + 5, DOOR_WALL_Z[0], DOOR_WALL_Z[1]),
             "frame": box(floor, c - DOOR_HALF - 1, c + DOOR_HALF + 1, f + 6, f + 7, DOOR_WALL_Z[0], DOOR_WALL_Z[1]),
             "pedestal": anchor(c, PEDESTAL_Z, 0),
-        })
+        }
+        if floor < FLOORS:
+            door["stair_top"] = stair_top(floor, c)
+            door["arrival"] = arrival(floor + 1, lane)
+        doors.append(door)
     out = {
         "entry": anchor(24, 48, into_arena),
         "presentation": anchor(46, 48, back),
@@ -451,9 +465,22 @@ def layout(floor: int) -> dict:
         "gate_a": box(floor, GATE_A_X[0], GATE_A_X[1], f, f + 5, GATE_A_Z[0], GATE_A_Z[1]),
         "doors": doors,
     }
-    if floor < FLOORS:
-        out["gate_b"] = box(floor, 77, 78, f, f + 3, GATE_B_Z[0], GATE_B_Z[1])
     return out
+
+
+def stair_top(floor: int, c: int) -> dict:
+    """The threshold of the lane whose chamber is centred on {c}: the last two columns of its landing, from the landing floor up two blocks."""
+    f = feet(floor)
+    dx = LANE_DX[CHAMBER_CENTERS.index(c)]
+    end = stub_span(c, dx)[3]
+    return box(floor, end, end - dx, f + STUB_STEPS, f + STUB_STEPS + 1, STUB_Z[0], STUB_Z[1])
+
+
+def arrival(floor: int, lane: int) -> dict:
+    """Where lane {lane}'s stair drops the party on {floor}: in the arrival hall, looking at the door into the arena. Lane 0 is on the left."""
+    f = feet(floor)
+    zs = ARRIVAL_ZS if not mirrored(floor) else tuple(reversed(ARRIVAL_ZS))
+    return {"x": mx(floor, ARRIVAL_X), "y": f, "z": zs[lane], "yaw": 270 if not mirrored(floor) else 90}
 
 
 def box(floor: int, x0: int, x1: int, y0: int, y1: int, z0: int, z1: int) -> dict:
@@ -506,6 +533,11 @@ def reach(t: Tower, start: tuple[int, int, int], opened: list[dict]) -> set[tupl
     return seen
 
 
+def _mid(b: dict, y: int) -> list[int]:
+    """The cell in the middle of a box's x and z, at height {y}."""
+    return [(b["min"][0] + b["max"][0]) // 2, y, (b["min"][2] + b["max"][2]) // 2]
+
+
 def cell_of(lay: dict, name: str) -> tuple[int, int, int]:
     a = lay[name]
     return a["x"], a["y"], a["z"]
@@ -536,7 +568,7 @@ def validate(t: Tower) -> list[str]:
         gate_a = lay["gate_a"]
         doors = [d["open"] for d in lay["doors"]]
         chamber = [(mx(floor, c), f, 13) for c in sorted(CHAMBER_CENTERS, key=lambda c: mx(floor, c))]
-        corridor = (mx(floor, 48), f, 3)
+        tops = [tuple(_mid(d["stair_top"], f + STUB_STEPS)) for d in lay["doors"]] if floor < FLOORS else []
 
         closed = reach(t, entry, [])
         if pres not in closed:
@@ -549,28 +581,38 @@ def validate(t: Tower) -> list[str]:
         for i, spot in enumerate(chamber):
             if spot in after_a:
                 problems.append(f"floor {floor}: chamber {i} is reachable with its door shut")
-        if corridor in after_a:
-            problems.append(f"floor {floor}: the corridor is reachable with every door shut")
+        for i, spot in enumerate(tops):
+            if spot in after_a:
+                problems.append(f"floor {floor}: the threshold of lane {i} is reachable with every door shut")
+        if floor < FLOORS and "gate_b" in lay:
+            problems.append(f"floor {floor}: a gate B is still in the layout")
         for i, door in enumerate(doors):
             through = reach(t, entry, [gate_a, door])
             if chamber[i] not in through:
                 problems.append(f"floor {floor}: chamber {i} is not reachable with its door open")
-            if corridor not in through:
-                problems.append(f"floor {floor}: the corridor is not reachable through door {i}")
+            for j, spot in enumerate(chamber):
+                if j != i and spot in through:
+                    problems.append(f"floor {floor}: chamber {j} is reachable through door {i}")
             if floor < FLOORS:
+                if tops[i] not in through:
+                    problems.append(f"floor {floor}: the threshold of lane {i} is not reachable through door {i}")
+                for j, spot in enumerate(tops):
+                    if j != i and spot in through:
+                        problems.append(f"floor {floor}: the threshold of lane {j} is reachable through door {i}")
+                ys = {c[1] for c in through}
+                if max(ys) > f + STUB_STEPS or min(ys) < f:
+                    problems.append(f"floor {floor}: the walk through door {i} leaves its floor, y {min(ys)}..{max(ys)}")
                 landing = cell_of(layout(floor + 1), "entry")
                 if landing in through:
-                    problems.append(f"floor {floor}: the next floor is reachable through door {i} with gate B shut")
-                both = reach(t, entry, [gate_a, door, lay["gate_b"]])
-                if landing not in both:
-                    problems.append(f"floor {floor}: the next floor's entry is not reachable through door {i} and gate B")
-                ys = {c[1] for c in both}
-                if min(ys) < f - PITCH or max(ys) > f + PITCH + FURNITURE:
-                    problems.append(f"floor {floor}: the walk leaves its floors, y {min(ys)}..{max(ys)}")
-                if floor > 1:
-                    below = cell_of(layout(floor - 1), "entry")
-                    if below in both:
-                        problems.append(f"floor {floor}: the arena of the floor below is reachable on foot")
+                    problems.append(f"floor {floor}: the next floor's arena is reachable on foot through door {i}")
+                arrive = lay["doors"][i]["arrival"]
+                spot = (arrive["x"], arrive["y"], arrive["z"])
+                if not standable(t, *spot):
+                    problems.append(f"floor {floor}: the arrival of lane {i} {arrive} is not standable")
+                elif landing not in reach(t, spot, []):
+                    problems.append(f"floor {floor}: from the arrival of lane {i} the next floor's arena door is not reachable on foot")
+                elif pres in reach(t, spot, []) or vendor in reach(t, spot, []):
+                    problems.append(f"floor {floor}: the arrival of lane {i} reaches the wrong floor")
             else:
                 everything = reach(t, entry, [gate_a] + doors)
                 if max(c[1] for c in everything) > f + FURNITURE:
@@ -630,7 +672,7 @@ def main() -> int:
         print("FAIL", p)
     if problems:
         return 1
-    print("validation: PASS (every floor walkable entry -> arena -> gate A -> doors -> chambers -> corridor -> gate B -> next floor, nothing earlier)")
+    print("validation: PASS (every floor: entry -> arena -> gate A -> door -> chamber -> its own lane stub -> threshold; the lanes never meet; each arrival leads to the next arena)")
     if args.check:
         return 0
     count = write_schem(final, args.out / "hollow_tower.schem")
