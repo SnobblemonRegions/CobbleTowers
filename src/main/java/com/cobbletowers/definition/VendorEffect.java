@@ -10,8 +10,8 @@ public enum VendorEffect {
     /** Every persistent status condition in the target's party is cleared. */
     CURE_STATUS,
     /**
-     * The goblin's mystery bag: a random AscensionLib currency, rolled on the server ({@code MysteryBag}) and paid through the pending-reward queue.
-     * Approved by the owner on 2026-11-05 as the one service that hands over items.
+     * The goblin's mystery bag: sells a physical, tradable bag item ({@code MysteryBagItem}); opening it (a right-click) rolls a random AscensionLib currency
+     * on the server ({@code MysteryBag}) and AscensionLib pays it as voucher items. Approved by the owner on 2026-11-05 as the one service that hands over items.
      */
     MYSTERY_BAG
 }

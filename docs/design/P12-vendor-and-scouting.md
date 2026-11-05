@@ -86,8 +86,12 @@ what a service actually *does* to a target's live party, not an item stack hande
 nothing here to export, because nothing here is a possession.
 
 **Reviewed exception, 2026-11-05: the goblin's Mystery Bag** (`vendor_services/mystery_bag.json`, 500 CobbleDollars, 2 per run). It is the one service that
-hands over items: a random AscensionLib currency, rolled on the server (`MysteryBag`, odds out of 1000) and paid through the pending-reward queue, so a full
-inventory holds the prize for `/tower claim`. Resonance Dust is two bags in three (67.6%) and pays 40 to 60; every other currency pays one; the epic and legendary
+hands over items. It sells a physical, tradable **bag item** (`MysteryBagItem`: a leather item that carries its own id in its custom data, never stacks;
+dropped at the buyer's feet if the inventory is full). Right-clicking it from the hotbar opens it (`MysteryBagService`, `MysteryBagOpening`): a random
+AscensionLib currency is rolled on the server (`MysteryBag`, odds out of 1000) and AscensionLib pays it as **voucher items** (`AscensionGrants.grantAsVouchers`:
+credited to the wallet, then moved into vouchers; the Tower Mark, which is bound, stays in the wallet) that the player right-clicks to deposit. A ledger in the
+world's saved data (`MysteryBagBook`/`MysteryBagStore`) makes a duplicated bag open only once, and keeps a rolled prize across a failed payment or a restart,
+so opening again is never a reroll. Resonance Dust is two bags in three (67.6%) and pays 40 to 60; every other currency pays one; the epic and legendary
 currencies together are 5.4% and the Unique Catalyst is the jackpot at 0.1% (one bag in a thousand). Bags may be traded
 (owner decision, 2026-11-05), which is why the good materials are kept very rare. The wallet it spends is earned only in the tower and already trimmed by the daily completion budget, so the bag converts tower earnings and
 opens no new income. It refuses (and refunds) when AscensionLib is not installed. The Tower Mark, boss-loot and respec currencies are low-weighted on purpose.

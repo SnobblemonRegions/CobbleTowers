@@ -5,8 +5,9 @@ import java.util.function.IntUnaryOperator;
 
 /**
  * The pure half of the goblin's mystery bag: which AscensionLib currency a bag can hold and how likely each is. The bag is bought with the tower's
- * own CobbleDollars (earned only in the tower, and already trimmed by the daily completion budget) and pays out through the same pending-reward queue
- * as a floor reward, so a full inventory holds the prize for {@code /tower claim}. The roll is made on the server; the client never sees the table.
+ * own CobbleDollars (earned only in the tower, and already trimmed by the daily completion budget) as a physical, tradable item ({@link MysteryBagItem});
+ * right-clicking it rolls the prize on the server ({@link MysteryBagOpening}) and AscensionLib pays it as voucher items to deposit. The client never sees
+ * the table.
  *
  * <p>Owner decision (2026-11-05): unlike Full Heal and Cure Status, the bag hands over items, on purpose. It is the one exception to TDS #20 C.
  */
