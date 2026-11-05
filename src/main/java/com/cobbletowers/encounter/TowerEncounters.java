@@ -33,7 +33,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.UUID;
+import com.cobbletowers.definition.BossPoolDefinition;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -50,23 +53,12 @@ public final class TowerEncounters {
     /** Which half of the floor is being fought. Kept here, not in the run transition table. */
     public enum Phase { PREREQUISITE, BOSS }
 
-    /**
-     * Opponents one player still owes this floor. The stride is carried because the fighter list is gone by the time
-     * a battle ends.
-     */
-    public record Wave(int nextOrdinal, int stride, int remaining) {
-        public Wave taken() {
-            return new Wave(nextOrdinal + stride, stride, remaining - 1);
-        }
-    }
-
     /** One floor's round for one run. */
     public record Round(UUID runId, int floorIndex, Phase phase, Map<UUID, Status> byPlayer,
-                        Map<UUID, Wave> waves, long startedAt) {
+                        long startedAt) {
 
         public Round {
             byPlayer = Map.copyOf(byPlayer);
-            waves = Map.copyOf(waves);
         }
 
         public boolean everyoneCleared() {
@@ -93,7 +85,6 @@ public final class TowerEncounters {
     /** Wires this to the adapter. Called once at startup. */
     public static void install() {
         CobblemonBattleAdapter.install(TowerEncounters::onResolved);
-        NextOpponentRetries.install();
         TowerBossAdapter.install(new TowerBossAdapter.Listener() {
             @Override
             public void onBossEnded(MinecraftServer server, TowerBossAdapter.Binding binding,
@@ -131,37 +122,21 @@ public final class TowerEncounters {
         }
 
         arrive(server, setup, fighters);
-        ModifierEffects effects = DraftService.effects(run);
-        if (setup.tower().bossRush()) return beginBossRush(server, setup, fighters);
-        Optional<Round> round = startOpponents(server, setup, fighters, partyLevels, effects);
-        if (round.isEmpty()) {
-            TowerLog.error("Run {} drew no opponents at all for floor {}; pool {} produced nothing",
-                    runId, run.floorIndex(), setup.floor().encounterPoolId());
-            return Optional.empty();
-        }
-        ROUNDS.put(runId, round.get());
-        TowerLog.info("Floor {} of run {} begun with {} opponent(s){}", run.floorIndex(), runId,
-                round.get().byPlayer().size(),
-                effects.extraOpponents() > 0 ? " plus " + effects.extraOpponents() + " more each" : "");
-        return round;
+        return beginBoss(server, setup, fighters);
     }
 
-    /**
-     * A boss-rush floor (balance phase 2): no opponent wave, everyone who can fight goes straight to the floor's boss. The round is built as if every
-     * fighter had cleared the wave, which is exactly what the normal path hands {@link FloorBoss#start}, so the boss, its rewards and its ending are
-     * unchanged.
-     */
-    private static Optional<Round> beginBossRush(MinecraftServer server, FloorSetup setup, List<ServerPlayer> fighters) {
+    /** Every floor is its boss alone: everyone who can fight goes straight to the floor's boss. */
+    private static Optional<Round> beginBoss(MinecraftServer server, FloorSetup setup, List<ServerPlayer> fighters) {
         PersistedRun run = setup.run();
         Map<UUID, Status> byPlayer = new LinkedHashMap<>();
         for (ServerPlayer player : fighters) byPlayer.put(player.getUUID(), Status.CLEARED);
-        Round round = new Round(run.runId(), run.floorIndex(), Phase.PREREQUISITE, byPlayer, Map.of(), System.currentTimeMillis());
+        Round round = new Round(run.runId(), run.floorIndex(), Phase.PREREQUISITE, byPlayer, System.currentTimeMillis());
         if (!FloorBoss.start(server, round, System.currentTimeMillis())) {
-            TowerLog.error("Boss-rush floor {} of run {}: the boss could not be started", run.floorIndex(), run.runId());
+            TowerLog.error("Floor {} of run {}: the boss could not be started", run.floorIndex(), run.runId());
             return Optional.empty();
         }
         Round started = ROUNDS.get(run.runId());
-        TowerLog.info("Boss-rush floor {} of run {} begun against its boss with {} fighter(s)", run.floorIndex(), run.runId(), fighters.size());
+        TowerLog.info("Floor {} of run {} begun against its boss with {} fighter(s)", run.floorIndex(), run.runId(), fighters.size());
         return Optional.ofNullable(started);
     }
 
@@ -192,45 +167,6 @@ public final class TowerEncounters {
         }
     }
 
-    /** Draws and starts each fighter's first opponent. Empty when none could be started. */
-    private static Optional<Round> startOpponents(MinecraftServer server, FloorSetup setup,
-                                                  List<ServerPlayer> fighters, List<Integer> partyLevels,
-                                                  ModifierEffects effects) {
-        PersistedRun run = setup.run();
-        Map<UUID, Status> byPlayer = new LinkedHashMap<>();
-        Map<UUID, Wave> waves = new LinkedHashMap<>();
-        for (int ordinal = 0; ordinal < fighters.size(); ordinal++) {
-            ServerPlayer player = fighters.get(ordinal);
-            long started = System.nanoTime();
-            Optional<EncounterSnapshot> snapshot = EncounterDraw.draw(setup.pool(), run.seed(), run.floorIndex(),
-                    ordinal, partyLevels, setup.ruleset(), effects.levelOffset(), setup.theme(),
-                    RunDraws.seen(server, run.runId(), run.floorIndex(), ordinal));
-            if (snapshot.isEmpty()) continue;
-            RunDraws.record(server, run.runId(), run.floorIndex(), ordinal, snapshot.get().species().getPath());
-            waves.put(player.getUUID(),
-                    new Wave(ordinal + fighters.size(), fighters.size(), effects.extraOpponents()));
-
-            BlockPos where = setup.presentation(ordinal);
-            // Declared and armed before the battle starts: the enemy's ascension effects ride its >start, so the
-            // enemy a Scouter reveals has to exist by then.
-            String scoutId = FloorScouting.declareOpponent(setup, run, player.getUUID(), run.floorIndex(),
-                    snapshot.get());
-            Optional<UUID> battle = AscensionLibScouting.armed(List.of(player.getUUID()), scoutId,
-                    () -> CobblemonBattleAdapter.start(setup.level(), player, snapshot.get(), where, run.runId(),
-                            run.floorIndex()));
-            if (battle.isEmpty()) FloorScouting.endOpponent(run.runId(), player.getUUID());
-            byPlayer.put(player.getUUID(), battle.isPresent() ? Status.FIGHTING : Status.OUT);
-            if (battle.isPresent()) {
-                // First opponent per player is timed here; later ones in sendNextOpponent.
-                TowerMetrics.recordEncounterConstruction(server, run.runId(),
-                        (System.nanoTime() - started) / 1_000_000);
-            }
-        }
-        if (byPlayer.isEmpty()) return Optional.empty();
-        return Optional.of(new Round(run.runId(), run.floorIndex(), Phase.PREREQUISITE, byPlayer, waves,
-                System.currentTimeMillis()));
-    }
-
     /**
      * Levels of every fighter's registered Pokemon, fainted ones included (TDS #45); falls back to the live party if
      * none registered.
@@ -254,63 +190,7 @@ public final class TowerEncounters {
             com.cobbletowers.echo.EchoDuels.onResolved(server, binding, playerWon);
             return;
         }
-        FloorScouting.endOpponent(binding.runId(), binding.playerId());
-        Round round = ROUNDS.get(binding.runId());
-        if (round == null) return;
-
-        long now = System.currentTimeMillis();
-        if (playerWon) {
-            earn(server, binding.runId(),
-                    LedgerEntry.opponentDefeated(binding.floorIndex(), binding.species(), binding.playerId(), now));
-        }
-
-        // A winner who still owes opponents starts the next one and stays FIGHTING. Recorded first because starting
-        // can fail.
-        Wave wave = round.waves().get(binding.playerId());
-        Map<UUID, Wave> waves = new LinkedHashMap<>(round.waves());
-        boolean stillFighting = false;
-        if (playerWon && wave != null && wave.remaining() > 0) {
-            stillFighting = sendNextOpponent(server, round, binding.playerId(), wave);
-            if (!stillFighting) {
-                // Cobblemon may still count them as in the battle that just ended: keep them fighting and try again shortly.
-                NextOpponentRetries.add(binding.runId(), binding.playerId(), wave, 1);
-                stillFighting = true;
-            }
-            waves.put(binding.playerId(), wave.taken());
-        }
-
-        Map<UUID, Status> byPlayer = new LinkedHashMap<>(round.byPlayer());
-        if (!stillFighting) byPlayer.put(binding.playerId(), playerWon ? Status.CLEARED : Status.OUT);
-        Round updated = new Round(round.runId(), round.floorIndex(), round.phase(), byPlayer, waves,
-                round.startedAt());
-        ROUNDS.put(binding.runId(), updated);
-
-        // This player's own floor participation just finished, win or loss -- anyone spectating them
-        // is watching a fight that no longer exists.
-        if (!stillFighting) {
-            TowerRuns.get(binding.runId())
-                    .ifPresent(run -> SpectatorPresentation.refreshFollowersOf(server, run, binding.playerId()));
-        }
-
-        if (!playerWon) knockOut(server, binding.runId(), binding.playerId(), now);
-
-        settle(server, updated, now);
-    }
-
-    /** A retry of an opponent that could not be started at once; once the tries run out the run is parked, not credited. */
-    static void retryNextOpponent(MinecraftServer server, NextOpponentRetries.Pending pending) {
-        Round round = ROUNDS.get(pending.runId());
-        if (round == null || round.byPlayer().get(pending.playerId()) != Status.FIGHTING) return;
-        if (sendNextOpponent(server, round, pending.playerId(), pending.wave())) return;
-        if (!NextOpponentRetries.exhausted(pending.attempt())) {
-            NextOpponentRetries.add(pending.runId(), pending.playerId(), pending.wave(), pending.attempt() + 1);
-            return;
-        }
-        TowerLog.warn("Gave up starting the next opponent of floor {} of run {} for {}",
-                round.floorIndex(), pending.runId(), pending.playerId());
-        // A wave never fought earns nothing, and the player did nothing wrong: park the run like a failed boss start.
-        ROUNDS.remove(pending.runId());
-        RunTransitionService.apply(server, pending.runId(), RunEvent.TECHNICAL_FAILURE, System.currentTimeMillis());
+        // Floors are bosses, which end through FloorBoss; nothing else is fought outside an exhibition.
     }
 
     /** Runs once nobody is still fighting, whether the last one lost, won or was dropped. */
@@ -343,9 +223,7 @@ public final class TowerEncounters {
         Optional<FloorSetup> resolved = FloorSetup.resolve(server, run, false);
         if (resolved.isEmpty()) return false;
         FloorSetup setup = resolved.get();
-        Optional<EncounterSnapshot> drawn = EncounterDraw.draw(setup.pool(), run.seed(), run.floorIndex(), ordinal,
-                levelsOf(run, List.of(player)), setup.ruleset(), DraftService.effects(run).levelOffset(),
-                setup.theme());
+        Optional<EncounterSnapshot> drawn = exhibitionOpponent(server, setup, run, player, ordinal);
         if (drawn.isEmpty()) return false;
         EncounterSnapshot opponent = drawn.get().withEcho(pick.properties(), pick.echo().name());
         BlockPos where = setup.presentation(ordinal);
@@ -353,6 +231,22 @@ public final class TowerEncounters {
         return AscensionLibScouting.armed(List.of(player.getUUID()), null,
                 () -> CobblemonBattleAdapter.startExhibition(setup.level(), player, opponent, where, run.runId(),
                         run.floorIndex())).isPresent();
+    }
+
+    /**
+     * The opponent of an exhibition (an Echo Duel or a vault mimic): the floor's own boss draw, at the boss's level, as one Pokemon. An Echo then
+     * swaps in its own Pokemon and the mimic wears its costume, so what matters here is the level and a real species to stand on.
+     */
+    private static Optional<EncounterSnapshot> exhibitionOpponent(MinecraftServer server, FloorSetup setup, PersistedRun run,
+                                                                  ServerPlayer player, int ordinal) {
+        Optional<BossPoolDefinition> pool = setup.floor().bossPoolId().map(id -> setup.content().bossPools().get(id)).filter(Objects::nonNull);
+        Optional<BossDraw.Boss> boss = BossDraw.draw(pool, FloorBoss.handpickedBoss(setup.content(), setup.tower(), setup.floor()),
+                run.seed(), run.floorIndex(), levelsOf(run, List.of(player)), setup.ruleset(), DraftService.effects(run).bossLevelOffset());
+        if (boss.isEmpty()) return Optional.empty();
+        Optional<String> species = com.cobbletowers.battle.cobbleraids.RaidSpecies.of(server, boss.get().definition());
+        ResourceLocation id = species.map(ResourceLocation::tryParse).orElse(null);
+        if (id == null) return Optional.empty();
+        return Optional.of(new EncounterSnapshot(ordinal, id, List.of(), boss.get().level()));
     }
 
     /**
@@ -365,8 +259,7 @@ public final class TowerEncounters {
         Optional<FloorSetup> resolved = FloorSetup.resolve(server, run, false);
         if (resolved.isEmpty()) return false;
         FloorSetup setup = resolved.get();
-        Optional<EncounterSnapshot> drawn = EncounterDraw.draw(setup.pool(), run.seed(), run.floorIndex(), 40 + ordinal,
-                levelsOf(run, List.of(player)), setup.ruleset(), DraftService.effects(run).levelOffset(), setup.theme());
+        Optional<EncounterSnapshot> drawn = exhibitionOpponent(server, setup, run, player, 40 + ordinal);
         if (drawn.isEmpty()) return false;
         // the vault's mimic wears its costume: Mimikyu at the level the floor drew
         EncounterSnapshot mimic = com.cobbletowers.trick.TrickRules.mimicOf(drawn.get());
@@ -375,59 +268,18 @@ public final class TowerEncounters {
     }
 
     /**
-     * Starts the next opponent of a multi-opponent floor. Content is re-resolved each time so a datapack reload
-     * cannot leave it stale.
-     * @return false leaves the player cleared
-     */
-    private static boolean sendNextOpponent(MinecraftServer server, Round round, UUID playerId, Wave wave) {
-        Optional<PersistedRun> found = TowerRuns.get(round.runId());
-        if (found.isEmpty()) return false;
-        PersistedRun run = found.get();
-        ServerPlayer player = server.getPlayerList().getPlayer(playerId);
-        Optional<FloorSetup> resolved = FloorSetup.resolve(server, run, false);
-        if (player == null || resolved.isEmpty()) return false;
-        FloorSetup setup = resolved.get();
-
-        long started = System.nanoTime();
-        ModifierEffects effects = DraftService.effects(run);
-        // Levels come from this player's own party; fainted Pokemon still count (TDS #45).
-        Optional<EncounterSnapshot> snapshot = EncounterDraw.draw(setup.pool(), run.seed(), run.floorIndex(),
-                wave.nextOrdinal(), levelsOf(run, List.of(player)), setup.ruleset(), effects.levelOffset(),
-                setup.theme(), RunDraws.seen(server, run.runId(), run.floorIndex(), wave.nextOrdinal()));
-        if (snapshot.isEmpty()) return false;
-        RunDraws.record(server, run.runId(), run.floorIndex(), wave.nextOrdinal(), snapshot.get().species().getPath());
-
-        BlockPos where = setup.presentation(wave.nextOrdinal());
-        String scoutId = FloorScouting.declareOpponent(setup, run, playerId, run.floorIndex(), snapshot.get());
-        Optional<UUID> battle = AscensionLibScouting.armed(List.of(playerId), scoutId,
-                () -> CobblemonBattleAdapter.start(setup.level(), player, snapshot.get(), where, round.runId(),
-                        run.floorIndex()));
-        if (battle.isEmpty()) {
-            FloorScouting.endOpponent(round.runId(), playerId);
-            return false;
-        }
-        TowerMetrics.recordEncounterConstruction(server, round.runId(), (System.nanoTime() - started) / 1_000_000);
-        setup.theme().ifPresent(theme -> FloorScouting.announceJersey(player, theme, snapshot.get()));
-        FloorScouting.sendReveal(player, setup, effects, snapshot.get());
-        TowerLog.info("Run {} floor {}: {} faces another opponent ({} left after this)",
-                round.runId(), run.floorIndex(), playerId, wave.remaining() - 1);
-        return true;
-    }
-
-    /**
      * Takes one player out of the floor and lets it carry on; settles the floor if they were the last fighter.
      * @return true when a floor had them
      */
     public static boolean dropPlayer(MinecraftServer server, UUID runId, UUID playerId, String why, long now) {
         CobblemonBattleAdapter.endPlayer(server, runId, playerId);
-        FloorScouting.endOpponent(runId, playerId);
         Round round = ROUNDS.get(runId);
         if (round == null || !round.byPlayer().containsKey(playerId)) return false;
         if (round.byPlayer().get(playerId) != Status.FIGHTING) return false;
 
         Map<UUID, Status> byPlayer = new LinkedHashMap<>(round.byPlayer());
         byPlayer.put(playerId, Status.OUT);
-        Round updated = new Round(round.runId(), round.floorIndex(), round.phase(), byPlayer, round.waves(),
+        Round updated = new Round(round.runId(), round.floorIndex(), round.phase(), byPlayer,
                 round.startedAt());
         ROUNDS.put(runId, updated);
         TowerLog.info("Player {} dropped from floor {} of run {}: {}", playerId, round.floorIndex(), runId, why);
@@ -535,7 +387,6 @@ public final class TowerEncounters {
     /** Ends a run's floor without resolving it: abandoning, parking, shutting down. */
     public static void abandon(MinecraftServer server, UUID runId) {
         ROUNDS.remove(runId);
-        FloorScouting.endRun(runId);
         CobblemonBattleAdapter.endRun(server, runId);
         // The boss too, or it stands in the cell until the sweep quarantines it.
         TowerBossAdapter.abort(runId);
@@ -573,7 +424,6 @@ public final class TowerEncounters {
     public static int onServerStopped(MinecraftServer server) {
         int held = ROUNDS.size();
         ROUNDS.clear();
-        FloorScouting.clear();
         CobblemonBattleAdapter.onServerStopped(server);
         TowerBossAdapter.onServerStopped();
         return held;

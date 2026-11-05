@@ -189,9 +189,25 @@ public final class TowerBattleFx {
             }
             case "drain" -> {
                 if (!side(op, clean) || !copyInt(op, "percent", 1, 50, clean)) return Optional.empty();
+                copyTag(op, clean);
             }
             case "enrage" -> {
                 if (!side(op, clean) || !copyInt(op, "every", 1, 20, clean)) return Optional.empty();
+                copyTag(op, clean);
+            }
+            case "heal" -> {
+                // Restores up to this share of maximum HP; never lowers (boss phases, P58).
+                if (!side(op, clean) || !copyInt(op, "to_percent", 1, 100, clean)) return Optional.empty();
+            }
+            case "cure" -> {
+                if (!side(op, clean)) return Optional.empty();
+            }
+            case "clear" -> {
+                // Takes back the damage, resist, drain and enrage rules that carry this tag.
+                if (!copyTag(op, clean)) return Optional.empty();
+            }
+            case "phase" -> {
+                return validatePhase(op, clean);
             }
             case "cap" -> {
                 if (!side(op, clean) || !copyInt(op, "dealt", 100, 300, clean) || !copyInt(op, "taken", 1, 100, clean)) return Optional.empty();
@@ -201,6 +217,7 @@ public final class TowerBattleFx {
                 String type = string(op, "type");
                 if (type != null && !type.equals("any") && !TYPES.contains(type)) return Optional.empty();
                 clean.addProperty("type", type == null ? "any" : type);
+                copyTag(op, clean);
             }
             default -> {
                 return Optional.empty();
@@ -217,24 +234,77 @@ public final class TowerBattleFx {
             Optional<JsonObject> valid = validate(element);
             if (valid.isEmpty()) continue;
             JsonObject op = valid.get();
-            if (op.has("side")) {
-                List<String> ids = new ArrayList<>();
-                switch (op.get("side").getAsString()) {
-                    case "self" -> ids.addAll(self);
-                    case "foe" -> ids.addAll(foe);
-                    default -> {
-                        ids.addAll(self);
-                        ids.addAll(foe);
-                    }
-                }
-                op.remove("side");
-                JsonArray sides = new JsonArray();
-                ids.forEach(sides::add);
-                op.add("sides", sides);
+            resolveSides(op, self, foe);
+            if (op.has("do")) {
+                for (JsonElement inner : op.getAsJsonArray("do")) resolveSides(inner.getAsJsonObject(), self, foe);
             }
             out.add(op);
         }
         return out;
+    }
+
+    /** {@code side} becomes {@code sides} on one operation. */
+    private static void resolveSides(JsonObject op, List<String> self, List<String> foe) {
+        if (!op.has("side")) return;
+        List<String> ids = new ArrayList<>();
+        switch (op.get("side").getAsString()) {
+            case "self" -> ids.addAll(self);
+            case "foe" -> ids.addAll(foe);
+            default -> {
+                ids.addAll(self);
+                ids.addAll(foe);
+            }
+        }
+        op.remove("side");
+        JsonArray sides = new JsonArray();
+        ids.forEach(sides::add);
+        op.add("sides", sides);
+    }
+
+    /** What a boss phase may do; {@code phase} itself is left out, a phase cannot create phases. */
+    private static final Set<String> PHASE_OPS = Set.of("weather", "terrain", "boost", "status", "sidecondition", "heal", "cure",
+            "damage", "resist", "drain", "enrage", "clear");
+    /** At most this many effects in one phase (tower-fx.js enforces the same). */
+    public static final int MAX_PHASE_OPS = 8;
+
+    /**
+     * A boss phase (P58): the side it watches, a trigger ({@code hp_below} 1-99 or {@code turn} 2-50), an announcement and
+     * the effects it applies once. The effects are validated like any other operation; one that is not valid is dropped.
+     */
+    private static Optional<JsonObject> validatePhase(JsonObject op, JsonObject clean) {
+        if (!side(op, clean)) return Optional.empty();
+        JsonElement whenElement = op.get("when");
+        if (whenElement == null || !whenElement.isJsonObject()) return Optional.empty();
+        JsonObject when = new JsonObject();
+        if (!copyInt(whenElement.getAsJsonObject(), "hp_below", 1, 99, when)
+                && !copyInt(whenElement.getAsJsonObject(), "turn", 2, 50, when)) return Optional.empty();
+        clean.add("when", when);
+        String id = string(op, "id");
+        if (id != null) clean.addProperty("id", id.length() > 40 ? id.substring(0, 40) : id);
+        String name = string(op, "name");
+        if (name != null) clean.addProperty("name", name.length() > 40 ? name.substring(0, 40) : name);
+        String announce = string(op, "announce");
+        if (announce != null) clean.addProperty("announce", announce.length() > 160 ? announce.substring(0, 160) : announce);
+        JsonArray inner = new JsonArray();
+        JsonElement todo = op.get("do");
+        if (todo != null && todo.isJsonArray()) {
+            for (JsonElement element : todo.getAsJsonArray()) {
+                if (inner.size() >= MAX_PHASE_OPS) break;
+                if (!element.isJsonObject() || !PHASE_OPS.contains(string(element.getAsJsonObject(), "op"))) continue;
+                validate(element).ifPresent(inner::add);
+            }
+        }
+        if (inner.isEmpty()) return Optional.empty();
+        clean.add("do", inner);
+        return Optional.of(clean);
+    }
+
+    /** Copies an optional rule tag (at most 40 characters); returns whether one was present. */
+    private static boolean copyTag(JsonObject op, JsonObject clean) {
+        String tag = string(op, "tag");
+        if (tag == null || tag.isEmpty()) return false;
+        clean.addProperty("tag", tag.length() > 40 ? tag.substring(0, 40) : tag);
+        return true;
     }
 
     // ---- small readers

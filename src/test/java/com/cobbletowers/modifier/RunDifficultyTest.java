@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 class RunDifficultyTest {
 
     private static ModifierDefinition card(String path, String risk) {
-        return TestRuns.modifier(path, "enemy", "\"level_offset\":1", "\"risk\":\"" + risk + "\"");
+        return TestRuns.modifier(path, "enemy", "\"boss_level_offset\":1", "\"risk\":\"" + risk + "\"");
     }
 
     private static ResourceLocation id(String path) {

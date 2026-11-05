@@ -20,7 +20,6 @@ import net.minecraft.resources.ResourceLocation;
 public record FloorDefinition(
         ResourceLocation id,
         int index,
-        ResourceLocation encounterPoolId,
         Optional<MilestoneKind> milestone,
         Optional<ResourceLocation> rulesetOverride,
         List<ResourceLocation> modifierIds,
@@ -29,7 +28,6 @@ public record FloorDefinition(
 
     public FloorDefinition {
         Objects.requireNonNull(id, "id");
-        Objects.requireNonNull(encounterPoolId, "encounterPoolId");
         Objects.requireNonNull(milestone, "milestone");
         Objects.requireNonNull(rulesetOverride, "rulesetOverride");
         Objects.requireNonNull(layout, "layout");
@@ -43,7 +41,6 @@ public record FloorDefinition(
         return new FloorDefinition(
                 id,
                 TowerJson.requireInt(root, "index"),
-                TowerJson.requireId(root, "encounter_pool"),
                 milestone.isEmpty() ? Optional.empty() : Optional.of(parseMilestone(milestone)),
                 TowerJson.optionalId(root, "ruleset_override"),
                 TowerJson.ids(root, "modifiers"),

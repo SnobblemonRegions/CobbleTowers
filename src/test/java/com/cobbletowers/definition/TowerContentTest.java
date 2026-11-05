@@ -22,24 +22,21 @@ class TowerContentTest {
     }
 
     private static FloorDefinition floor(int index, Optional<MilestoneKind> milestone) {
-        return new FloorDefinition(id("floor_" + index), index, id("pool"), milestone, Optional.empty(), List.of(), Optional.empty(), Optional.empty());
+        return new FloorDefinition(id("floor_" + index), index, milestone, Optional.empty(), List.of(), Optional.empty(), Optional.empty());
     }
 
     private static TowerContent content(TowerDefinition tower, Map<ResourceLocation, FloorDefinition> floors,
                                         Map<ResourceLocation, MilestoneDefinition> milestones,
-                                        boolean withPool, boolean withRuleset) {
-        return content(tower, floors, milestones, withPool, withRuleset, true);
+                                        boolean withRuleset) {
+        return content(tower, floors, milestones, withRuleset, true);
     }
 
     private static TowerContent content(TowerDefinition tower, Map<ResourceLocation, FloorDefinition> floors,
                                         Map<ResourceLocation, MilestoneDefinition> milestones,
-                                        boolean withPool, boolean withRuleset, boolean withRewardTable) {
+                                        boolean withRuleset, boolean withRewardTable) {
         return TowerContent.of(
                 Map.of(tower.id(), tower),
                 floors,
-                withPool ? Map.of(id("pool"), EncounterPoolDefinition.fromJson(id("pool"),
-                        JsonParser.parseString("{\"schema_version\":1,\"entries\":[{\"species\":\"cobblemon:machoke\"}]}")
-                                .getAsJsonObject())) : Map.of(),
                 withRuleset ? Map.of(id("standard"), RulesetDefinition.fromJson(id("standard"),
                         JsonParser.parseString("{\"schema_version\":1}").getAsJsonObject())) : Map.of(),
                 milestones, Map.of(), Map.of(),
@@ -72,7 +69,7 @@ class TowerContentTest {
                 Optional.of(ResourceLocation.fromNamespaceAndPath("cobbleraids", "lucario")), true);
 
         TowerContent content = content(tower(List.of(one.id(), two.id()), List.of(boss.id())),
-                Map.of(one.id(), one, two.id(), two), Map.of(boss.id(), boss), true, true);
+                Map.of(one.id(), one, two.id(), two), Map.of(boss.id(), boss), true);
 
         assertEquals(List.of(), content.problems());
         assertEquals(2, content.floorViews(id("neutral")).size());
@@ -93,9 +90,6 @@ class TowerContentTest {
         TowerContent content = TowerContent.of(
                 Map.of(id("neutral"), tower(List.of(one.id()), List.of())),
                 Map.of(one.id(), one),
-                Map.of(id("pool"), EncounterPoolDefinition.fromJson(id("pool"),
-                        JsonParser.parseString("{\"schema_version\":1,\"entries\":[{\"species\":\"cobblemon:machoke\"}]}")
-                                .getAsJsonObject())),
                 Map.of(id("standard"), RulesetDefinition.fromJson(id("standard"),
                         JsonParser.parseString("{\"schema_version\":1}").getAsJsonObject())),
                 Map.of(), Map.of(), Map.of(),
@@ -113,28 +107,23 @@ class TowerContentTest {
         FloorDefinition one = floor(1, Optional.empty());
 
         TowerContent content = content(tower(List.of(one.id(), id("missing")), List.of()),
-                Map.of(one.id(), one), Map.of(), false, false, false);
+                Map.of(one.id(), one), Map.of(), false, false);
 
         String problems = String.join(" | ", content.problems());
         assertTrue(problems.contains("floor cobbletowers:missing"), problems);
         assertTrue(problems.contains("ruleset cobbletowers:standard"), problems);
-        assertTrue(problems.contains("encounter pool cobbletowers:pool"), problems);
         assertTrue(problems.contains("reward table cobbletowers:rewards"), problems);
     }
 
     @Test
-    @DisplayName("a dangling regional theme or regional pool reference is named, not thrown (P10)")
+    @DisplayName("a dangling regional theme reference is named, not thrown (P10)")
     void danglingRegionalReferences() {
         FloorDefinition one = floor(1, Optional.empty());
-        EncounterPoolDefinition pool = EncounterPoolDefinition.fromJson(id("pool"), JsonParser.parseString(
-                "{\"schema_version\":1,\"entries\":[{\"species\":\"cobblemon:machoke\"}],"
-                        + "\"regional_pool\":\"cobbletowers:missing_theme\"}").getAsJsonObject());
         TowerDefinition tower = tower(List.of(one.id()), List.of(), Optional.of(id("missing_theme")));
 
         TowerContent content = TowerContent.of(
                 Map.of(tower.id(), tower),
                 Map.of(one.id(), one),
-                Map.of(pool.id(), pool),
                 Map.of(id("standard"), RulesetDefinition.fromJson(id("standard"),
                         JsonParser.parseString("{\"schema_version\":1}").getAsJsonObject())),
                 Map.of(), Map.of(), Map.of(),
@@ -144,7 +133,6 @@ class TowerContentTest {
 
         String problems = String.join(" | ", content.problems());
         assertTrue(problems.contains("names regional theme cobbletowers:missing_theme"), problems);
-        assertTrue(problems.contains("names regional pool cobbletowers:missing_theme"), problems);
     }
 
     @Test
@@ -157,9 +145,6 @@ class TowerContentTest {
         TowerContent content = TowerContent.of(
                 Map.of(tower.id(), tower),
                 Map.of(one.id(), one),
-                Map.of(id("pool"), EncounterPoolDefinition.fromJson(id("pool"),
-                        JsonParser.parseString("{\"schema_version\":1,\"entries\":[{\"species\":\"cobblemon:machoke\"}]}")
-                                .getAsJsonObject())),
                 Map.of(id("standard"), RulesetDefinition.fromJson(id("standard"),
                         JsonParser.parseString("{\"schema_version\":1}").getAsJsonObject())),
                 Map.of(), Map.of(), Map.of(),
@@ -178,7 +163,7 @@ class TowerContentTest {
         FloorDefinition five = floor(5, Optional.empty());
 
         TowerContent content = content(tower(List.of(one.id(), five.id()), List.of()),
-                Map.of(one.id(), one, five.id(), five), Map.of(), true, true);
+                Map.of(one.id(), one, five.id(), five), Map.of(), true);
 
         assertTrue(String.join(" ", content.problems()).contains("must be numbered"), content.problems().toString());
     }
@@ -191,13 +176,13 @@ class TowerContentTest {
                 Optional.of(ResourceLocation.fromNamespaceAndPath("cobbleraids", "lucario")), true);
 
         TowerContent unmarked = content(tower(List.of(plain.id()), List.of(boss.id())),
-                Map.of(plain.id(), plain), Map.of(boss.id(), boss), true, true);
+                Map.of(plain.id(), plain), Map.of(boss.id(), boss), true);
         assertTrue(String.join(" ", unmarked.problems()).contains("not marked as a milestone floor"),
                 unmarked.problems().toString());
 
         FloorDefinition champion = floor(1, Optional.of(MilestoneKind.CHAMPION));
         TowerContent mismatched = content(tower(List.of(champion.id()), List.of(boss.id())),
-                Map.of(champion.id(), champion), Map.of(boss.id(), boss), true, true);
+                Map.of(champion.id(), champion), Map.of(boss.id(), boss), true);
         assertTrue(String.join(" ", mismatched.problems()).contains("but milestone"), mismatched.problems().toString());
     }
 

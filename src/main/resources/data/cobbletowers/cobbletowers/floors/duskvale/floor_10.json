@@ -1,6 +1,5 @@
 {
   "index": 10,
-  "encounter_pool": "cobbletowers:duskvale_common",
   "milestone": "champion",
   "layout": {
     "structure": "cobbletowers:battle_tower_duskvale",

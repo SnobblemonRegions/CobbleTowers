@@ -480,6 +480,92 @@ test('the full production chain: raid-patch.js loads the extension, which then a
   }
 });
 
+// ---- boss phases (P58) ---------------------------------------------------------------------------------------
+
+const phase = (extra) => Object.assign({op: 'phase', id: 'test', sides: ['p2']}, extra);
+
+test('phase: an hp_below phase fires once, announces itself and applies its effects', async () => {
+  const b = await battle({turns: 2, towerFx: [phase({
+    when: {hp_below: 99}, announce: 'Charizard overclocks!',
+    do: [{op: 'boost', sides: ['p2'], stat: 'spe', stages: 2}]})]});
+  assert.strictEqual(stage(b, 1, 'spe'), 2, 'fired once: +2, not +4 after two turns');
+  assert.ok(said(b, /Charizard overclocks!/), 'the announcement is in the battle log');
+  assert.deepStrictEqual(b.errors, []);
+});
+
+test('phase: an hp_below phase does not fire while the boss is above the line', async () => {
+  const b = await battle({turns: 1, towerFx: [phase({
+    when: {hp_below: 1}, do: [{op: 'boost', sides: ['p2'], stat: 'spe', stages: 2}]})]});
+  assert.strictEqual(stage(b, 1, 'spe'), 0);
+});
+
+test('phase: a turn phase fires when that turn begins, not before', async () => {
+  const early = await battle({turns: 1, towerFx: [phase({when: {turn: 3}, do: [{op: 'boost', sides: ['p2'], stat: 'atk', stages: 1}]})]});
+  assert.strictEqual(stage(early, 1, 'atk'), 0, 'after one turn the battle is at turn 2: turn 3 has not begun');
+  const on = await battle({turns: 2, towerFx: [phase({when: {turn: 3}, do: [{op: 'boost', sides: ['p2'], stat: 'atk', stages: 1}]})]});
+  assert.strictEqual(stage(on, 1, 'atk'), 1);
+});
+
+test('phase: a bad effect is reported and skipped, the rest still apply and the battle goes on', async () => {
+  const b = await battle({turns: 2, towerFx: [phase({when: {turn: 2}, do: [
+    {op: 'boost', sides: ['p2'], stat: 'bogus', stages: 1},
+    {op: 'boost', sides: ['p2'], stat: 'def', stages: 1}]})]});
+  assert.strictEqual(stage(b, 1, 'def'), 1);
+  assert.ok(said(b, /A phase effect \(boost\) could not be applied/));
+  assert.deepStrictEqual(b.errors, []);
+  assert.ok(!b.battle.ended, 'the battle is still being fought');
+});
+
+test('phase: a phase with no trigger or no side is refused and the battle is untouched', async () => {
+  const noTrigger = await battle({turns: 1, towerFx: [phase({do: [{op: 'boost', sides: ['p2'], stat: 'atk', stages: 1}]})]});
+  assert.strictEqual(stage(noTrigger, 1, 'atk'), 0);
+  assert.ok(said(noTrigger, /could not be applied: a phase needs when/));
+  const noSide = await battle({turns: 1, towerFx: [{op: 'phase', when: {turn: 2}, do: []}]});
+  assert.ok(said(noSide, /could not be applied: a phase needs the side/));
+});
+
+test('phase: a phase cannot create a phase, and more than six are not registered', async () => {
+  const nested = await battle({turns: 2, towerFx: [phase({when: {turn: 2}, do: [
+    {op: 'phase', id: 'inner', sides: ['p2'], when: {turn: 2}, do: [{op: 'boost', sides: ['p2'], stat: 'atk', stages: 6}]}]})]});
+  assert.strictEqual(stage(nested, 1, 'atk'), 0, 'the inner phase never existed');
+  const many = [];
+  for (let i = 0; i < 8; i++) many.push(phase({id: 'p' + i, when: {turn: 2}, do: [{op: 'boost', sides: ['p2'], stat: 'def', stages: 1}]}));
+  const b = await battle({turns: 1, towerFx: many});
+  assert.strictEqual(stage(b, 1, 'def'), 6, 'six phases registered (+1 each), the other two refused');
+});
+
+test('phase: heal restores the boss up to a percentage, once', async () => {
+  const b = await battle({turns: 1, towerFx: [phase({when: {hp_below: 99}, do: [{op: 'heal', sides: ['p2'], to_percent: 100}]})]});
+  assert.strictEqual(hp(b, 1), maxhp(b, 1), 'back to full by the end of the turn');
+  assert.ok(said(b, /\|-heal\|/), 'the log shows the heal');
+  const none = await battle({turns: 1, towerFx: [phase({when: {hp_below: 99}, do: [{op: 'heal', sides: ['p2']}]})]});
+  assert.ok(said(none, /heal needs to_percent/), 'a heal with no percentage is refused');
+});
+
+test('phase: cure takes negative stat stages back to zero and leaves positive ones', async () => {
+  const b = await battle({turns: 1, towerFx: [
+    {op: 'boost', sides: ['p2'], stat: 'atk', stages: -2},
+    {op: 'boost', sides: ['p2'], stat: 'spe', stages: 2},
+    phase({when: {turn: 2}, do: [{op: 'cure', sides: ['p2']}]})]});
+  assert.strictEqual(stage(b, 1, 'atk'), 0, 'the drop is cleared');
+  assert.strictEqual(stage(b, 1, 'spe'), 2, 'the raise is kept');
+  const without = await battle({turns: 1, towerFx: [{op: 'boost', sides: ['p2'], stat: 'atk', stages: -2}]});
+  assert.strictEqual(stage(without, 1, 'atk'), -2, 'and without the phase it would have stayed');
+});
+
+test('phase: a tagged rule set by one phase is taken back out by the next (tag + clear)', async () => {
+  const set = phase({id: 'a', when: {turn: 2}, do: [{op: 'damage', sides: ['p1'], percent: 1, tag: 'k'}]});
+  const clear = phase({id: 'b', when: {turn: 3}, do: [{op: 'clear', tag: 'k'}]});
+  const stays = await battle({turns: 3, towerFx: [set]});
+  const swapped = await battle({turns: 3, towerFx: [set, clear]});
+  assert.ok(hp(swapped, 1) < hp(stays, 1), 'with the rule cleared the foe takes full damage on turn 3');
+});
+
+test('phase: with no phases nothing is wrapped (a battle with only a boost is unchanged)', async () => {
+  const b = await battle({turns: 1, towerFx: [{op: 'boost', sides: ['p2'], stat: 'atk', stages: 1}]});
+  assert.strictEqual(typeof Object.getOwnPropertyDescriptor(b.battle, 'runAction'), 'undefined');
+});
+
 // ---- run -----------------------------------------------------------------------------------------------------
 
 (async () => {

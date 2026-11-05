@@ -66,7 +66,7 @@ class RewardMilestoneTest {
         LedgerEntry floorTen = LedgerEntry.milestoneCleared(10, BOSS_05, 1L);
 
         List<RewardValuation.Grant> grants = RewardValuation.value(SEED, List.of(floorTen), table,
-                new ModifierEffects(0, 0, 0, 100, 300, List.of(), true, true, Optional.empty(), Optional.empty(), 0),
+                new ModifierEffects(0, 100, 300, List.of(), true, true, Optional.empty(), Optional.empty(), 0),
                 id -> Optional.of(MilestoneKind.BOSS));
 
         RewardValuation.Grant candy = grants.stream().filter(g -> g.perPlayer() && g.item().getPath().equals("exp_candy_xl")).findFirst().orElseThrow();

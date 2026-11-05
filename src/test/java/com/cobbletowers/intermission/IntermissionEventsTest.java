@@ -28,7 +28,7 @@ class IntermissionEventsTest {
     }
 
     private static ModifierDefinition curse(String path) {
-        return TestRuns.modifier(path, "enemy", "\"level_offset\":3", "\"risk\":\"severe\"");
+        return TestRuns.modifier(path, "enemy", "\"boss_level_offset\":3", "\"risk\":\"severe\"");
     }
 
     private static TowerContent content(ModifierDefinition... modifiers) {

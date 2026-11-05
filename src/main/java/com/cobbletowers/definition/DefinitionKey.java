@@ -6,7 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 /**
  * Which file a digest belongs to: its folder as well as its id, since {@code towers/neutral.json} and {@code
  * rulesets/neutral.json} are both {@code cobbletowers:neutral}.
- * @param folder one of towers, floors, encounter_pools, rulesets, milestones
+ * @param folder one of towers, floors, rulesets, milestones
  */
 public record DefinitionKey(String folder, ResourceLocation id) {
 

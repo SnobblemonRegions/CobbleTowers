@@ -23,7 +23,6 @@ public final class ModifierArt {
         if (effect.custom().isPresent()) return "custom:" + effect.custom().get().toLowerCase(Locale.ROOT);
         return switch (modifier.type()) {
             case ENEMY -> "enemy" + enemyDetail(effect);
-            case ENCOUNTER -> effect.extraOpponents() > 0 ? "encounter:crowd" : "encounter";
             case PLAYER_CONSTRAINT -> "constraint" + constraintDetail(effect);
             case SCOUTING -> "scouting";
             case REWARD -> effect.rewardPercent() >= 150 ? "reward_up:hoard"
@@ -38,8 +37,6 @@ public final class ModifierArt {
         if (e.bossHealthPercent() > 100) return ":tough";
         if (e.bossHealthPercent() < 100) return ":fragile";
         if (e.bossLevelOffset() > 0) return ":champion";
-        if (e.levelOffset() > 0) return ":veteran";
-        if (e.levelOffset() < 0) return ":novice";
         return "";
     }
 

@@ -1,7 +1,7 @@
 # Threat, boss rush and the modifier pass (balance phase 2)
 
 CobbleTowers' half of the Threat balance (AscensionLib's half is its `docs/BALANCE-THREAT.md`). Everything Threat-specific
-switches on with AscensionLib's `threat.enabled`; with it off, towers fight and pay as before. The boss-rush flag and the
+switches on with AscensionLib's `threat.enabled`; with it off, towers fight and pay as before. The boss-only rule and the
 modifier pass below apply whatever the Threat setting is.
 
 ## Threat at the door
@@ -11,11 +11,15 @@ modifier pass below apply whatever the Threat setting is.
 - The old Ascension growth (extra opponents, boss health, enemy EVs) starts only past VII; the loot factor still counts every cycle.
 - The door shows AscensionLib's recommendation from the party's mean rarity. It is advice, never a lock.
 
-## Boss rush
+## Boss only
 
-`"boss_rush": true` in a tower definition starts each floor at its boss, with no waves. The shipped event towers opt in.
-An Ascension's extra opponents become an enrage on these towers: one opponent is an enrage every 5 turns, two every 4,
-three every 3.
+Towers have no ordinary battles. Every floor is its boss: a milestone floor's own boss, or one drawn from the floor's
+`boss_pool`. `"boss_rush"` in a tower definition defaults to true; the opponent waves, the encounter pools, the enemy
+`level_offset` and `extra_opponents` effects and the `encounter` modifier type no longer exist. An Ascension's extra
+opponents are an enrage on the boss: one is an enrage every 5 turns, two every 4, three every 3.
+
+Echo Duels and the Trick or Treat vault mimic are exhibition fights built from the floor's boss draw: the boss's level
+and species stand in for one Pokemon (an Echo swaps in its own Pokemon, the mimic wears its Mimikyu costume).
 
 ## Modifier pass
 

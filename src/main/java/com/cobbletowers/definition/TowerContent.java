@@ -19,7 +19,6 @@ import net.minecraft.resources.ResourceLocation;
 public record TowerContent(
         Map<ResourceLocation, TowerDefinition> towers,
         Map<ResourceLocation, FloorDefinition> floors,
-        Map<ResourceLocation, EncounterPoolDefinition> pools,
         Map<ResourceLocation, RulesetDefinition> rulesets,
         Map<ResourceLocation, MilestoneDefinition> milestones,
         Map<ResourceLocation, BossPoolDefinition> bossPools,
@@ -33,13 +32,12 @@ public record TowerContent(
         List<ResourceLocation> sortedTowerIds) {
 
     public static final TowerContent EMPTY = new TowerContent(
-            Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(),
+            Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(),
             Map.of(), Map.of(), List.of(), List.of());
 
     public TowerContent {
         towers = Map.copyOf(towers);
         floors = Map.copyOf(floors);
-        pools = Map.copyOf(pools);
         rulesets = Map.copyOf(rulesets);
         milestones = Map.copyOf(milestones);
         bossPools = Map.copyOf(bossPools);
@@ -59,7 +57,6 @@ public record TowerContent(
      */
     public static TowerContent of(Map<ResourceLocation, TowerDefinition> towers,
                                   Map<ResourceLocation, FloorDefinition> floors,
-                                  Map<ResourceLocation, EncounterPoolDefinition> pools,
                                   Map<ResourceLocation, RulesetDefinition> rulesets,
                                   Map<ResourceLocation, MilestoneDefinition> milestones,
                                   Map<ResourceLocation, BossPoolDefinition> bossPools,
@@ -71,7 +68,6 @@ public record TowerContent(
                                   Map<DefinitionKey, String> digests) {
         List<String> problems = new ArrayList<>();
         problems.addAll(modifierProblems(modifiers));
-        problems.addAll(regionalPoolProblems(pools, regionalThemes));
         for (TowerDefinition tower : towers.values()) {
             if (!rulesets.containsKey(tower.rulesetId())) {
                 problems.add(tower.id() + " names ruleset " + tower.rulesetId() + ", which is not loaded");
@@ -97,10 +93,6 @@ public record TowerContent(
                     continue;
                 }
                 indices.add(floor.index());
-                if (!pools.containsKey(floor.encounterPoolId())) {
-                    problems.add(floor.id() + " names encounter pool " + floor.encounterPoolId()
-                            + ", which is not loaded");
-                }
                 floor.bossPoolId().ifPresent(bossPoolId -> {
                     if (!bossPools.containsKey(bossPoolId)) {
                         problems.add(floor.id() + " names boss pool " + bossPoolId + ", which is not loaded");
@@ -124,22 +116,8 @@ public record TowerContent(
         List<ResourceLocation> sorted = towers.keySet().stream()
                 .sorted(Comparator.comparing(ResourceLocation::toString))
                 .toList();
-        return new TowerContent(towers, floors, pools, rulesets, milestones, bossPools, modifiers, rewardTables,
+        return new TowerContent(towers, floors, rulesets, milestones, bossPools, modifiers, rewardTables,
                 regionalThemes, vendorServices, scoutingProfiles, digests, problems, sorted);
-    }
-
-    /** Every loaded pool's {@code regional_pool}, if it names one, must resolve (P10). */
-    private static List<String> regionalPoolProblems(Map<ResourceLocation, EncounterPoolDefinition> pools,
-                                                      Map<ResourceLocation, RegionalThemeDefinition> regionalThemes) {
-        List<String> problems = new ArrayList<>();
-        for (EncounterPoolDefinition pool : pools.values()) {
-            pool.regionalPool().ifPresent(themeId -> {
-                if (!regionalThemes.containsKey(themeId)) {
-                    problems.add(pool.id() + " names regional pool " + themeId + ", which is not loaded");
-                }
-            });
-        }
-        return problems;
     }
 
     /**
@@ -247,13 +225,13 @@ public record TowerContent(
         for (FloorDefinition floor : rotatingFloors) allFloors.put(floor.id(), floor);
         Map<DefinitionKey, String> allDigests = new LinkedHashMap<>(digests);
         allDigests.put(DefinitionKey.tower(tower.id()), ContentDigest.ofText(tower.id().toString()));
-        TowerContent merged = of(allTowers, allFloors, pools, rulesets, milestones, bossPools, modifiers, rewardTables,
+        TowerContent merged = of(allTowers, allFloors, rulesets, milestones, bossPools, modifiers, rewardTables,
                 regionalThemes, vendorServices, scoutingProfiles, allDigests);
         List<String> allProblems = new ArrayList<>(problems);
         for (String problem : merged.problems()) {
             if (!problems.contains(problem)) allProblems.add(problem);
         }
-        return new TowerContent(merged.towers(), merged.floors(), pools, rulesets, milestones, bossPools, modifiers,
+        return new TowerContent(merged.towers(), merged.floors(), rulesets, milestones, bossPools, modifiers,
                 rewardTables, regionalThemes, vendorServices, scoutingProfiles, allDigests, allProblems, sortedTowerIds);
     }
 
@@ -396,7 +374,7 @@ public record TowerContent(
     }
 
     public int definitionCount() {
-        return towers.size() + floors.size() + pools.size() + rulesets.size() + milestones.size()
+        return towers.size() + floors.size() + rulesets.size() + milestones.size()
                 + bossPools.size() + modifiers.size() + rewardTables.size() + regionalThemes.size()
                 + vendorServices.size() + scoutingProfiles.size();
     }

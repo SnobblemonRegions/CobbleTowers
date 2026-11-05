@@ -42,9 +42,9 @@ public final class DefinitionsCommand {
         // Per kind, not just a total. A total says 23 files loaded and leaves an operator who has
         // just written a modifiers/ folder no way to tell whether theirs was one of them.
         source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT,
-                "  %d floor(s), %d encounter pool(s), %d ruleset(s), %d milestone(s), %d boss pool(s),"
+                "  %d floor(s), %d ruleset(s), %d milestone(s), %d boss pool(s),"
                         + " %d modifier(s), %d regional theme(s), %d vendor service(s), %d scouting profile(s)",
-                content.floors().size(), content.pools().size(), content.rulesets().size(),
+                content.floors().size(), content.rulesets().size(),
                 content.milestones().size(), content.bossPools().size(), content.modifiers().size(),
                 content.regionalThemes().size(), content.vendorServices().size(),
                 content.scoutingProfiles().size())), false);

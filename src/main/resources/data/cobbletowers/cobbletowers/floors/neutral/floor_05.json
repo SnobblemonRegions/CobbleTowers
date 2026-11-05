@@ -1,6 +1,5 @@
 {
   "index": 5,
-  "encounter_pool": "cobbletowers:neutral_common",
   "milestone": "boss",
   "layout": {
     "structure": "cobbletowers:battle_tower_neutral",

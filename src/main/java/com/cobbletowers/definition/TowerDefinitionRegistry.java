@@ -99,8 +99,6 @@ public final class TowerDefinitionRegistry
                 load(manager, "towers", TowerDefinition::fromJson, digests, rejected);
         Map<ResourceLocation, FloorDefinition> floors =
                 load(manager, "floors", FloorDefinition::fromJson, digests, rejected);
-        Map<ResourceLocation, EncounterPoolDefinition> pools =
-                load(manager, "encounter_pools", EncounterPoolDefinition::fromJson, digests, rejected);
         Map<ResourceLocation, RulesetDefinition> rulesets =
                 load(manager, "rulesets", RulesetDefinition::fromJson, digests, rejected);
         Map<ResourceLocation, MilestoneDefinition> milestones =
@@ -125,7 +123,7 @@ public final class TowerDefinitionRegistry
                     rejected.size(), rejected.stream().map(ResourceLocation::toString).sorted()
                             .collect(Collectors.joining(", ")));
         }
-        return TowerContent.of(towers, floors, pools, rulesets, milestones, bossPools, modifiers, rewardTables,
+        return TowerContent.of(towers, floors, rulesets, milestones, bossPools, modifiers, rewardTables,
                 regionalThemes, vendorServices, scoutingProfiles, digests);
     }
 

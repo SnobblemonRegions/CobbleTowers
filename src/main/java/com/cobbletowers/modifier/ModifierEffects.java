@@ -10,8 +10,6 @@ import java.util.Optional;
  * carries. No level arithmetic lives here: offsets go to {@code TowerLevelPolicy} (TDS #45).
  */
 public record ModifierEffects(
-        int levelOffset,
-        int extraOpponents,
         int bossLevelOffset,
         int bossHealthPercent,
         int rewardPercent,
@@ -23,7 +21,7 @@ public record ModifierEffects(
         int scoutingBonus) {
 
     /** A run carrying nothing: every field is the value that changes nothing. */
-    public static final ModifierEffects NONE = new ModifierEffects(0, 0, 0, 100, 100,
+    public static final ModifierEffects NONE = new ModifierEffects(0, 100, 100,
             List.of(), true, true, Optional.empty(), Optional.empty(), 0);
 
     /** Balance phase 2: the most a run's drafted reward percentages add up to (x3). Ascension's factor is on top. */
@@ -39,8 +37,6 @@ public record ModifierEffects(
      * passes the list in draft order because the boss-health rounding is order-sensitive.
      */
     public static ModifierEffects of(List<ModifierDefinition> modifiers) {
-        int level = 0;
-        int opponents = 0;
         int bossLevel = 0;
         int bossHealth = 100;
         int reward = 100;
@@ -52,8 +48,6 @@ public record ModifierEffects(
         int scoutingBonus = 0;
         for (ModifierDefinition modifier : modifiers) {
             ModifierDefinition.Effect effect = modifier.effect();
-            level += effect.levelOffset();
-            opponents += effect.extraOpponents();
             bossLevel += effect.bossLevelOffset();
             bossHealth = bossHealth * effect.bossHealthPercent() / 100;
             reward += effect.rewardPercent() - 100;
@@ -71,7 +65,7 @@ public record ModifierEffects(
         }
         // A pool of zero is not a boss, it is a corpse: compounding reductions could reach it, and a
         // boss that dies to the first hit would read as a bug rather than as a drafted advantage.
-        return new ModifierEffects(level, opponents, bossLevel, Math.max(bossHealth, 1), Math.min(MAX_REWARD_PERCENT, Math.max(reward, 0)),
+        return new ModifierEffects(bossLevel, Math.max(bossHealth, 1), Math.min(MAX_REWARD_PERCENT, Math.max(reward, 0)),
                 banned, switching, items, weather, terrain, scoutingBonus);
     }
 
@@ -89,8 +83,7 @@ public record ModifierEffects(
      */
     public ModifierEffects withAscension(int growthAscension, int rewardAscension) {
         if (growthAscension <= 0 && rewardAscension <= 0) return this;
-        return new ModifierEffects(levelOffset, extraOpponents + com.cobbletowers.ascension.AscensionPolicy.extraOpponents(growthAscension),
-                bossLevelOffset, bossHealthPercent * com.cobbletowers.ascension.AscensionPolicy.bossHealthPercent(growthAscension) / 100,
+        return new ModifierEffects(bossLevelOffset, bossHealthPercent * com.cobbletowers.ascension.AscensionPolicy.bossHealthPercent(growthAscension) / 100,
                 rewardPercent * com.cobbletowers.ascension.AscensionPolicy.rewardPercent(rewardAscension) / 100,
                 bannedMoves, switchingAllowed, itemsAllowed, weather, terrain, scoutingBonus);
     }
@@ -102,7 +95,7 @@ public record ModifierEffects(
     public ModifierEffects withClampedLevels(int levels) {
         if (levels <= 0) return this;
         int health = bossHealthPercent * (100 + BOSS_HEALTH_PERCENT_PER_CLAMPED_LEVEL * levels) / 100;
-        return new ModifierEffects(levelOffset, extraOpponents, bossLevelOffset, health, rewardPercent, bannedMoves,
+        return new ModifierEffects(bossLevelOffset, health, rewardPercent, bannedMoves,
                 switchingAllowed, itemsAllowed, weather, terrain, scoutingBonus);
     }
 

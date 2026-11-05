@@ -63,11 +63,8 @@ public final class ModifierMenuText {
         // A relic or set bonus pays no risk bonus (only held challenges do), so it does not claim one.
         boolean pays=!m.relic()&&m.tagBonus().isEmpty();
         if(pays)lines.add(GOOD+Character.toUpperCase(risk.charAt(0))+risk.substring(1)+" risk  *  +"+com.cobbletowers.reward.RiskReward.percentOf(m.risk())+"% to your final payout"+(m.stackLimit()>1?"  *  stacks "+m.stackLimit()+"x":""));
-        if(e.levelOffset()>0)lines.add(BAD+"Foes rise "+e.levelOffset()+(e.levelOffset()==1?" level":" levels")+" above the tower.");
-        if(e.levelOffset()<0)lines.add(GOOD+"Foes fall "+(-e.levelOffset())+(e.levelOffset()==-1?" level":" levels")+" below the tower.");
         if(e.bossLevelOffset()>0)lines.add(BAD+"The champion stands "+e.bossLevelOffset()+" levels taller.");
         if(e.bossLevelOffset()<0)lines.add(GOOD+"The champion is weakened by "+(-e.bossLevelOffset())+" levels.");
-        if(e.extraOpponents()>0)lines.add(BAD+e.extraOpponents()+" more challengers storm every floor.");
         if(e.bossHealthPercent()>100)lines.add(BAD+"The boss endures: "+e.bossHealthPercent()+"% health.");
         if(e.bossHealthPercent()<100)lines.add(GOOD+"The boss is frail: only "+e.bossHealthPercent()+"% health.");
         if(e.rewardPercent()>100)lines.add(GOOD+String.format(Locale.ROOT,"Loot swells to x%.2f on every floor.",e.rewardPercent()/100d));

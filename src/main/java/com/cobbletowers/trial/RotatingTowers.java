@@ -75,7 +75,7 @@ public final class RotatingTowers {
                     .orElseThrow(() -> new IllegalArgumentException(region + " has no floor " + n));
             ResourceLocation override = from.rulesetOverride().orElse(source.rulesetId());
             floors.add(new FloorDefinition(CobbleTowers.id(slug + "/floor_" + String.format(Locale.ROOT, "%02d", n)), n,
-                    from.encounterPoolId(), from.milestone(),
+                    from.milestone(),
                     override.equals(STANDARD) ? Optional.empty() : Optional.of(override), from.modifierIds(), from.layout(),
                     from.bossPoolId()));
             if (from.milestone().isPresent()) {

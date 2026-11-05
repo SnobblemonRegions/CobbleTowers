@@ -38,12 +38,22 @@ export function genData(root) {
     if (!floor) continue;
     const floorFile = path.join(data, 'floors', floor.split(':')[1] + '.json');
     if (!fs.existsSync(floorFile)) continue;
-    const poolId = String(readJson(floorFile).encounter_pool ?? '').split(':').pop();
-    const poolFile = path.join(data, 'encounter_pools', poolId + '.json');
-    if (!fs.existsSync(poolFile)) continue;
+    const floorData = readJson(floorFile);
     const spriteDir = path.join(root, 'src/main/resources/assets/cobbletowers/textures/gui/partners');
-    const names = (readJson(poolFile).entries ?? []).map((e) => String(e.species).split(':').pop()).filter((s) => fs.existsSync(path.join(spriteDir, s + '.png')));
-    residents[id] = [...new Set(names)].slice(0, 3);
+    const hasSprite = (s) => fs.existsSync(path.join(spriteDir, s + '.png'));
+    let names;
+    const poolId = String(floorData.encounter_pool ?? '').split(':').pop();
+    const poolFile = path.join(data, 'encounter_pools', poolId + '.json');
+    if (poolId && fs.existsSync(poolFile)) {
+      names = (readJson(poolFile).entries ?? []).map((e) => String(e.species).split(':').pop());
+    } else {
+      // Towers are boss-only: a floor names a boss pool, and the foes you may meet are its bosses (a definition id, with the event's skin prefix dropped).
+      const bossPool = String(floorData.boss_pool ?? '').split(':').pop();
+      const bossFile = path.join(data, 'boss_pools', bossPool + '.json');
+      if (!bossPool || !fs.existsSync(bossFile)) continue;
+      names = (readJson(bossFile).entries ?? []).map((e) => String(e.definition).split(':').pop().replace(/^halloween_/, ''));
+    }
+    residents[id] = [...new Set(names.filter(hasSprite))].slice(0, 3);
   }
 
   const version = JSON.parse(fs.readFileSync(path.join(root, 'src/main/resources/fabric.mod.json'), 'utf8')).version;

@@ -51,14 +51,14 @@ class DraftServiceTest {
     @Test
     @DisplayName("locking in counts the modifier a second time")
     void lockInDoubles() {
-        ModifierDefinition harder = TestRuns.modifier("harder", "enemy", "\"level_offset\":4");
+        ModifierDefinition harder = TestRuns.modifier("harder", "enemy", "\"boss_level_offset\":4");
         TowerContent content = TestRuns.contentWith(Map.of(harder.id(), harder));
 
         RunModifierState held = RunModifierState.EMPTY.accumulating(harder.id());
-        assertEquals(4, DraftService.effects(content, held).levelOffset());
+        assertEquals(4, DraftService.effects(content, held).bossLevelOffset());
 
         RunModifierState locked = held.lockingIn(harder.id());
-        assertEquals(8, DraftService.effects(content, locked).levelOffset(),
+        assertEquals(8, DraftService.effects(content, locked).bossLevelOffset(),
                 "a locked-in modifier applies twice; that is what the Lock-In Draft is voting for");
     }
 
@@ -74,8 +74,8 @@ class DraftServiceTest {
     @Test
     @DisplayName("an ordinary draft offers what the run is eligible for")
     void ordinaryDraft() {
-        ModifierDefinition base = TestRuns.modifier("base", "enemy", "\"level_offset\":1");
-        ModifierDefinition needsBase = TestRuns.modifier("needs_base", "enemy", "\"level_offset\":2",
+        ModifierDefinition base = TestRuns.modifier("base", "enemy", "\"boss_level_offset\":1");
+        ModifierDefinition needsBase = TestRuns.modifier("needs_base", "enemy", "\"boss_level_offset\":2",
                 "\"requires\":[\"cobbletowers:base\"]");
         TowerContent content = TestRuns.contentWith(
                 Map.of(base.id(), base, needsBase.id(), needsBase));
@@ -90,7 +90,7 @@ class DraftServiceTest {
     void lockInDraftOffersHeld() {
         Map<ResourceLocation, ModifierDefinition> loaded = new LinkedHashMap<>();
         for (int i = 0; i < 5; i++) {
-            ModifierDefinition modifier = TestRuns.modifier("m" + i, "enemy", "\"level_offset\":" + (i + 1));
+            ModifierDefinition modifier = TestRuns.modifier("m" + i, "enemy", "\"boss_level_offset\":" + (i + 1));
             loaded.put(modifier.id(), modifier);
         }
         TowerContent content = TestRuns.contentWith(loaded);
