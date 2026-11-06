@@ -28,6 +28,7 @@ public final class MysteryBagService {
 
     /** Subscribed once for the life of the JVM, as every other event install here is. */
     public static void install() {
+        MysteryBagItem.bootstrap();   // the bag's model has to be requested before Polymer builds the pack
         UseItemCallback.EVENT.register((player, level, hand) -> {
             ItemStack stack = player.getItemInHand(hand);
             if (MysteryBagItem.idOf(stack).isEmpty()) return InteractionResultHolder.pass(stack);

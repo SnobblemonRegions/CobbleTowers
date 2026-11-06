@@ -2,6 +2,7 @@ package com.cobbletowers.economy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Optional;
@@ -67,5 +68,41 @@ class MysteryBagItemTest {
     void aCopyIsTheSameBag() {
         ItemStack bag = MysteryBagItem.create(UUID.randomUUID());
         assertEquals(MysteryBagItem.idOf(bag), MysteryBagItem.idOf(bag.copy()));
+    }
+
+    @Test
+    @DisplayName("a model value is put on the stack, so players with the resource pack see the bag's artwork; without one it stays the plain base item")
+    void modelIsApplied() {
+        ItemStack withModel = MysteryBagItem.withModel(MysteryBagItem.create(UUID.randomUUID()), 4242);
+        assertEquals(4242, withModel.get(DataComponents.CUSTOM_MODEL_DATA).value());
+        ItemStack plain = new ItemStack(MysteryBagItem.BASE);
+        MysteryBagItem.withModel(plain, 0);
+        assertEquals(null, plain.get(DataComponents.CUSTOM_MODEL_DATA), "no Polymer, no model");
+    }
+
+    @Test
+    @DisplayName("loading the bag item without Polymer on the classpath (a unit test) is harmless")
+    void worksWithoutPolymer() {
+        MysteryBagItem.bootstrap();
+        assertTrue(MysteryBagItem.idOf(MysteryBagItem.create(UUID.randomUUID())).isPresent());
+    }
+
+    @Test
+    @DisplayName("the artwork ships in the jar: a 16 x 16 PNG, and a model that points at it")
+    void theArtworkShips() throws Exception {
+        try (var texture = MysteryBagItemTest.class.getResourceAsStream("/assets/cobbletowers/textures/item/mystery_bag.png")) {
+            assertNotNull(texture, "textures/item/mystery_bag.png is missing");
+            byte[] png = texture.readAllBytes();
+            assertEquals(0x89, png[0] & 0xFF, "not a PNG");
+            int width = java.nio.ByteBuffer.wrap(png, 16, 4).getInt();
+            int height = java.nio.ByteBuffer.wrap(png, 20, 4).getInt();
+            assertEquals(16, width);
+            assertEquals(16, height);
+        }
+        try (var model = MysteryBagItemTest.class.getResourceAsStream("/assets/cobbletowers/models/item/mystery_bag.json")) {
+            assertNotNull(model, "models/item/mystery_bag.json is missing");
+            String json = new String(model.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(json.contains("cobbletowers:item/mystery_bag"), json);
+        }
     }
 }
