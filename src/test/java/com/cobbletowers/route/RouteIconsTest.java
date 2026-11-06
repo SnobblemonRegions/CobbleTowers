@@ -49,7 +49,7 @@ class RouteIconsTest {
     }
 
     @Test
-    @DisplayName("every model ships in the jar, is made of boxes inside the model limits, and points every face at a cell of the palette")
+    @DisplayName("every model ships in the jar, is made of boxes inside the model limits, and points every face at its own patch of the atlas")
     void modelsAreWellFormed() {
         for (Stop stop : Stop.values()) {
             JsonObject model = modelOf(stop);
@@ -68,25 +68,32 @@ class RouteIconsTest {
                 }
                 for (var face : box.getAsJsonObject("faces").entrySet()) {
                     for (var u : face.getValue().getAsJsonObject().getAsJsonArray("uv")) {
-                        assertTrue(u.getAsDouble() >= 0 && u.getAsDouble() <= 16, stop + " has a uv outside the palette");
+                        assertTrue(u.getAsDouble() >= 0 && u.getAsDouble() <= 16, stop + " has a uv outside the atlas");
                     }
                 }
             }
-            assertEquals("cobbletowers:item/route/palette", model.getAsJsonObject("textures").get("p").getAsString());
+            assertEquals("cobbletowers:item/route/atlas", model.getAsJsonObject("textures").get("p").getAsString());
             assertTrue(model.getAsJsonObject("display").has("gui"), stop + " has no gui display, so a display entity would draw it unrotated");
         }
     }
 
     @Test
-    @DisplayName("the palette ships in the jar as a 32 x 32 PNG")
-    void paletteShips() throws Exception {
-        try (var in = RouteIconsTest.class.getResourceAsStream("/assets/cobbletowers/textures/item/route/palette.png")) {
-            assertNotNull(in, "textures/item/route/palette.png is missing");
+    @DisplayName("the atlas ships in the jar as a square power-of-two PNG, and it is painted: it holds far more than a handful of flat colours")
+    void atlasShips() throws Exception {
+        try (var in = RouteIconsTest.class.getResourceAsStream("/assets/cobbletowers/textures/item/route/atlas.png")) {
+            assertNotNull(in, "textures/item/route/atlas.png is missing");
             byte[] png = in.readAllBytes();
             assertEquals(0x89, png[0] & 0xFF, "not a PNG");
-            assertEquals(32, ByteBuffer.wrap(png, 16, 4).getInt());
-            assertEquals(32, ByteBuffer.wrap(png, 20, 4).getInt());
+            int width = ByteBuffer.wrap(png, 16, 4).getInt();
+            int height = ByteBuffer.wrap(png, 20, 4).getInt();
+            assertEquals(width, height, "the atlas must be square");
+            assertEquals(0, width & (width - 1), "the atlas must be a power of two");
+            var image = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(png));
+            Set<Integer> colours = new HashSet<>();
+            for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) if ((image.getRGB(x, y) >>> 24) != 0) colours.add(image.getRGB(x, y));
+            assertTrue(colours.size() > 400, "the atlas is flat colour, not texture: " + colours.size() + " colours");
         }
+        assertEquals(null, RouteIconsTest.class.getResourceAsStream("/assets/cobbletowers/textures/item/route/palette.png"), "the old flat palette is still in the jar");
     }
 
     @Test
