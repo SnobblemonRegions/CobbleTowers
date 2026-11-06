@@ -5,6 +5,9 @@ import java.util.Optional;
 import java.util.UUID;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -68,8 +71,7 @@ public final class MysteryBagService {
                 store.setDirty();
                 store.checkpoint(server);
                 player.setItemInHand(hand, ItemStack.EMPTY);
-                player.playNotifySound(SoundEvents.BUNDLE_DROP_CONTENTS, SoundSource.PLAYERS, 0.8f, 1.1f);
-                player.sendSystemMessage(Component.literal("The bag holds " + describe(result.prize()) + ". It arrives as items in a moment: right-click them to deposit."));
+                announce(player, result.prize());
                 TowerLog.info("Mystery bag {} opened by {}: {} x{}", bag, player.getUUID(), result.prize().material(), result.prize().amount());
             }
             case ALREADY_OPENED -> {
@@ -83,9 +85,41 @@ public final class MysteryBagService {
         }
     }
 
-    private static String describe(MysteryBag.Prize prize) {
-        String label = AscensionMaterials.of(ResourceLocation.fromNamespaceAndPath(AscensionMaterials.NAMESPACE, prize.material()))
+    /**
+     * Tells the player what the bag held so that nobody misses it: a framed banner in chat with the prize in bold and its rarity's colour, a line over the
+     * hotbar, and for an epic or legendary prize a title across the screen and a bigger sound.
+     */
+    private static void announce(ServerPlayer player, MysteryBag.Prize prize) {
+        String label = labelOf(prize);
+        MysteryBagMessage.Rarity rarity = MysteryBagMessage.rarityOf(prize.material());
+        for (Component line : MysteryBagMessage.banner(prize, label)) player.sendSystemMessage(line);
+        String thing = prize.amount() > 1 ? prize.amount() + "× " + label : label;
+        player.displayClientMessage(Component.literal("Mystery Bag: " + thing).withStyle(net.minecraft.network.chat.Style.EMPTY
+                .withColor(net.minecraft.network.chat.TextColor.fromRgb(rarity.rgb())).withBold(true)), true);
+        if (rarity.titled()) {
+            player.connection.send(new ClientboundSetTitlesAnimationPacket(5, 70, 20));
+            player.connection.send(new ClientboundSetTitleTextPacket(MysteryBagMessage.title(prize, label)));
+            player.connection.send(new ClientboundSetSubtitleTextPacket(MysteryBagMessage.subtitle(prize)));
+        }
+        switch (rarity) {
+            case COMMON, UNCOMMON -> player.playNotifySound(SoundEvents.BUNDLE_DROP_CONTENTS, SoundSource.PLAYERS, 0.8f, 1.1f);
+            case RARE -> {
+                player.playNotifySound(SoundEvents.BUNDLE_DROP_CONTENTS, SoundSource.PLAYERS, 0.8f, 1.1f);
+                player.playNotifySound(SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.5f, 1.4f);
+            }
+            case EPIC -> {
+                player.playNotifySound(SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.9f, 1.0f);
+                player.playNotifySound(SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 1.0f, 0.8f);
+            }
+            case LEGENDARY -> {
+                player.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.0f, 1.0f);
+                player.playNotifySound(SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0f, 0.7f);
+            }
+        }
+    }
+
+    private static String labelOf(MysteryBag.Prize prize) {
+        return AscensionMaterials.of(ResourceLocation.fromNamespaceAndPath(AscensionMaterials.NAMESPACE, prize.material()))
                 .map(AscensionMaterials.Material::label).orElse(prize.material());
-        return prize.amount() > 1 ? prize.amount() + " " + label : label;
     }
 }
