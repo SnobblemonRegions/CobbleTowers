@@ -22,6 +22,7 @@ public final class AscensionLibScouting {
     private static Method disarm;
     private static Method threatEnabled;
     private static Method recommendedThreat;
+    private static Method threatBands;
     private static boolean saidUnknown;
 
     private AscensionLibScouting() {}
@@ -96,6 +97,16 @@ public final class AscensionLibScouting {
         }
     }
 
+    /** What each Threat band is (AscensionLib's own enemy tiers and payouts), or none when the library is missing or too old to say. For the lobby's picker. */
+    public static java.util.List<com.cobbletowers.ascension.ThreatBandInfo.Band> threatBands() {
+        if (!resolve() || threatBands == null) return java.util.List.of();
+        try {
+            return threatBands.invoke(null) instanceof String json ? com.cobbletowers.ascension.ThreatBandInfo.cached(json) : java.util.List.of();
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ex) {
+            return java.util.List.of();
+        }
+    }
+
     /**
      * Runs {@code start} with these players armed for {@code encounterId} (null: explicitly native), always
      * disarming.
@@ -127,6 +138,12 @@ public final class AscensionLibScouting {
                 } catch (NoSuchMethodException older) {
                     threatEnabled = null;
                     recommendedThreat = null;
+                }
+                try {
+                    // Newer still: what each band is, for the lobby's picker. Without it the picker has no detail to show.
+                    threatBands = encounters.getMethod("threatBands");
+                } catch (NoSuchMethodException older) {
+                    threatBands = null;
                 }
             } catch (ReflectiveOperationException | LinkageError ex) {
                 declare = null;
