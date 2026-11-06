@@ -125,12 +125,27 @@ public final class TowerEncounters {
         return beginBoss(server, setup, fighters);
     }
 
+    /**
+     * Turns every fighter to face the boss's spot as the floor begins (TODO #2). Everyone is placed by now (they walked to the arena door, or the straggler
+     * rule took them there), but a party that walked in stands facing whichever way it was walking, and Cobblemon sends the Pokemon out from the player.
+     * Same place, new yaw: nobody is moved.
+     */
+    private static void faceTheBoss(FloorSetup setup, List<ServerPlayer> fighters) {
+        BlockPos boss = setup.presentation(0);
+        for (ServerPlayer player : fighters) {
+            if (player.serverLevel() != setup.level()) continue;
+            float yaw = ArenaFacing.yawToward(player.getX(), player.getZ(), boss.getX() + 0.5, boss.getZ() + 0.5, player.getYRot());
+            player.teleportTo(setup.level(), player.getX(), player.getY(), player.getZ(), yaw, 0.0f);
+        }
+    }
+
     /** Every floor is its boss alone: everyone who can fight goes straight to the floor's boss. */
     private static Optional<Round> beginBoss(MinecraftServer server, FloorSetup setup, List<ServerPlayer> fighters) {
         PersistedRun run = setup.run();
         Map<UUID, Status> byPlayer = new LinkedHashMap<>();
         for (ServerPlayer player : fighters) byPlayer.put(player.getUUID(), Status.CLEARED);
         Round round = new Round(run.runId(), run.floorIndex(), Phase.PREREQUISITE, byPlayer, System.currentTimeMillis());
+        faceTheBoss(setup, fighters);
         if (!FloorBoss.start(server, round, System.currentTimeMillis())) {
             TowerLog.error("Floor {} of run {}: the boss could not be started", run.floorIndex(), run.runId());
             return Optional.empty();

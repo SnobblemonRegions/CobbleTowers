@@ -101,5 +101,12 @@ Not live before the event ends. The change moves anchors, boxes and the walk log
   in words of its own (`IntermissionEvents.isRefusal`). Refusing a rest pays every player `restPurse(floor)` CobbleDollars (50 + 10 per floor, at least twice the
   vendor's 25 CobbleDollar heal); the heal stays free. **Not built:** the agreed "+15% loot on the floor you press on through", which needs a per-floor flag
   persisted in the run (a schema change); modifiers have no per-floor expiry.
+* **Trick or Treat vault: the pedestal unlocks, the chest rolls** (2026-11-05, owner TODO #6): the party's vote to open it no longer rolls the coin. It unlocks the vault
+  (`TrickOrTreatService.unlock`) and opens the Trick or Treat door; the click on the real chest (`openFromChest`) then rolls the coin and opens the vault as a treat or the
+  mimic fight. A click before the vote is only a vote (while one is on) and otherwise the vault stays shut. A room with no chest raised still settles at once, as before.
+  The mimic is already boss-pool on the boss-only line.
+* **Facing at the start of a floor** (2026-11-05, owner TODO #2, decision: auto-start once everyone is placed): the floor already opens when the party is at the arena door
+  or the straggler rule has taken them there. A party that walked in faced whichever way it was walking and Cobblemon sends the Pokemon out from the player, so
+  `TowerEncounters.faceTheBoss` now turns every fighter toward the boss's spot (`ArenaFacing.yawToward`, same place, new yaw) just before the boss starts.
 * **Not done**: rig proof (`walk_tower_test.py` still describes the old corridor and gate B), a real-client look (which also has to confirm the new fades and that the
   dressings do not crowd the way to the arena door), the east-masonry alcoves.
