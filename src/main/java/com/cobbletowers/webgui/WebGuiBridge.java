@@ -23,9 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -42,7 +40,6 @@ import net.minecraft.server.level.ServerPlayer;
 public final class WebGuiBridge {
 
     /** The handshake channel WebGUI's client registers; its presence is how we know a player can see a page. */
-    private static final ResourceLocation WEBGUI_HELLO = ResourceLocation.fromNamespaceAndPath("webgui", "hello");
     /** WebGUI refuses an emitted payload longer than this, so a longer one is dropped here with a warning. */
     private static final int MAX_EMIT = 32_000;
     /** How long a page just opened is given to load and say hello before it is considered lost. */
@@ -70,18 +67,19 @@ public final class WebGuiBridge {
     public static void install() {
         WebGuiConfig loaded = WebGuiConfig.load();
         if (!loaded.enabled()) return;
-        if (!FabricLoader.getInstance().isModLoaded("webgui")) {
-            TowerLog.warn("cobbletowers-webgui.json is enabled but the WebGUI mod is not installed; tower screens stay native");
+        if (!WebGuiLink.installed()) {
+            TowerLog.warn("cobbletowers-webgui.json is enabled but neither the Snobblemon bridge nor the WebGUI mod is installed; tower screens stay native");
             return;
         }
         try {
             WebGuiLink.install();
         } catch (LinkageError | RuntimeException ex) {
-            // A WebGUI too old (or too new) to have the API we use: say so once and stay native, never break startup.
-            TowerLog.error("The WebGUI mod is installed but its API did not match ({}); tower screens stay native", ex.toString());
+            // A bridge or WebGUI too old (or too new) to have the API we use: say so once and stay native, never break startup.
+            TowerLog.error("The Snobblemon bridge or WebGUI is installed but its API did not match ({}); tower screens stay native", ex.toString());
             return;
         }
-        WebUiFiles.install();
+        // the bridge draws the screens itself from its own layouts, so there is no web bundle to put on disk
+        if (!WebGuiLink.direct()) WebUiFiles.install();
         config = loaded;
         linked = true;
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
@@ -89,7 +87,7 @@ public final class WebGuiBridge {
             LAST_TOO_LARGE.remove(handler.getPlayer().getUUID());
             LAST_PONG.remove(handler.getPlayer().getUUID());
         });
-        TowerLog.info("Tower screens can be shown through WebGUI at {} ({} mode)", loaded.url(), loaded.mode());
+        TowerLog.info("Tower screens can be shown through {} at {} ({} mode)", WebGuiLink.direct() ? "the Snobblemon bridge" : "WebGUI", loaded.url(), loaded.mode());
     }
 
     // ---- the decision
@@ -102,7 +100,7 @@ public final class WebGuiBridge {
      */
     public static boolean takesOver(ServerPlayer player, CustomPacketPayload.Type<?> type) {
         if (!linked || !SUPPORTED.contains(type)) return false;
-        if (!ServerPlayNetworking.canSend(player, WEBGUI_HELLO)) return false;
+        if (!WebGuiLink.clientReady(player)) return false;
         return config.mode() == WebGuiConfig.Mode.PREFER || !ServerPlayNetworking.canSend(player, type);
     }
 
