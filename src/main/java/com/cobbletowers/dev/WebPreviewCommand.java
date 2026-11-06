@@ -27,7 +27,7 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public final class WebPreviewCommand {
 
-    private static final List<String> SCREENS = List.of("intermission", "reward", "vendor", "draft", "spectator");
+    private static final List<String> SCREENS = List.of("intermission", "reward", "vendor", "draft", "spectator", "tray");
 
     private WebPreviewCommand() {}
 
@@ -58,6 +58,7 @@ public final class WebPreviewCommand {
                     : RentalDraftPayload.of(new RentalDraft(RentalDraw.draw(RentalSetRegistry.all(), player.getRandom().nextLong(), true)),
                             "", com.cobbletowers.battle.cobblemon.CobblemonMoves::resolve);
             case "spectator" -> new com.cobbletowers.network.SpectatorPanelPayload("Ash", 4, 6, 7, "In battle");
+            case "tray" -> new com.cobbletowers.network.HauntedRareTrayPayload(true, "Mimikyu", 42, 35, "hm-", "The vault shakes: it missed!");
             default -> null;
         };
         if (payload == null) {
