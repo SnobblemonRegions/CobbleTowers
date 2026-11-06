@@ -108,5 +108,9 @@ Not live before the event ends. The change moves anchors, boxes and the walk log
 * **Facing at the start of a floor** (2026-11-05, owner TODO #2, decision: auto-start once everyone is placed): the floor already opens when the party is at the arena door
   or the straggler rule has taken them there. A party that walked in faced whichever way it was walking and Cobblemon sends the Pokemon out from the player, so
   `TowerEncounters.faceTheBoss` now turns every fighter toward the boss's spot (`ArenaFacing.yawToward`, same place, new yaw) just before the boss starts.
+* **A picked pedestal opens its own door** (2026-11-05, found in the first rig 2 test): a draft with no lanes (a Lock-In, a relic) has its cards in front of the doors, and
+  picking the left one still opened the middle door, because the gate rule only knew lanes and the old fallback lights the middle door. `PedestalRules.doorOfCard`
+  maps a card back to the door it stands in front of (the same rule that places the cards), `DraftService` remembers the pick (`PENDING_DOOR`) and
+  `TowerDoors.chosenByCard` opens that door once nothing is left to pick; an event round's cards stand beside it too.
 * **Not done**: rig proof (`walk_tower_test.py` still describes the old corridor and gate B), a real-client look (which also has to confirm the new fades and that the
   dressings do not crowd the way to the arena door), the east-masonry alcoves.

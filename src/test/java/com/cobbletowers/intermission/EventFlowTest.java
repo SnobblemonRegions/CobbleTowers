@@ -78,7 +78,7 @@ class EventFlowTest {
     @DisplayName("a lane with no pick pending opens its door at once, as it always did")
     void doorOpensWhenNothingIsPending() {
         RunModifierState state = RunModifierState.EMPTY.withRouteStep(2, 1);
-        assertTrue(DraftService.doorMayOpen(state, 2));
+        assertTrue(DraftService.doorMayOpen(state, 2, false));
     }
 
     @Test
@@ -86,17 +86,65 @@ class EventFlowTest {
     void doorWaitsForTheEventPick() {
         PersistedDraft event = PersistedDraft.openingEvent(2, List.of(CARD_A, CARD_B));
         RunModifierState waiting = RunModifierState.EMPTY.withRouteStep(2, 1).withDraft(event);
-        assertFalse(DraftService.doorMayOpen(waiting, 2), "an event pick is still open");
+        assertFalse(DraftService.doorMayOpen(waiting, 2, false), "an event pick is still open");
 
         RunModifierState answered = RunModifierState.EMPTY.withRouteStep(2, 1).withDraft(event.resolvedAs(1, false));
-        assertTrue(DraftService.doorMayOpen(answered, 2));
+        assertTrue(DraftService.doorMayOpen(answered, 2, false));
     }
 
     @Test
     @DisplayName("no lane taken on this floor means there is no door to open")
     void noLaneNoDoor() {
-        assertFalse(DraftService.doorMayOpen(RunModifierState.EMPTY, 2));
-        assertFalse(DraftService.doorMayOpen(RunModifierState.EMPTY.withRouteStep(1, 1), 2), "a lane taken on another floor does not count");
+        assertFalse(DraftService.doorMayOpen(RunModifierState.EMPTY, 2, false));
+        assertFalse(DraftService.doorMayOpen(RunModifierState.EMPTY.withRouteStep(1, 1), 2, false), "a lane taken on another floor does not count");
+    }
+
+    @Test
+    @DisplayName("a pick of a pedestal that stands in front of a door (a draft with no lanes) opens that door once nothing is left to pick")
+    void aPedestalPickCountsAsADoorChoice() {
+        assertTrue(DraftService.doorMayOpen(RunModifierState.EMPTY, 4, true), "no lane, but a pedestal was picked");
+        PersistedDraft event = PersistedDraft.openingEvent(4, List.of(CARD_A, CARD_B));
+        assertFalse(DraftService.doorMayOpen(RunModifierState.EMPTY.withDraft(event), 4, true), "still waiting on the event pick");
+    }
+
+    // ---- which door a pedestal stands in front of ------------------------------------------------------
+
+    @Test
+    @DisplayName("with three cards and three doors, the left pedestal is the left door, the middle the middle and the right the right")
+    void threeCardsThreeDoors() {
+        assertEquals(0, PedestalRules.doorOfCard(0, 3, 3));
+        assertEquals(1, PedestalRules.doorOfCard(1, 3, 3));
+        assertEquals(2, PedestalRules.doorOfCard(2, 3, 3));
+    }
+
+    @Test
+    @DisplayName("two cards stand at the two outer doors, and one card stands at the middle one (the same rule that places the pedestals)")
+    void fewerCardsThanDoors() {
+        assertEquals(0, PedestalRules.doorOfCard(0, 2, 3));
+        assertEquals(2, PedestalRules.doorOfCard(1, 2, 3));
+        assertEquals(1, PedestalRules.doorOfCard(0, 1, 3));
+    }
+
+    @Test
+    @DisplayName("a card that does not stand at a door gives no door, rather than a guess")
+    void noSuchDoor() {
+        assertEquals(-1, PedestalRules.doorOfCard(3, 3, 3));
+        assertEquals(-1, PedestalRules.doorOfCard(-1, 3, 3));
+        assertEquals(-1, PedestalRules.doorOfCard(0, 4, 3), "more cards than doors");
+        assertEquals(-1, PedestalRules.doorOfCard(0, 0, 3));
+        assertEquals(-1, PedestalRules.doorOfCard(0, 3, 0), "no doors");
+    }
+
+    @Test
+    @DisplayName("every card that atDoors places in front of a door maps back to that same door")
+    void agreesWithThePlacement() {
+        List<PedestalRules.Slot> doors = List.of(new PedestalRules.Slot(0, 0, 0), new PedestalRules.Slot(10, 0, 0), new PedestalRules.Slot(20, 0, 0));
+        for (int count = 1; count <= 3; count++) {
+            List<PedestalRules.Slot> placed = PedestalRules.atDoors(List.of(), doors, count).orElseThrow();
+            for (int card = 0; card < count; card++) {
+                assertEquals(doors.indexOf(placed.get(card)), PedestalRules.doorOfCard(card, count, doors.size()), count + " cards, card " + card);
+            }
+        }
     }
 
     // ---- refusing an option says so -----------------------------------------------------------------

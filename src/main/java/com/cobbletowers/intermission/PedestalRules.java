@@ -50,6 +50,18 @@ public final class PedestalRules {
     /** Floor-level centre of one pedestal. */
     public record Slot(double x, double y, double z) {}
 
+    /**
+     * Which door the card at {@code cardIndex} stands in front of, by the same rule {@link #atDoors} places them: one card at the middle door, two at the
+     * two outer doors, and otherwise the i-th card at the i-th door. -1 when the card does not stand at a door (more cards than doors, or a bad index),
+     * rather than a guess. A pick of a pedestal opens the door it stands in front of.
+     */
+    public static int doorOfCard(int cardIndex, int cardCount, int doorCount) {
+        if (cardCount < 1 || cardCount > doorCount || cardIndex < 0 || cardIndex >= cardCount) return -1;
+        if (cardCount == 1) return doorCount / 2;
+        if (cardCount == 2) return cardIndex == 0 ? 0 : doorCount - 1;
+        return cardIndex;
+    }
+
     /** How far each of a door's two event cards stands from the door's own pedestal, sideways. */
     public static final double BESIDE_DOOR = 1.6;
 

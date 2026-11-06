@@ -172,6 +172,8 @@ public final class PedestalService {
         var draft = run.modifiers().draft().filter(d -> d.event());
         if (draft.isEmpty()) return Optional.empty();
         int lane = run.modifiers().laneAt(draft.get().floorIndex());
+        // No lane: the draft before this round had its cards in front of the doors; the door of the pedestal that was picked is the one to stand beside.
+        if (lane < 0) lane = DraftService.pendingDoor(run.runId(), layout.doors().size()).orElse(-1);
         if (lane < 0 || lane >= layout.doors().size()) return Optional.empty();
         var door = layout.doors().get(lane);
         BlockPos stand = door.pedestal().in(origin);

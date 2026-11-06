@@ -54,6 +54,23 @@ public final class TowerDoors {
         }
     }
 
+    /**
+     * A pedestal that stands in front of a door was picked (a draft with no lanes, such as a Lock-In or a relic): that door lights up and opens, not the
+     * middle one the party would otherwise be sent through. Never throws.
+     * @return the blocks changed; 0 when the card stands at no door
+     */
+    public static int chosenByCard(MinecraftServer server, PersistedRun run, int cardIndex, int cardCount) {
+        try {
+            Located at = locate(server, run);
+            if (at == null) return 0;
+            int lane = com.cobbletowers.intermission.PedestalRules.doorOfCard(cardIndex, cardCount, at.layout.doors().size());
+            return lane < 0 ? 0 : chosenUnguarded(server, run, lane);
+        } catch (RuntimeException ex) {
+            TowerLog.error("Run {}: opening the door of pedestal {} failed", run.runId(), cardIndex, ex);
+            return 0;
+        }
+    }
+
     private static int chosenUnguarded(MinecraftServer server, PersistedRun run, int lane) {
         Located at = locate(server, run);
         if (at == null) return 0;
