@@ -59,6 +59,7 @@ public final class CobbleTowers implements ModInitializer {
                 com.cobbletowers.command.VaultCommand.register(dispatcher);
                 com.cobbletowers.command.TrickDoorCommand.register(dispatcher);
                 com.cobbletowers.command.RareCommand.register(dispatcher);
+                com.cobbletowers.command.RouteCommand.register(dispatcher);
                 PlayCommand.register(dispatcher);
                 com.cobbletowers.command.MasteryCommand.registerAdmin(dispatcher);
                 com.cobbletowers.command.TrialCommand.registerAdmin(dispatcher);
