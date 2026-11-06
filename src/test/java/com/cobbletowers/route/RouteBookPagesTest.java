@@ -105,7 +105,7 @@ class RouteBookPagesTest {
         int right = all.indexOf("Right");
         String afterLeft = all.substring(left, middle);
         String afterMiddle = all.substring(middle, right);
-        String afterRight = all.substring(right);
+        String afterRight = all.substring(right, all.indexOf("LEGEND"));   // the legend that follows names every stop, so it is not part of what the lane leads to
         assertTrue(afterLeft.contains("Forge") && !afterLeft.contains("Vault"), afterLeft);
         assertTrue(afterMiddle.contains("Forge") && afterMiddle.contains("Vault"), afterMiddle);
         assertTrue(afterRight.contains("Vault") && !afterRight.contains("Forge"), afterRight);
@@ -161,5 +161,37 @@ class RouteBookPagesTest {
             assertFalse(RouteBookPages.nameOf(stop).isEmpty(), stop.name());
         }
         assertEquals("Trick or Treat", RouteBookPages.nameOf(Stop.TRICK_OR_TREAT));
+    }
+
+    @Test
+    @DisplayName("no line of any page is wider than a book page holds, so nothing wraps and pushes text off the page")
+    void linesFitTheBook() {
+        List<Component> pages = RouteBookPages.pages(map(), List.of(1, 0, 0), 3, 2);
+        for (Component page : pages) {
+            for (String line : page.getString().split("\n", -1)) {
+                assertTrue(line.length() <= RouteBookPages.WIDTH, "too wide for a book line (" + line.length() + "): '" + line + "'");
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("a long stop name wraps over lines of its own and the page still holds at most 14 lines")
+    void longNamesWrap() {
+        List<Node> nodes = List.of(new Node(0, 1, Stop.START), new Node(1, 0, Stop.TRICK_OR_TREAT), new Node(1, 2, Stop.POOL), new Node(2, 1, Stop.BOSS));
+        List<Edge> edges = List.of(new Edge(0, 1, 0), new Edge(0, 1, 2), new Edge(1, 0, 1), new Edge(1, 2, 1));
+        List<Component> pages = RouteBookPages.pages(new RouteMap.Map(3, nodes, edges), List.of(1), 2, 0);
+        String all = text(pages);
+        assertTrue(all.contains("Trick or"), all);
+        assertTrue(all.contains("Treat"), all);
+        for (Component page : pages) assertTrue(page.getString().split("\n", -1).length <= RouteBookPages.LINES_PER_PAGE, page.getString());
+    }
+
+    @Test
+    @DisplayName("the legend names every letter on a page of its own and does not spill onto the map page")
+    void legendHasItsOwnPage() {
+        List<Component> pages = RouteBookPages.pages(map(), List.of(1), 3, 0);
+        assertFalse(pages.get(0).getString().contains("LEGEND"));
+        String legend = pages.get(pages.size() - 1).getString();
+        assertTrue(legend.contains("LEGEND") && legend.contains("Forge") && legend.contains("Trick or") && legend.contains("Treat") && legend.contains("Mystic Pool"), legend);
     }
 }

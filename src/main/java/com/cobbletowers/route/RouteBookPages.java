@@ -9,14 +9,20 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 
 /**
- * The tower's route map as the pages of a book, for a player in the tower: the whole branching map with the party's trail, and, for each lane open now, what
- * it is and what it leads to next. Plain text, so it needs no client mod, and it is built from the run each time it is opened, so it is always right for the
- * floor. Pure (the map and the trail in, text out): {@link RouteMapView} supplies them.
+ * The tower's route map as the pages of a book, for a player in the tower: the whole branching map with the party's trail, then, for each lane open now,
+ * what it is and what it leads to next, then a legend. Plain text, so it needs no client mod, and it is built from the run each time it is opened, so it is
+ * always right for the floor. Pure (the map and the trail in, text out): {@link RouteMapView} supplies them.
+ *
+ * <p>A book page holds {@value #LINES_PER_PAGE} lines of about {@value #WIDTH} characters, and text that is wider wraps and pushes the rest off the page. Every
+ * line here is therefore counted as a line of the page, long text is wrapped by hand, and each part starts on its own page so none is split.
  */
 public final class RouteBookPages {
 
     /** The most lines a book page holds. */
     public static final int LINES_PER_PAGE = 14;
+
+    /** The most characters of text that fit a line of a book page (bold text is wider, so this is on the safe side). */
+    public static final int WIDTH = 18;
 
     /** Gold: the stops the party has passed. */
     public static final int TRAIL = 0xFFD437;
@@ -78,30 +84,28 @@ public final class RouteBookPages {
      * @param cycle the cycle of an ascending tower, 0 for the first
      */
     public static List<Component> pages(RouteMap.Map map, List<Integer> trail, int reveal, int cycle) {
-        List<Component> lines = new ArrayList<>();
-        lines.add(Component.literal("ROUTE MAP" + (cycle > 0 ? "  cycle " + (cycle + 1) : "")).withStyle(style(PLAIN, true)));
+        List<Component> mapLines = new ArrayList<>();
+        mapLines.add(Component.literal("ROUTE MAP").withStyle(style(PLAIN, true)));
+        if (cycle > 0) mapLines.add(Component.literal("cycle " + (cycle + 1)).withStyle(style(DIM, false)));
         int here = trail.size() - 1;
         List<Integer> open = here >= 0 ? map.next(here, trail.get(here)) : List.of();
-        for (int row = map.rows() - 1; row >= 0; row--) lines.add(rowLine(map, row, trail, open, reveal));
-        lines.add(Component.literal("o start  B battle  R rest").withStyle(style(DIM, false)));
-        lines.add(Component.literal("S shrine  F forge  L library").withStyle(style(DIM, false)));
-        lines.add(Component.literal("V vault  P pool  T trick-or-treat").withStyle(style(DIM, false)));
+        for (int row = map.rows() - 1; row >= 0; row--) mapLines.add(rowLine(map, row, trail, open, reveal));
 
-        List<Component> pages = paginate(lines);
+        List<Component> pages = new ArrayList<>(paginate(mapLines));
         pages.addAll(paginate(choices(map, trail, reveal)));
+        pages.addAll(paginate(legend()));
         return pages;
     }
 
     private static MutableComponent rowLine(RouteMap.Map map, int row, List<Integer> trail, List<Integer> open, int reveal) {
         MutableComponent line = Component.literal(String.format("%2d ", row)).withStyle(style(DIM, false));
-        Stop lone = null;
+        boolean boss = false;
         for (int lane = 0; lane < RouteMap.LANES; lane++) {
-            Stop stop = map.stopAt(row, lane);
-            if (stop == Stop.BOSS) lone = stop;
+            if (map.stopAt(row, lane) == Stop.BOSS) boss = true;
         }
-        if (lone != null) {
-            boolean on = row < trail.size();
-            return line.append(Component.literal("  BOSS").withStyle(on ? style(TRAIL, true) : style(PLAIN, true)));
+        if (boss) {
+            boolean passed = row < trail.size();
+            return line.append(Component.literal("  BOSS").withStyle(passed ? style(TRAIL, true) : style(PLAIN, true)));
         }
         for (int lane = 0; lane < RouteMap.LANES; lane++) {
             Stop stop = map.stopAt(row, lane);
@@ -125,18 +129,19 @@ public final class RouteBookPages {
         int here = trail.size() - 1;
         if (here < 0) return lines;
         Stop standing = map.stopAt(here, trail.get(here));
-        lines.add(Component.literal("You stand on: " + (standing == null ? "?" : nameOf(standing))).withStyle(style(DIM, false)));
-        lines.add(Component.empty());
+        lines.addAll(wrapped("You are on: " + (standing == null ? "?" : nameOf(standing)), "", "  ", style(DIM, false)));
         List<Integer> open = map.next(here, trail.get(here));
         if (open.isEmpty()) {
-            lines.add(Component.literal("No choice to make right now.").withStyle(style(DIM, false)));
+            lines.add(Component.empty());
+            lines.addAll(wrapped("No choice to make right now.", "", "  ", style(DIM, false)));
             return lines;
         }
+        lines.addAll(wrapped("Next is floor " + (here + 1) + ".", "", "  ", style(DIM, false)));
         for (int lane : open) {
             Stop stop = map.stopAt(here + 1, lane);
-            String name = stop == null ? "?" : nameOf(stop);
-            lines.add(Component.literal(laneName(lane) + ": ").withStyle(style(OPEN, true)).append(Component.literal(name).withStyle(style(OPEN, true))));
-            lines.add(Component.literal("  " + thenText(map, here + 1, lane, stop, reveal)).withStyle(style(DIM, false)));
+            lines.add(Component.empty());
+            lines.addAll(wrapped(laneName(lane) + ": " + (stop == null ? "?" : nameOf(stop)), "", "  ", style(OPEN, true)));
+            lines.addAll(wrapped(thenText(map, here + 1, lane, stop, reveal), "  ", "    ", style(DIM, false)));
         }
         return lines;
     }
@@ -153,6 +158,54 @@ public final class RouteBookPages {
             names.add(later == null || !seen ? "?" : nameOf(later));
         }
         return "then: " + String.join(" or ", names);
+    }
+
+    /** Every letter the map uses, named, on a page of its own. */
+    private static List<Component> legend() {
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.literal("LEGEND").withStyle(style(PLAIN, true)));
+        for (Stop stop : Stop.values()) {
+            if (stop == Stop.BOSS) continue;
+            lines.addAll(wrapped(letterOf(stop) + "  " + nameOf(stop), "", "     ", style(DIM, false)));
+        }
+        lines.addAll(wrapped("[?]  not seen yet", "", "     ", style(DIM, false)));
+        return lines;
+    }
+
+    /**
+     * The text broken into lines of at most {@link #WIDTH} characters at spaces (a word longer than that is cut), the first line indented by
+     * {@code firstIndent} and the lines that wrap by {@code restIndent}, each in {@code style}. A page counts these as the lines they really take.
+     */
+    static List<Component> wrapped(String text, String firstIndent, String restIndent, Style style) {
+        List<String> lines = new ArrayList<>();
+        String lead = firstIndent;
+        StringBuilder line = new StringBuilder(lead);
+        for (String word : text.split(" ")) {
+            while (word.length() > WIDTH - lead.length()) {
+                if (line.length() > lead.length()) {
+                    lines.add(line.toString());
+                    lead = restIndent;
+                    line = new StringBuilder(lead);
+                }
+                int cut = WIDTH - lead.length();
+                lines.add(lead + word.substring(0, cut));
+                word = word.substring(cut);
+                lead = restIndent;
+                line = new StringBuilder(lead);
+            }
+            boolean empty = line.length() == lead.length();
+            if (!empty && line.length() + 1 + word.length() > WIDTH) {
+                lines.add(line.toString());
+                lead = restIndent;
+                line = new StringBuilder(lead + word);
+            } else {
+                line.append(empty ? "" : " ").append(word);
+            }
+        }
+        if (line.length() > lead.length() || lines.isEmpty()) lines.add(line.toString());
+        List<Component> out = new ArrayList<>();
+        for (String l : lines) out.add(Component.literal(l).withStyle(style));
+        return out;
     }
 
     private static List<Component> paginate(List<Component> lines) {
