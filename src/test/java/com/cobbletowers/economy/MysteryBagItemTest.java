@@ -88,7 +88,7 @@ class MysteryBagItemTest {
     }
 
     @Test
-    @DisplayName("the artwork ships in the jar: a 16 x 16 PNG, and a model that points at it")
+    @DisplayName("the artwork ships in the jar: a 32 x 32 PNG, and a model that points at it")
     void theArtworkShips() throws Exception {
         try (var texture = MysteryBagItemTest.class.getResourceAsStream("/assets/cobbletowers/textures/item/mystery_bag.png")) {
             assertNotNull(texture, "textures/item/mystery_bag.png is missing");
@@ -96,8 +96,8 @@ class MysteryBagItemTest {
             assertEquals(0x89, png[0] & 0xFF, "not a PNG");
             int width = java.nio.ByteBuffer.wrap(png, 16, 4).getInt();
             int height = java.nio.ByteBuffer.wrap(png, 20, 4).getInt();
-            assertEquals(16, width);
-            assertEquals(16, height);
+            assertEquals(32, width);
+            assertEquals(32, height);
         }
         try (var model = MysteryBagItemTest.class.getResourceAsStream("/assets/cobbletowers/models/item/mystery_bag.json")) {
             assertNotNull(model, "models/item/mystery_bag.json is missing");
