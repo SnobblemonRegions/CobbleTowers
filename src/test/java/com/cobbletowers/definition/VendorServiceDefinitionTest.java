@@ -42,6 +42,17 @@ class VendorServiceDefinitionTest {
     }
 
     @Test
+    @DisplayName("the mystery bag is a capped, priced service with its own effect")
+    void readsTheMysteryBag() {
+        VendorServiceDefinition service = VendorServiceDefinition.fromJson(ID, json("""
+                {"schema_version": 1, "display_name": "Mystery Bag", "price_cobble_dollars": 15,
+                 "effect": "mystery_bag", "max_purchases_per_run": 2}"""));
+
+        assertEquals(VendorEffect.MYSTERY_BAG, service.effect());
+        assertEquals(2, service.maxPurchasesPerRun());
+    }
+
+    @Test
     @DisplayName("an unknown effect is refused, not defaulted")
     void unknownEffectRefused() {
         assertThrows(IllegalArgumentException.class, () -> VendorServiceDefinition.fromJson(ID, json("""

@@ -86,7 +86,7 @@ All data lives in `src/main/resources/data/cobbletowers/cobbletowers/` (call it 
 | **Playlists** | `$D/playlists/*.json` | `display_name`, `description`, `party` rules, `difficulty_bonus` | 6 (hardcore, level cap 50, monotype, rental, solo gauntlet, underdog) |
 | **Daily / weekly trials** | `$D/trial_pools/*.json`, `$D/trial_recipes/*.json` | pools the rotating trial draws from | 2 + 2 |
 | **Contracts** | `$D/contract_templates/*.json` | `display_name`, `description`, `period`, `condition`, `reward` | 14 |
-| **Vendor** | `$D/vendor_services/*.json` | `display_name`, `price_cobble_dollars`, `max_purchases_per_run`, `effect` | 2 (cure status, full heal) |
+| **Vendor** | `$D/vendor_services/*.json` | `display_name`, `price_cobble_dollars`, `max_purchases_per_run`, `effect` | 3 (cure status, full heal, mystery bag) |
 | **Rental Pokemon** | `$D/rental_sets/*.json` | already in `DATA.rental`: `species`, `name`, `level`, `types`, `rarity` (the species' *class*, not the card tier), `item`, `nature`, `evs`, `ivs` (the set's spread; each card rolls its own IVs and EVs). Plus a "how packs and tiers work" text from the section above | 150 |
 | **Ranks (region duel)** | rules only; numbers are live server state | the five rows, per-member judging, away conquest, how a region is chosen (CobbleTeams). No counts | 3 regions |
 | **How it works** | `data/cobbletowers/guide.json` | already in `DATA.guide` | 1 |

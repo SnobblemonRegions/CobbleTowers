@@ -24,7 +24,7 @@ class HollowTowerTest(unittest.TestCase):
         """The wall-aging pass once scattered cracked and gilded bricks over the bars of gate A and the doors: aging only touches bricks."""
         for floor in range(1, 11):
             lay = ht.layout(floor)
-            boxes = [("gate A", lay["gate_a"])] + ([("gate B", lay["gate_b"])] if "gate_b" in lay else []) + [(f"door {i}", d["open"]) for i, d in enumerate(lay["doors"])]
+            boxes = [("gate A", lay["gate_a"])] + [(f"door {i}", d["open"]) for i, d in enumerate(lay["doors"])]
             for name, b in boxes:
                 for x in range(b["min"][0], b["max"][0] + 1):
                     for y in range(b["min"][1], b["max"][1] + 1):
@@ -62,19 +62,25 @@ class HollowTowerTest(unittest.TestCase):
         self.t.grid[ax:bx + 1, ay:by + 1, az:bz + 1] = 0
         self.assertIn("chamber 1 is reachable with its door shut", self.complaints())
 
-    def test_an_open_gate_b_is_caught(self):
-        for name in ("gate_b",):
-            g = ht.layout(4)[name]
-            (ax, ay, az), (bx, by, bz) = g["min"], g["max"]
-            self.t.grid[ax:bx + 1, ay:by + 1, az:bz + 1] = 0
-        self.assertIn("with gate B shut", self.complaints())
+    def test_there_is_no_gate_b(self):
+        for floor in range(1, 11):
+            self.assertNotIn("gate_b", ht.layout(floor))
 
-    def test_a_sealed_chamber_is_caught(self):
+    def test_a_sealed_back_doorway_is_caught(self):
         f = ht.feet(5)
         self.t.mirror = False
-        # wall off the back doorway of the left chamber: the corridor is then not reachable through its door
+        # wall off the back doorway of the left chamber: its stair is then not reachable through its door
         self.t.fill(35, 37, f, f + 3, 5, 5, ht.PLAIN_WALL)
-        self.assertIn("the corridor is not reachable through door 0", self.complaints())
+        self.assertIn("the threshold of lane 0 is not reachable through door 0", self.complaints())
+
+    def test_a_hole_between_two_chambers_is_caught(self):
+        f = ht.feet(5)
+        self.t.mirror = False
+        # a doorway through the wall between chambers 1 and 2: one door would then reach both lanes
+        self.t.fill(54, 54, f, f + 3, 10, 12, ht.AIR)
+        complaints = self.complaints()
+        self.assertIn("chamber 2 is reachable through door 1", complaints)
+        self.assertIn("the threshold of lane 2 is reachable through door 1", complaints)
 
     def test_the_doors_run_west_to_east_with_a_pedestal_each(self):
         for floor in range(1, 11):
@@ -87,34 +93,54 @@ class HollowTowerTest(unittest.TestCase):
                 self.assertEqual((d["open"]["min"][0] + d["open"]["max"][0]) // 2, d["pedestal"]["x"], "a pedestal stands right in front of its door")
                 self.assertTrue(ht.standable(self.t, d["pedestal"]["x"], d["pedestal"]["y"], d["pedestal"]["z"]))
 
-    def test_a_walled_door_is_caught(self):
+    def test_a_walled_arrival_door_is_caught(self):
         f = ht.feet(2)
         self.t.mirror = True
         self.t.fill(18, 19, f, f + 5, 46, 50, ht.PLAIN_WALL)
-        self.assertIn("floor 1: the next floor's entry is not reachable", self.complaints())
+        self.assertIn("floor 1: from the arrival of lane 0 the next floor's arena door is not reachable", self.complaints())
 
     def test_a_missing_step_is_caught(self):
         f = ht.feet(5)
         self.t.mirror = False
-        # floor 5 is odd, so its stair is unmirrored: step 4 is at z = 9, y = f + 3
-        self.t.fill(85, 87, f + 3, f + 3, 9, 9, ht.AIR)
-        self.assertIn("floor 5: the next floor's entry is not reachable", self.complaints())
+        # floor 5 is odd, so it is unmirrored: lane 1 climbs east from its doorway, step 3 is at x = 48 + 4
+        self.t.fill(52, 52, f + 2, f + 2, 2, 4, ht.AIR)
+        self.assertIn("the threshold of lane 1 is not reachable through door 1", self.complaints())
 
-    def test_a_filled_hole_is_caught(self):
-        f = ht.feet(6)
-        self.t.mirror = True
-        self.t.fill(85, 87, f + 8, f + 9, 12, 12, ht.SLAB)
-        self.assertIn("floor 6", self.complaints())
+    def test_a_stair_that_climbs_past_its_landing_is_caught(self):
+        f = ht.feet(5)
+        self.t.mirror = False
+        self.t.fill(56, 56, f + 5, f + 5, 2, 4, ht.PLAIN_WALL)       # a block on lane 1's landing: the party still gets there, one block higher
+        self.t.fill(55, 55, f + 5, f + 5, 2, 4, ht.PLAIN_WALL)
+        self.assertIn("the threshold of lane 1", self.complaints())
+
+    def test_the_arrival_of_each_lane_is_on_the_next_floor(self):
+        for floor in range(1, 10):
+            for lane, door in enumerate(ht.layout(floor)["doors"]):
+                a = door["arrival"]
+                self.assertEqual(ht.feet(floor + 1), a["y"])
+                self.assertTrue(ht.standable(self.t, a["x"], a["y"], a["z"]), (floor, lane))
+        self.assertNotIn("arrival", ht.layout(10)["doors"][0])
+        self.assertNotIn("stair_top", ht.layout(10)["doors"][0])
+
+    def test_lane_zero_arrives_on_the_left_whichever_way_the_floor_faces(self):
+        for floor in range(1, 10):
+            z = [d["arrival"]["z"] for d in ht.layout(floor)["doors"]]
+            self.assertEqual(sorted(z) if not ht.mirrored(floor + 1) else sorted(z, reverse=True), z, floor)
 
     def test_a_cobweb_in_the_walking_volume_is_caught(self):
         f = ht.feet(7)
         self.t.set(30, f + 1, 30, ht.COBWEB)
         self.assertIn("cobwebs inside the walking volume", self.complaints())
 
-    def test_the_stair_is_one_block_per_step(self):
+    def test_a_lane_stair_is_five_steps_and_a_landing(self):
         f = ht.feet(1)
-        for i in range(1, 11):
-            self.assertEqual(ht.STAIR_BLOCK, self.t.at(86, f + i - 1, 5 + i))
+        for lane, c in enumerate(ht.CHAMBER_CENTERS):
+            dx = ht.LANE_DX[lane]
+            facing = "west" if dx < 0 else "east"
+            for i in range(1, ht.STUB_STEPS + 1):
+                self.assertEqual(ht.STAIR_BLOCK.replace("facing=south", f"facing={facing}"), self.t.at(c + dx * (1 + i), f + i - 1, 3), (lane, i))
+            top = ht.stair_top(1, c)
+            self.assertEqual(f + ht.STUB_STEPS, top["min"][1])
 
     def test_nothing_unknown_in_the_palette(self):
         import interiors
@@ -127,7 +153,7 @@ class HollowTowerTest(unittest.TestCase):
 
 
 class RoomsInChambersTest(unittest.TestCase):
-    """Every room, in every chamber of a mirrored and an unmirrored floor, still lets the party through from the door to the corridor."""
+    """Every room, in every chamber of a mirrored and an unmirrored floor, still lets the party through from the door to its lane's threshold."""
 
     def place(self, t, floor, door_index, room):
         import rooms
@@ -154,12 +180,10 @@ class RoomsInChambersTest(unittest.TestCase):
                     self.place(t, floor, i, rooms.build(kind))
                 lay = ht.layout(floor)
                 entry = ht.cell_of(lay, "entry")
-                corridor = (ht.mx(floor, 48), ht.feet(floor), 3)
                 for i, door in enumerate(lay["doors"]):
                     through = ht.reach(t, entry, [lay["gate_a"], door["open"]])
-                    self.assertIn(corridor, through, f"floor {floor}, {kind} behind door {i}: the corridor is not reachable")
-                    self.assertTrue(all(c in ht.reach(t, entry, [lay["gate_a"], door["open"], lay["gate_b"]]) for c in [ht.cell_of(ht.layout(floor + 1), "entry")]),
-                                    f"floor {floor}, {kind} behind door {i}: the next floor is not reachable")
+                    top = tuple(ht._mid(door["stair_top"], ht.feet(floor) + ht.STUB_STEPS))
+                    self.assertIn(top, through, f"floor {floor}, {kind} behind door {i}: the threshold is not reachable")
 
 
 if __name__ == "__main__":

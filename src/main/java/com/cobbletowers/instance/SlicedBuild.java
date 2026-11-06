@@ -126,6 +126,8 @@ final class SlicedBuild {
         if (!markedDirty) {
             // From here the cell holds (some of) a build, whether or not the paste finishes.
             if (cleared > 0) TowerLog.warn("Cell {} held {} leftover block(s) before it was prepared; cleared", cell, cleared);
+            int swept = CellCleanup.sweepBeforeBuild(level.getServer(), cell);
+            if (swept > 0) TowerLog.warn("Cell {} held {} leftover entity/entities before it was prepared; swept", cell, swept);
             CellCleanliness.markDirty(cell);
             markedDirty = true;
         }
@@ -135,6 +137,8 @@ final class SlicedBuild {
             boolean placed = template.placeInWorld(level, origin, origin,
                     new StructurePlaceSettings().setIgnoreEntities(true).setBoundingBox(box), level.getRandom(),
                     CellPreparer.PLACE_FLAGS);
+            // Before the next tick: the fall checks this band just scheduled fire two ticks later.
+            CellPreparer.settle(level, box);
             if (!placed) {
                 TowerLog.error("Placing {} into cell {} failed", layout.structure(), cell);
                 return Status.FAILED;

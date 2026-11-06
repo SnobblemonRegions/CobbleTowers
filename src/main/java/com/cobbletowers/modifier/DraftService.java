@@ -226,7 +226,7 @@ public final class DraftService {
     static int detourFor(TowerContent content, PersistedRun run, int floor, List<String> places) {
         if (run.options().isTrial() || !content.towers().containsKey(run.towerId())) return -1;
         // A walkable tower is climbed, not left: no lane may send the party to another building and back.
-        if (content.floorAt(run.towerId(), floor).flatMap(f -> f.layout()).map(layout -> layout.gateB().isPresent()).orElse(false)) return -1;
+        if (content.floorAt(run.towerId(), floor).flatMap(f -> f.layout()).map(layout -> layout.walkable()).orElse(false)) return -1;
         if (content.milestoneAt(run.towerId(), floor + 1).isPresent() || content.floorAt(run.towerId(), floor + 1).flatMap(f -> f.layout()).isEmpty()) return -1;
         int lane = com.cobbletowers.route.RouteGraph.detourLane(run.seed(), floor);
         if (lane < 0) return -1;
@@ -348,10 +348,14 @@ public final class DraftService {
                         ? run.modifiers().lockingIn(won).withDraft(resolved)
                         : run.modifiers().accumulating(won, draft.floorIndex() + 1).withDraft(resolved);
 
+        // A draft with no lanes (a Lock-In, a relic) still has its cards in front of the doors: remember which pedestal was picked, so that door is the one
+        // that opens (not the middle one by default). A route draft names its lane, which takes priority.
+        if (draft.route()) PENDING_DOOR.remove(runId);
+        else PENDING_DOOR.put(runId, new int[] {result.cardIndex(), draft.cards().size()});
         if (draft.route()) {
             next = next.withRouteStep(draft.floorIndex(), draft.lanes().get(result.cardIndex()), draft.kinds().get(result.cardIndex()));
-            // A walkable tower: the door of the chosen lane lights up and opens.
-            com.cobbletowers.route.TowerDoors.chosen(server, run, draft.lanes().get(result.cardIndex()));
+            // A walkable tower: the door of the chosen lane lights up and opens, but only once every pick is made (openDoorIfDone): a lane whose room
+            // asks something of the party keeps its door shut until the party has answered, so nobody stands at an open door with a pick still to make.
             String arena = draft.arenas().get(result.cardIndex());
             if (!arena.isEmpty()) {
                 ResourceLocation place = ResourceLocation.tryParse(arena);
@@ -376,6 +380,7 @@ public final class DraftService {
                 TowerLog.info("Run {} opened an EVENT room ({}) at floor {}", runId, duel.get(), draft.floorIndex());
             }
             TowerRuns.save(server, afterRelic, true);
+            openDoorIfDone(server, afterRelic, draft.floorIndex());
             return resolved;
         }
 
@@ -402,6 +407,7 @@ public final class DraftService {
             }
         }
         TowerRuns.save(server, after, true);
+        openDoorIfDone(server, after, draft.floorIndex());
         TowerLog.info("Run {} drafted {}{} at floor {}{}", runId, won, draft.lockIn() ? " (LOCKED IN)" : "",
                 draft.floorIndex(), result.byTieBreak() ? " on a seed tie-break" : "");
         TowerDefinitionRegistry.content().modifier(won).ifPresent(modifier ->
@@ -429,7 +435,10 @@ public final class DraftService {
                 tie ? " on a seed tie-break" : "", outcome.map(com.cobbletowers.intermission.IntermissionEvents.Outcome::message).orElse("unknown option"));
         if (com.cobbletowers.intermission.IntermissionEvents.Option.fromCard(won)
                 .filter(option -> option == com.cobbletowers.intermission.IntermissionEvents.Option.TRICK_OPEN).isPresent()) {
-            com.cobbletowers.trick.TrickOrTreatService.open(server, run.withModifiers(base.withDraft(resolved), now), resolved.floorIndex());
+            // The vote only unlocks the vault (TODO #6): the Trick or Treat door opens and the real chest waits for a click.
+            PersistedRun saved = run.withModifiers(base.withDraft(resolved), now);
+            com.cobbletowers.trick.TrickOrTreatService.unlock(server, saved, resolved.floorIndex());
+            openDoorIfDone(server, saved, resolved.floorIndex());
             return resolved;
         }
         if (outcome.isPresent() && outcome.get().duel()) {
@@ -455,11 +464,50 @@ public final class DraftService {
                 player.sendSystemMessage(net.minecraft.network.chat.Component.literal(o.message()));
             }
         });
+        openDoorIfDone(server, run.withModifiers(base.withDraft(resolved), now), resolved.floorIndex());
         return resolved;
+    }
+
+    /**
+     * Whether the door of the lane taken on {@code floorIndex} may open now: a lane was taken, and no pick is still open (an event room's choice or a
+     * relic draft is another pick). A battle lane has nothing more to ask, so its door opens as soon as the lane is chosen, as it always did.
+     */
+    public static boolean doorMayOpen(RunModifierState state, int floorIndex, boolean pedestalPicked) {
+        return (state.laneAt(floorIndex) >= 0 || pedestalPicked) && !state.hasOpenDraft();
+    }
+
+    /** The door a picked pedestal stands in front of, as the cards are placed ({@link com.cobbletowers.intermission.PedestalRules#doorOfCard}); empty when none. */
+    public static java.util.OptionalInt pendingDoor(UUID runId, int doorCount) {
+        int[] card = PENDING_DOOR.get(runId);
+        if (card == null) return java.util.OptionalInt.empty();
+        int door = com.cobbletowers.intermission.PedestalRules.doorOfCard(card[0], card[1], doorCount);
+        return door < 0 ? java.util.OptionalInt.empty() : java.util.OptionalInt.of(door);
+    }
+
+    /**
+     * Opens the door of the lane taken on this floor, or else of the pedestal that was picked, if every pick is made. Never throws: the vote must not fail
+     * over a door.
+     */
+    private static void openDoorIfDone(MinecraftServer server, PersistedRun run, int floorIndex) {
+        int[] card = PENDING_DOOR.get(run.runId());
+        if (!doorMayOpen(run.modifiers(), floorIndex, card != null)) return;
+        int lane = run.modifiers().laneAt(floorIndex);
+        if (lane >= 0) com.cobbletowers.route.TowerDoors.chosen(server, run, lane);
+        else com.cobbletowers.route.TowerDoors.chosenByCard(server, run, card[0], card[1]);
+        PENDING_DOOR.remove(run.runId());
+    }
+
+    /** The pedestal picked in a draft with no lanes, per run: {card index, card count}. In memory, like the pedestals themselves. */
+    private static final java.util.Map<UUID, int[]> PENDING_DOOR = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** The run's pedestals have come down (it ended, or its intermission did): forget the pedestal it picked, so an abandoned run leaves nothing behind. */
+    public static void forgetRun(UUID runId) {
+        PENDING_DOOR.remove(runId);
     }
 
     /** Clears a settled draft as the run leaves its intermission; an open one stays and blocks it. */
     public static void clearIfSettled(MinecraftServer server, UUID runId, long now) {
+        PENDING_DOOR.remove(runId);
         TowerRuns.get(runId).ifPresent(run -> {
             if (run.modifiers().draft().isPresent() && run.modifiers().draft().get().resolved()) {
                 TowerRuns.save(server, run.withModifiers(run.modifiers().withoutDraft(), now), false);

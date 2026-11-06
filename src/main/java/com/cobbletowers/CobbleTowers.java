@@ -59,6 +59,7 @@ public final class CobbleTowers implements ModInitializer {
                 com.cobbletowers.command.VaultCommand.register(dispatcher);
                 com.cobbletowers.command.TrickDoorCommand.register(dispatcher);
                 com.cobbletowers.command.RareCommand.register(dispatcher);
+                com.cobbletowers.command.RouteCommand.register(dispatcher);
                 PlayCommand.register(dispatcher);
                 com.cobbletowers.command.MasteryCommand.registerAdmin(dispatcher);
                 com.cobbletowers.command.TrialCommand.registerAdmin(dispatcher);
@@ -155,6 +156,9 @@ public final class CobbleTowers implements ModInitializer {
         com.cobbletowers.instance.TowerDropGuard.install();
         com.cobbletowers.instance.FaintDropGuard.install();
         com.cobbletowers.vendor.VendorNpc.install();
+        com.cobbletowers.economy.MysteryBagService.install();
+        com.cobbletowers.route.RouteIcons.bootstrap();
+        com.cobbletowers.route.RouteMapItemService.install();
         com.cobbletowers.intermission.PedestalService.install();
         com.cobbletowers.mastery.MasteryService.install();
         com.cobbletowers.trial.TrialService.install();

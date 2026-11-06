@@ -28,7 +28,7 @@ public final class WalkRules {
      * last of a cycle) and a detour to another building are left by teleport, as every floor was before.
      */
     public static boolean onFoot(FloorLayout current, Optional<FloorLayout> next) {
-        return current.gateB().isPresent() && next.isPresent() && next.get().structure().equals(current.structure());
+        return current.walkable() && next.isPresent() && next.get().structure().equals(current.structure());
     }
 
     /** Whether a player at (x, y, z) has arrived at an anchor placed at (ax, ay, az). */

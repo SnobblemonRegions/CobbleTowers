@@ -1,6 +1,7 @@
 package com.cobbletowers.mixin;
 
 import com.cobbletowers.economy.TowerKeys;
+import com.cobbletowers.route.RouteMapItem;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -21,6 +22,12 @@ public abstract class PlayerDropKeyMixin {
             at = @At("HEAD"), cancellable = true)
     private void cobbletowers$keepKey(ItemStack stack, boolean randomly, boolean byPlayer,
                                       CallbackInfoReturnable<ItemEntity> cir) {
+        if ((Object) this instanceof ServerPlayer holder && RouteMapItem.isRouteMap(stack)) {
+            // The Route Map is never in the world: a toss goes back into the inventory, and a death drop is simply lost (the next run gets a fresh one).
+            if (byPlayer) holder.getInventory().add(stack);
+            cir.setReturnValue(null);
+            return;
+        }
         if (!((Object) this instanceof ServerPlayer player) || !TowerKeys.isTradeLocked(stack)) return;
         if (!byPlayer) {
             // Death drop: the key is kept for the respawn instead of lying in the world.

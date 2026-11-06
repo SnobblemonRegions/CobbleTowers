@@ -266,14 +266,67 @@ public final class IntermissionService {
         var next = com.cobbletowers.route.FloorLayouts.layoutOf(content, run, run.floorIndex() + 1);
         if (current.isEmpty() || !com.cobbletowers.route.WalkRules.onFoot(current.get(), next)) return false;
         com.cobbletowers.route.TowerDoors.ensureOpen(server, run);
-        com.cobbletowers.route.TowerGates.openB(server, run);
         round.beginWalk(now, walkMillis);
+        if (current.get().laneStairs()) {
+            // P58: the way up is the stair behind the door the vote opened; there is no shared gate.
+            round.beginClimb(com.cobbletowers.route.TowerDoors.openLane(server, run));
+            broadcast(server, run, "The door is open. Climb its stair to the next floor: you go up together, when the whole team stands on the landing.", false);
+            return true;
+        }
+        com.cobbletowers.route.TowerGates.openB(server, run);
         broadcast(server, run, "The gate to the stair is open. Climb to the next floor: the fight starts when the whole team is at the arena door.", false);
+        return true;
+    }
+
+    /** The run's participants who can fight and are online, in the order the arrival spreads them. */
+    private static List<ServerPlayer> onlineFighters(MinecraftServer server, PersistedRun run) {
+        List<ServerPlayer> out = new java.util.ArrayList<>();
+        for (PersistedParticipant participant : run.participants()) {
+            if (!participant.state().canFight()) continue;
+            ServerPlayer player = server.getPlayerList().getPlayer(participant.playerId());
+            if (player != null) out.add(player);
+        }
+        return out;
+    }
+
+    /**
+     * The lane stair (P58). While climbing: when the whole team is on the landing (or the deadline passes) the screen fades; a moment later everyone
+     * is taken to the lane's arrival hall, and the walk becomes the short walk into the arena. Returns whether the climb still holds the tick.
+     */
+    private static boolean tickClimb(MinecraftServer server, PersistedRun run, IntermissionRound round, long now) {
+        if (!round.climbing()) return false;
+        List<ServerPlayer> fighters = onlineFighters(server, run);
+        if (round.fading()) {
+            if (round.fadeDue(now)) {
+                int lane = round.climbLane();
+                String kind = com.cobbletowers.route.RoomDresser.kindOf(run, lane);
+                int moved = com.cobbletowers.route.LaneStairs.transfer(server, run, lane, kind, fighters);
+                if (moved == 0) {
+                    // The stair could not be used (the next floor is not placed): fall back to opening the next floor as it always was.
+                    round.cancelWalk();
+                    TowerLog.warn("Run {}: lane {} of floor {} could not take the team up; opening the next floor directly", run.runId(), lane, run.floorIndex());
+                    openNext(server, run.runId(), run, now);
+                    return true;
+                }
+                round.markTransferred(now, com.cobbletowers.route.LaneStairs.ARRIVAL_WALK_MILLIS);
+            }
+            return true;
+        }
+        if (round.walkDue(now) || com.cobbletowers.route.LaneStairs.everyoneOnLanding(server, run, round.climbLane(), fighters)) {
+            com.cobbletowers.route.LaneStairs.fadeOut(fighters);
+            round.beginFade(now, com.cobbletowers.route.LaneStairs.FADE_OUT_MILLIS);
+            return true;
+        }
+        int left = round.walkSecondsLeft(now);
+        if (round.announce(left) && left % 15 == 0 && left > 0) {
+            for (ServerPlayer player : fighters) player.displayClientMessage(Component.literal("Climb to the landing: " + left + "s"), true);
+        }
         return true;
     }
 
     private static void tickWalk(MinecraftServer server, PersistedRun run, IntermissionRound round, long now) {
         if (com.cobbletowers.echo.EchoDuels.active(server, run.runId())) return;
+        if (tickClimb(server, run, round, now)) return;
         if (!round.walkDue(now) && !everyoneArrived(server, run)) {
             int left = round.walkSecondsLeft(now);
             if (round.announce(left) && left % 15 == 0 && left > 0) {
