@@ -654,7 +654,8 @@ public final class LobbyService {
             depth = new PlayStatePayload.Depth(lobby.ascension(), maxAscension(server, lobby), chosen != null && chosen.ascension());
             boolean threatOn = com.cobbletowers.economy.AscensionLibScouting.threatEnabled() && lobby.trial().isEmpty();
             threat = threatOn ? new PlayStatePayload.Threat(lobby.entryThreat(),
-                    com.cobbletowers.economy.AscensionLibScouting.recommendedThreat(lobby.team()), true) : PlayStatePayload.Threat.none();
+                    com.cobbletowers.economy.AscensionLibScouting.recommendedThreat(lobby.team()), true,
+                    com.cobbletowers.economy.AscensionLibScouting.threatBands()) : PlayStatePayload.Threat.none();
             List<String> modeIds = new ArrayList<>();
             List<String> modeNames = new ArrayList<>();
             for (PlaylistDefinition playlist : PlaylistRegistry.all()) {
