@@ -431,7 +431,10 @@ public final class DraftService {
                 tie ? " on a seed tie-break" : "", outcome.map(com.cobbletowers.intermission.IntermissionEvents.Outcome::message).orElse("unknown option"));
         if (com.cobbletowers.intermission.IntermissionEvents.Option.fromCard(won)
                 .filter(option -> option == com.cobbletowers.intermission.IntermissionEvents.Option.TRICK_OPEN).isPresent()) {
-            com.cobbletowers.trick.TrickOrTreatService.open(server, run.withModifiers(base.withDraft(resolved), now), resolved.floorIndex());
+            // The vote only unlocks the vault (TODO #6): the Trick or Treat door opens and the real chest waits for a click.
+            PersistedRun saved = run.withModifiers(base.withDraft(resolved), now);
+            com.cobbletowers.trick.TrickOrTreatService.unlock(server, saved, resolved.floorIndex());
+            openDoorIfDone(server, saved, resolved.floorIndex());
             return resolved;
         }
         if (outcome.isPresent() && outcome.get().duel()) {
