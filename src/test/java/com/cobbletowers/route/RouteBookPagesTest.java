@@ -39,7 +39,7 @@ class RouteBookPagesTest {
         List<Edge> edges = List.of(new Edge(0, 1, 0), new Edge(0, 1, 1), new Edge(0, 1, 2),
                 new Edge(1, 0, 0), new Edge(1, 1, 0), new Edge(1, 1, 2), new Edge(1, 2, 2),
                 new Edge(2, 0, 1), new Edge(2, 2, 1));
-        return new RouteMap.Map(4, nodes, edges);
+        return new RouteMap.Map(3, nodes, edges);
     }
 
     private static String text(List<Component> pages) {

@@ -89,7 +89,8 @@ public final class RouteBookPages {
         if (cycle > 0) mapLines.add(Component.literal("cycle " + (cycle + 1)).withStyle(style(DIM, false)));
         int here = trail.size() - 1;
         List<Integer> open = here >= 0 ? map.next(here, trail.get(here)) : List.of();
-        for (int row = map.rows() - 1; row >= 0; row--) mapLines.add(rowLine(map, row, trail, open, reveal));
+        // rows 0..rows(): the start, then a row per floor (RouteMap.generate puts the last floor on row rows())
+        for (int row = map.rows(); row >= 0; row--) mapLines.add(rowLine(map, row, trail, open, reveal));
 
         List<Component> pages = new ArrayList<>(paginate(mapLines));
         pages.addAll(paginate(choices(map, trail, reveal)));

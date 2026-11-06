@@ -1,0 +1,59 @@
+{
+ "providers": [
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_icons.png",
+   "ascent": 16,
+   "height": 18,
+   "chars": [
+    "\ue000\ue001\ue002\ue003\ue004\ue005\ue006\ue007\ue008\ue009\ue00a\ue00b\ue020"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_mini.png",
+   "ascent": 8,
+   "height": 9,
+   "chars": [
+    "\ue040\ue041\ue042\ue043\ue044\ue045\ue046\ue047\ue048\ue049\ue04a\ue04b"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_rings.png",
+   "ascent": 18,
+   "height": 22,
+   "chars": [
+    "\ue060"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_lines.png",
+   "ascent": 9,
+   "height": 13,
+   "chars": [
+    "\ue080\ue081\ue082"
+   ]
+  },
+  {
+   "type": "space",
+   "advances": {
+    "\ue100": 1,
+    "\ue110": -1,
+    "\ue101": 2,
+    "\ue111": -2,
+    "\ue102": 4,
+    "\ue112": -4,
+    "\ue103": 8,
+    "\ue113": -8,
+    "\ue104": 16,
+    "\ue114": -16,
+    "\ue105": 32,
+    "\ue115": -32,
+    "\ue106": 64,
+    "\ue116": -64
+   }
+  }
+ ]
+}
