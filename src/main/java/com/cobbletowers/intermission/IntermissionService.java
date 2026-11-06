@@ -299,7 +299,7 @@ public final class IntermissionService {
         if (round.fading()) {
             if (round.fadeDue(now)) {
                 int lane = round.climbLane();
-                String kind = com.cobbletowers.route.RoomDresser.kindBehind(run.runId(), lane).orElse("");
+                String kind = com.cobbletowers.route.RoomDresser.kindOf(run, lane);
                 int moved = com.cobbletowers.route.LaneStairs.transfer(server, run, lane, kind, fighters);
                 if (moved == 0) {
                     // The stair could not be used (the next floor is not placed): fall back to opening the next floor as it always was.

@@ -321,6 +321,7 @@ public final class PedestalService {
     /** Takes the run's pedestals down. Safe to call at any time and more than once. */
     public static void despawn(MinecraftServer server, PersistedRun run) {
         com.cobbletowers.route.RoomDresser.forget(run.runId());
+        DraftService.forgetRun(run.runId());
         PLACED.remove(run.runId());
         LAST_VOTE.remove(run.runId());
         PedestalAnim.cancel(run.runId());

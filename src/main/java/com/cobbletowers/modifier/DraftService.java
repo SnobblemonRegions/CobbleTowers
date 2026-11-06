@@ -500,6 +500,11 @@ public final class DraftService {
     /** The pedestal picked in a draft with no lanes, per run: {card index, card count}. In memory, like the pedestals themselves. */
     private static final java.util.Map<UUID, int[]> PENDING_DOOR = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** The run's pedestals have come down (it ended, or its intermission did): forget the pedestal it picked, so an abandoned run leaves nothing behind. */
+    public static void forgetRun(UUID runId) {
+        PENDING_DOOR.remove(runId);
+    }
+
     /** Clears a settled draft as the run leaves its intermission; an open one stays and blocks it. */
     public static void clearIfSettled(MinecraftServer server, UUID runId, long now) {
         PENDING_DOOR.remove(runId);

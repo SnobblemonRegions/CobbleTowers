@@ -201,6 +201,14 @@ public record RunModifierState(
     }
 
     /** What route step number {@code index} (0 first) was, or empty when it is not known. */
+    /** The kind of the stop taken after {@code floor} (a {@code RouteGraph.Kind} name), or blank when no step was recorded for it or it was taken before kinds were kept. */
+    public String routeKindAtFloor(int floor) {
+        for (int i = routeSteps.size() - 2; i >= 0; i -= 2) {
+            if (routeSteps.get(i) == floor) return routeKindAt(i / 2);
+        }
+        return "";
+    }
+
     public String routeKindAt(int index) {
         return index >= 0 && index < routeKinds.size() ? routeKinds.get(index) : "";
     }

@@ -70,6 +70,34 @@ public final class RoomDresser {
         return out;
     }
 
+    /**
+     * What each chamber is dressed as when no route draft is open: what it already is (a room that could not be placed counts as a battle until it is
+     * tried again), the chosen lane taking the kind the run recorded for it, and, with no recorded kind but a Trick or Treat room held, the vault's room
+     * behind the lane taken. Pure.
+     * @param chosenDoor the door of the lane taken on this floor, or -1
+     * @param chosenKind its recorded stop kind, or blank
+     */
+    public static List<String> kindsWithoutRoute(List<String> have, int doors, int chosenDoor, String chosenKind, boolean holdsTrickRoom, int trickDoor) {
+        List<String> out = new ArrayList<>(doors);
+        for (int door = 0; door < doors; door++) {
+            out.add(door < have.size() && !have.get(door).isEmpty() ? have.get(door) : RouteGraph.Kind.BATTLE.name());
+        }
+        if (chosenKind != null && !chosenKind.isEmpty() && chosenDoor >= 0 && chosenDoor < doors) {
+            out.set(chosenDoor, chosenKind);
+        } else if (holdsTrickRoom && trickDoor >= 0 && trickDoor < doors) {
+            out.set(trickDoor, RouteGraph.Kind.TRICK_OR_TREAT.name());
+        }
+        return out;
+    }
+
+    /**
+     * The kind of stop the party's lane led through, for dressing the arrival hall: what is dressed behind that door now, or else what the run recorded for the
+     * lane (the dressing is forgotten when the pedestals come down), or blank.
+     */
+    public static String kindOf(PersistedRun run, int lane) {
+        return kindBehind(run.runId(), lane).orElseGet(() -> run.modifiers().routeKindAtFloor(run.floorIndex()));
+    }
+
     /** The door a lane leads through (the middle one when the lane is unknown): the same pick the vault spot makes. */
     public static int doorOfLane(int lane, int doors) {
         return lane >= 0 && lane < doors ? lane : doors / 2;
@@ -93,13 +121,13 @@ public final class RoomDresser {
         List<String> wanted = kindsByDoor(draft.map(PersistedDraft::lanes).orElse(List.of()), draft.map(PersistedDraft::kinds).orElse(List.of()),
                 layout.doors().size());
         List<String> have = DRESSED.getOrDefault(run.runId(), List.of());
-        // The vault's own vote is a draft with no lanes: its room stays the Trick or Treat room, not a bare battle gauntlet with the vault floating in it.
-        if (draft.isEmpty() && com.cobbletowers.trick.TrickOrTreatService.holdsRoom(run)) {
-            wanted = new ArrayList<>();
-            for (int door = 0; door < layout.doors().size(); door++) {
-                wanted.add(door < have.size() && !have.get(door).isEmpty() ? have.get(door) : RouteGraph.Kind.BATTLE.name());
-            }
-            wanted.set(doorOfLane(run.modifiers().lastLane(), wanted.size()), RouteGraph.Kind.TRICK_OR_TREAT.name());
+        // Once the lane is chosen the route draft is gone and the room's own event round (a draft with no lanes) is open: the chambers must keep what they
+        // were dressed as, and the chosen lane keeps the kind the run recorded for it. Without this the shrine room was replaced by a battle gauntlet the
+        // moment the lane was picked, and the arrival hall was dressed as a battle too. The Trick or Treat vault's room is the same case.
+        if (draft.isEmpty()) {
+            int floor = run.floorIndex();
+            wanted = kindsWithoutRoute(have, layout.doors().size(), run.modifiers().laneAt(floor), run.modifiers().routeKindAtFloor(floor),
+                    com.cobbletowers.trick.TrickOrTreatService.holdsRoom(run), doorOfLane(run.modifiers().lastLane(), layout.doors().size()));
         }
         List<String> now = new ArrayList<>(wanted);
         for (int door = 0; door < wanted.size(); door++) {

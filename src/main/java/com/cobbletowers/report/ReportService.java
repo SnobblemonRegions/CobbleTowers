@@ -45,6 +45,8 @@ public final class ReportService {
         String text = ReportFormat.clean(rawText);
         if (text.isEmpty()) return "Say what happened: /tower report <what went wrong>.";
         LAST.put(player.getUUID(), now);
+        // The cooldown map would otherwise hold one entry for every player who ever filed a report: forget the ones whose cooldown is long over.
+        if (LAST.size() > 256) LAST.values().removeIf(at -> now - at > COOLDOWN_MILLIS);
         String id = ReportFormat.idOf(now);
         String entry = ReportFormat.format(now, id, player.getGameProfile().getName(), player.getUUID().toString(),
                 version(), text, runOf(player.getUUID()));
