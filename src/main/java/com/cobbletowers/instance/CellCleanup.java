@@ -1,5 +1,6 @@
 package com.cobbletowers.instance;
 
+import com.cobbletowers.TowerLog;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.server.MinecraftServer;
@@ -87,10 +88,41 @@ public final class CellCleanup {
         ServerLevel level = TowerDimension.level(server);
         if (level == null) return 0;
 
-        List<Entity> debris = level.getEntities((Entity) null, CellGrid.sweepBoundsOf(cell),
-                entity -> entity instanceof ItemEntity || entity instanceof ExperienceOrb || entity instanceof FallingBlockEntity);
+        List<Entity> debris = level.getEntities((Entity) null, CellGrid.sweepBoundsOf(cell), CellCleanup::isDebris);
         for (Entity entity : debris) entity.discard();
         return debris.size();
+    }
+
+    /**
+     * Clears what a cell holds before a build and returns how many entities went. Release sweeps a cell, but a cell
+     * the warm pool built and never handed out (every warm cell, after a restart) is reset and rebuilt without one,
+     * so falling blocks frozen by older builds stayed in the tower dimension: about 4,000 on the live server.
+     * Runs while the cell's tickets are held; entities in a chunk whose entity section has not loaded yet are not
+     * seen.
+     */
+    static int sweepBeforeBuild(MinecraftServer server, int cell) {
+        CellGrid.requireValid(cell);
+        ServerLevel level = TowerDimension.level(server);
+        if (level == null) return 0;
+
+        // Everything but players goes, so a build starts empty. Unlike RecoverySweep nothing is spared for a live
+        // battle: the cell's blocks are reset by now, so a fight in it could not go on anyway.
+        List<Entity> leftovers = level.getEntities((Entity) null, CellGrid.sweepBoundsOf(cell),
+                entity -> !(entity instanceof Player));
+        // Debris is expected; anything else is named, since something left it where it should not be.
+        List<String> unexpected = leftovers.stream()
+                .filter(entity -> !isDebris(entity))
+                .limit(5)
+                .map(CellCleanup::describe)
+                .toList();
+        if (!unexpected.isEmpty()) TowerLog.warn("Cell {} held more than debris before it was built: {}", cell, unexpected);
+        for (Entity entity : leftovers) entity.discard();
+        return leftovers.size();
+    }
+
+    /** Items, experience orbs and falling blocks: what a fought-over or freshly built cell leaves as a matter of course. */
+    private static boolean isDebris(Entity entity) {
+        return entity instanceof ItemEntity || entity instanceof ExperienceOrb || entity instanceof FallingBlockEntity;
     }
 
     /** Type, name, tags and position, so a quarantine says what was left behind. */
