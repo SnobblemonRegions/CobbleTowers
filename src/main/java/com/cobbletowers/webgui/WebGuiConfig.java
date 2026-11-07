@@ -32,7 +32,7 @@ public record WebGuiConfig(boolean enabled, String url, Mode mode, int heartbeat
         Path file = FabricLoader.getInstance().getConfigDir().resolve("cobbletowers-webgui.json");
         if (!Files.exists(file)) {
             // No native client any more, so a server with WebGUI gets the pages on first start; edit the file to change it.
-            if (!FabricLoader.getInstance().isModLoaded("webgui")) return OFF;
+            if (!WebGuiLink.installed()) return OFF;
             try {
                 Files.writeString(file, DEFAULT_FILE);
                 TowerLog.info("Wrote {} (web pages on); edit it to change", file);
