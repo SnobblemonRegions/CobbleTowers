@@ -39,17 +39,19 @@ public record PlayStatePayload(List<Tower> towers, Lobby lobby, List<Integer> pa
      */
     /**
      * The Threat band the host picked (balance phase 2): {@code chosen} 0-6 (0 for none), {@code advice} the band AscensionLib advises for the team
-     * (1-6), {@code offered} whether the server has Threat on and this is not a trial. Advice only; every band can be picked.
+     * (1-6), {@code offered} whether the server has Threat on and this is not a trial, and {@code bands} what each band is (AscensionLib's answer; empty when it
+     * cannot say, and then a screen shows the choice without the detail). Advice only; every band can be picked.
      */
-    public record Threat(int chosen, int advice, boolean offered) {
+    public record Threat(int chosen, int advice, boolean offered, List<com.cobbletowers.ascension.ThreatBandInfo.Band> bands) {
         static final StreamCodec<RegistryFriendlyByteBuf, Threat> STREAM_CODEC = StreamCodec.composite(
                 ByteBufCodecs.VAR_INT, Threat::chosen,
                 ByteBufCodecs.VAR_INT, Threat::advice,
                 ByteBufCodecs.BOOL, Threat::offered,
+                com.cobbletowers.ascension.ThreatBandInfo.Band.STREAM_CODEC.apply(ByteBufCodecs.list(com.cobbletowers.ascension.ThreatBandInfo.MAX_BANDS)), Threat::bands,
                 Threat::new);
 
         public static Threat none() {
-            return new Threat(0, 1, false);
+            return new Threat(0, 1, false, List.of());
         }
     }
 
