@@ -250,6 +250,19 @@ public record PersistedRun(
     }
 
     /**
+     * The key one player's purchases of a service are counted under: the player's UUID goes into the path (a UUID is a valid path), so the count lives in the
+     * same stored list as the run's own and a run written before this limit existed reads back unchanged.
+     */
+    public static ResourceLocation playerPurchaseKey(UUID player, ResourceLocation serviceId) {
+        return ResourceLocation.fromNamespaceAndPath(serviceId.getNamespace(), "player/" + player + "/" + serviceId.getPath());
+    }
+
+    /** How many times {@code player} has bought {@code serviceId} in this run. */
+    public int purchasesOf(UUID player, ResourceLocation serviceId) {
+        return purchasesOf(playerPurchaseKey(player, serviceId));
+    }
+
+    /**
      * The same run with its ledger priced through {@code throughFloor} and {@code grantKey} committed. The key is
      * distinct from any transition key so a retry after a crash between transition and grant is a no-op (TDS #30).
      */

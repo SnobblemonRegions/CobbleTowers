@@ -24,6 +24,8 @@ public final class VendorPurchaseService {
     public enum Result {
         SUCCESS, RUN_NOT_FOUND, NOT_INTERMISSION, UNKNOWN_SERVICE, TARGET_NOT_IN_RUN, TARGET_OFFLINE,
         SOLD_OUT, INSUFFICIENT_FUNDS, VENDOR_CLOSED,
+        /** The paying player has bought as many of it as each player may in one run. */
+        LIMIT_REACHED,
         /** The effect threw after the charge; the price was given back. */
         FAILED
     }
@@ -36,6 +38,7 @@ public final class VendorPurchaseService {
             case SUCCESS -> self ? "Bought for yourself." : "Bought for " + targetName + ".";
             case INSUFFICIENT_FUNDS -> "Not enough CobbleDollars.";
             case SOLD_OUT -> "That service is sold out for this run.";
+            case LIMIT_REACHED -> "You have already bought as many of that as you can this run.";
             case TARGET_OFFLINE -> targetName + " is not online.";
             case TARGET_NOT_IN_RUN -> targetName + " is no longer in the run.";
             case NOT_INTERMISSION -> "The vendor is only open at an intermission.";
@@ -70,6 +73,8 @@ public final class VendorPurchaseService {
 
         int cap = service.get().maxPurchasesPerRun();
         if (cap > 0 && run.purchasesOf(serviceId) >= cap) return Result.SOLD_OUT;
+        int perPlayer = service.get().maxPurchasesPerPlayer();
+        if (perPlayer > 0 && run.purchasesOf(payingPlayerId, serviceId) >= perPlayer) return Result.LIMIT_REACHED;
 
         // The payer's own price: their worn armor may discount it. An offline payer (possible when a teammate buys on
         // their behalf) simply pays the listed price.
@@ -93,7 +98,8 @@ public final class VendorPurchaseService {
         }
 
         long now = System.currentTimeMillis();
-        TowerRuns.save(server, run.withVendorPurchase(serviceId, now), false);
+        TowerRuns.save(server, run.withVendorPurchase(serviceId, now)
+                .withVendorPurchase(PersistedRun.playerPurchaseKey(payingPlayerId, serviceId), now), false);
         TowerLog.info("Run {}: {} bought {} for {}", runId, payingPlayerId, serviceId, targetPlayerId);
         com.cobbletowers.events.TowerEvents.emit(new com.cobbletowers.events.TowerEvent.Purchased(runId,
                 java.util.List.of(payingPlayerId), serviceId));

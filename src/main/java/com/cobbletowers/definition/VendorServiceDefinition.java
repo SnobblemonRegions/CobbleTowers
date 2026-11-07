@@ -8,7 +8,8 @@ import net.minecraft.resources.ResourceLocation;
 /**
  * One thing the Tower Supply Vendor sells for CobbleDollars (TDS #16, #19, #20). {@link VendorEffect} is a closed set
  * of effects on a target's live party, never an item stack (TDS #20 C).
- * @param maxPurchasesPerRun how often one run may buy it (TDS #19); 0 means unlimited
+ * @param maxPurchasesPerRun how often one run may buy it, all its players together (TDS #19); 0 means unlimited
+ * @param maxPurchasesPerPlayer how often each player of a run may buy it; 0 means unlimited. The Mystery Bag uses this, so one player's bags do not use up the team's
  */
 public record VendorServiceDefinition(
         ResourceLocation id,
@@ -17,7 +18,8 @@ public record VendorServiceDefinition(
         String displayName,
         int priceCobbleDollars,
         VendorEffect effect,
-        int maxPurchasesPerRun) {
+        int maxPurchasesPerRun,
+        int maxPurchasesPerPlayer) {
 
     public static final int SUPPORTED_SCHEMA_VERSION = 1;
 
@@ -38,6 +40,15 @@ public record VendorServiceDefinition(
         if (maxPurchasesPerRun < 0) {
             throw new IllegalArgumentException("max_purchases_per_run must be >= 0, got " + maxPurchasesPerRun);
         }
+        if (maxPurchasesPerPlayer < 0) {
+            throw new IllegalArgumentException("max_purchases_per_player must be >= 0, got " + maxPurchasesPerPlayer);
+        }
+    }
+
+    /** A service with no per-player limit (the form every service had before the limit existed). */
+    public VendorServiceDefinition(ResourceLocation id, int schemaVersion, int revision, String displayName, int priceCobbleDollars,
+                                   VendorEffect effect, int maxPurchasesPerRun) {
+        this(id, schemaVersion, revision, displayName, priceCobbleDollars, effect, maxPurchasesPerRun, 0);
     }
 
     public static VendorServiceDefinition fromJson(ResourceLocation id, JsonObject root) {
@@ -48,7 +59,8 @@ public record VendorServiceDefinition(
                 TowerJson.requireString(root, "display_name"),
                 TowerJson.requireInt(root, "price_cobble_dollars"),
                 parseEffect(TowerJson.requireString(root, "effect")),
-                TowerJson.integer(root, "max_purchases_per_run", 0));
+                TowerJson.integer(root, "max_purchases_per_run", 0),
+                TowerJson.integer(root, "max_purchases_per_player", 0));
     }
 
     private static VendorEffect parseEffect(String raw) {

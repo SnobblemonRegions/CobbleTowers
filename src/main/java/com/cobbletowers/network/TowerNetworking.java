@@ -244,6 +244,11 @@ public final class TowerNetworking {
                                                           ServerPlayer player) {
         int cap = service.maxPurchasesPerRun();
         int remaining = cap <= 0 ? -1 : Math.max(0, cap - run.purchasesOf(service.id()));
+        int perPlayer = service.maxPurchasesPerPlayer();
+        if (perPlayer > 0) {      // each player's own count, and the smaller of it and what the run has left
+            int mine = Math.max(0, perPlayer - run.purchasesOf(player.getUUID(), service.id()));
+            remaining = remaining < 0 ? mine : Math.min(remaining, mine);
+        }
         return new VendorCatalogPayload.Entry(service.id(), service.displayName(),
                 com.cobbletowers.armor.ArmorBonusEffects.vendorPrice(player, service.priceCobbleDollars()), remaining);
     }
