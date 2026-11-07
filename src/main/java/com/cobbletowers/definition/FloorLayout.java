@@ -64,6 +64,16 @@ public record FloorLayout(
                 FloorDoor.list(root, "doors"));
     }
 
+    /** Whether every door has a stair of its own (P58): the party climbs the lane it voted for and is taken up from its landing. */
+    public boolean laneStairs() {
+        return !doors.isEmpty() && doors.stream().allMatch(door -> door.stairTop().isPresent() && door.arrival().isPresent());
+    }
+
+    /** Whether this floor is left on foot rather than by teleport: it has a stair gate (the old shared stair) or a stair for every lane. */
+    public boolean walkable() {
+        return gateB.isPresent() || laneStairs();
+    }
+
     /** Every anchor with the name it is known by, for validation and for messages. */
     public Map<String, FloorAnchor> anchors() {
         return Map.of("entry", entry, "presentation", presentation, "spectator", spectator, "exit", exit);

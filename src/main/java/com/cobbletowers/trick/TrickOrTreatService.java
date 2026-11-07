@@ -72,6 +72,11 @@ public final class TrickOrTreatService {
     private static final Map<UUID, Fight> FIGHTS = new HashMap<>();
     /** The closed vault standing in a room while its party votes, by run; clicking it casts the vote to open it. */
     private static final Map<UUID, UUID> SHOWN = new HashMap<>();
+    /**
+     * Runs whose party has voted to open the vault, by the floor it was voted on (TODO #6): the Trick or Treat door is open and the chest can be opened. The
+     * vote only unlocks it; the click on the chest itself rolls the coin. In memory, like the rest of this room's state, and forgotten with the intermission.
+     */
+    private static final Map<UUID, Integer> UNLOCKED = new HashMap<>();
     /** Runs whose room has no vault spot (not built), so the closed vault is not retried every second. */
     private static final Set<UUID> NO_SPOT = new HashSet<>();
     private static boolean installed;
@@ -112,7 +117,7 @@ public final class TrickOrTreatService {
     /** Whether the run's Trick or Treat room must keep its dais: the vault is shown, open or fighting, or its open vote is on. */
     public static boolean holdsRoom(PersistedRun run) {
         UUID id = run.runId();
-        return SHOWN.containsKey(id) || BY_RUN.containsKey(id) || FIGHTS.containsKey(id) || openCard(run) >= 0;
+        return SHOWN.containsKey(id) || UNLOCKED.containsKey(id) || BY_RUN.containsKey(id) || FIGHTS.containsKey(id) || openCard(run) >= 0;
     }
 
     /** The index of the "open it" card in the run's open vote, or -1 when that vote is not on. */
@@ -120,23 +125,64 @@ public final class TrickOrTreatService {
         return run.modifiers().draft().filter(draft -> !draft.resolved()).map(draft -> draft.cards().indexOf(IntermissionEvents.Option.TRICK_OPEN.cardId())).orElse(-1);
     }
 
-    /** A click on the shut vault is that player's vote to open it: the majority still decides, so one player cannot commit the party to a mimic. */
+    /** What a click on the vault does, in order: it is another team's; a rare is out (a throw); it is open; it is unlocked (open it); a vote is on; or it stays shut. */
+    enum Click { FOREIGN, THROW, ALREADY_OPEN, OPEN_NOW, VOTE, SHUT }
+
+    /** Pure, so the order is tested without a server. */
+    static Click clickAction(boolean mine, boolean rareActive, boolean opened, boolean unlocked, boolean voteOpen) {
+        if (!mine) return Click.FOREIGN;
+        if (rareActive) return Click.THROW;
+        if (opened) return Click.ALREADY_OPEN;
+        if (unlocked) return Click.OPEN_NOW;
+        return voteOpen ? Click.VOTE : Click.SHUT;
+    }
+
+    /**
+     * A click on the vault. Once the party has voted to open it, the click on the chest itself rolls the coin and opens it (TODO #6); while the vote is
+     * still on, a click casts that player's vote (the majority still decides, so one player cannot commit the party to a mimic); otherwise it stays shut.
+     */
     private static void click(MinecraftServer server, UUID runId, ServerPlayer player) {
         Optional<PersistedRun> mine = TowerRuns.forPlayer(player.getUUID());
-        String message;
-        if (mine.isEmpty() || !mine.get().runId().equals(runId)) {
-            message = "This vault belongs to another team.";
-        } else if (HauntedRare.active(runId)) {
-            message = HauntedRare.throwBy(server, player);   // the rare is out: a click on the vault is a throw
-        } else if (BY_RUN.containsKey(runId)) {
-            message = "The vault is already open.";
-        } else if (openCard(mine.get()) < 0) {
-            message = "The vault stays shut.";
-        } else {
-            message = com.cobbletowers.intermission.IntermissionService.pick(server, player, openCard(mine.get()));
-            if ("Vote recorded.".equals(message)) message = "You voted to open the vault.";
-        }
+        boolean ours = mine.isPresent() && mine.get().runId().equals(runId);
+        Click action = clickAction(ours, ours && HauntedRare.active(runId), BY_RUN.containsKey(runId), UNLOCKED.containsKey(runId),
+                ours && openCard(mine.get()) >= 0);
+        String message = switch (action) {
+            case FOREIGN -> "This vault belongs to another team.";
+            case THROW -> HauntedRare.throwBy(server, player);   // the rare is out: a click on the vault is a throw
+            case ALREADY_OPEN -> "The vault is already open.";
+            case OPEN_NOW -> openFromChest(server, runId);
+            case VOTE -> {
+                String vote = com.cobbletowers.intermission.IntermissionService.pick(server, player, openCard(mine.get()));
+                yield "Vote recorded.".equals(vote) ? "You voted to open the vault." : vote;
+            }
+            case SHUT -> "The vault stays shut.";
+        };
         if (!message.isEmpty()) player.displayClientMessage(Component.literal(message), true);
+    }
+
+    /** The party has voted to open the vault: the door is open and the chest can be opened by a click (TODO #6); the coin is not rolled until then. */
+    public static void unlock(MinecraftServer server, PersistedRun run, int floorIndex) {
+        try {
+            if (BY_RUN.containsKey(run.runId()) || UNLOCKED.containsKey(run.runId())) return;
+            if (!SHOWN.containsKey(run.runId())) {
+                // No chest was raised in this room: settle the coin at once, as before, so the vote is never a silent nothing.
+                open(server, run, floorIndex);
+                return;
+            }
+            UNLOCKED.put(run.runId(), floorIndex);
+            TowerLog.info("Run {} unlocked the Jack-o'-Lantern Vault of floor {}: the chest waits for a click", run.runId(), floorIndex);
+        } catch (RuntimeException ex) {
+            TowerLog.error("Run {}: unlocking the Trick or Treat vault failed", run.runId(), ex);
+        }
+    }
+
+    private static String openFromChest(MinecraftServer server, UUID runId) {
+        Integer floor = UNLOCKED.remove(runId);
+        if (floor == null) return "";
+        Optional<PersistedRun> run = TowerRuns.get(runId);
+        if (run.isEmpty()) return "";
+        open(server, run.get(), floor);
+        return "The vault creaks open...";
     }
 
     // ---- opening ---------------------------------------------------------------------------------
@@ -382,6 +428,7 @@ public final class TrickOrTreatService {
         }
         UUID shown = SHOWN.remove(runId);
         if (shown != null) VaultService.remove(shown);
+        UNLOCKED.remove(runId);
         NO_SPOT.remove(runId);
         FIGHTS.remove(runId);
         HauntedRare.forget(runId);
@@ -389,6 +436,7 @@ public final class TrickOrTreatService {
 
     public static void clear() {
         SHOWN.clear();
+        UNLOCKED.clear();
         NO_SPOT.clear();
         BY_VAULT.clear();
         BY_RUN.clear();

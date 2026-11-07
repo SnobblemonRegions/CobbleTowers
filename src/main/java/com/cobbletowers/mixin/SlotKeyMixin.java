@@ -1,6 +1,7 @@
 package com.cobbletowers.mixin;
 
 import com.cobbletowers.economy.TowerKeys;
+import com.cobbletowers.route.RouteMapItem;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.PlayerEnderChestContainer;
@@ -26,6 +27,11 @@ public abstract class SlotKeyMixin {
 
     @Inject(method = "mayPlace", at = @At("HEAD"), cancellable = true)
     private void cobbletowers$keepKey(ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
+        // the Route Map fits only the player's own inventory: not an ender chest, a chest, a crafting grid or a trade
+        if (RouteMapItem.isRouteMap(stack) && !(container instanceof Inventory)) {
+            cir.setReturnValue(false);
+            return;
+        }
         if (container instanceof Inventory || container instanceof PlayerEnderChestContainer) return;
         if (TowerKeys.isTradeLocked(stack)) cir.setReturnValue(false);
     }

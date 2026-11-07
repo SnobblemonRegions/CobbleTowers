@@ -103,6 +103,9 @@ if command -v node >/dev/null 2>&1 && [ -d web/node_modules ]; then
     echo "ci_local: src/main/resources/web/cobbletowers is stale; run 'node build.mjs' in web/ and commit the result. Differs:$stale" >&2
     exit 1
   fi
+  # The workflow runs `npm test` here too; it builds the dev bundle into web/dist-dev, never the committed one.
+  step "Run the web UI tests"
+  (cd web && npm test)
 else
   echo "ci_local: node or web/node_modules is missing; skipping the web bundle check (run 'npm install' in web/)."
 fi

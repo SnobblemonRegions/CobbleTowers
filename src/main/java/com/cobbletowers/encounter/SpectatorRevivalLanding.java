@@ -46,6 +46,7 @@ public final class SpectatorRevivalLanding {
                             if (setup.level().players().stream().anyMatch(other -> other != player
                                     && other.getBoundingBox().intersects(box.inflate(0.1)))) continue;
                             player.teleportTo(setup.level(), feet.getX() + 0.5, feet.getY(), feet.getZ() + 0.5, anchor.yaw(), 0);
+                            com.cobbletowers.route.LaneStairs.fadeIn(player);
                             return;
                         }
                     }

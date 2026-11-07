@@ -53,23 +53,23 @@ public final class IntermissionEvents {
 
     public enum Option {
         SHRINE_CURSE(Room.SHRINE, "shrine_curse", "Shrine: take the curse (a relic now, a challenge for good)"),
-        SHRINE_LEAVE(Room.SHRINE, "shrine_leave", "Shrine: walk away"),
+        SHRINE_LEAVE(Room.SHRINE, "shrine_leave", "Refuse the shrine: no relic, no curse"),
         GAMBLER_STAKE(Room.GAMBLER, "gambler_stake", "Gambler: stake a relic (even odds: win another, or lose it)"),
-        GAMBLER_PASS(Room.GAMBLER, "gambler_pass", "Gambler: keep your relics"),
+        GAMBLER_PASS(Room.GAMBLER, "gambler_pass", "Refuse the wager: keep your relics"),
         REST_HEAL(Room.REST, "rest_heal", "Rest: fully heal the party"),
-        REST_PRESS_ON(Room.REST, "rest_press_on", "Press on: no rest"),
+        REST_PRESS_ON(Room.REST, "rest_press_on", "Refuse the rest: the party stays hurt"),
         FORGE_PAY(Room.FORGE, "forge_pay", "Forge: every player pays CobbleDollars for a battle relic"),
-        FORGE_LEAVE(Room.FORGE, "forge_leave", "Forge: walk away"),
+        FORGE_LEAVE(Room.FORGE, "forge_leave", "Refuse the forge: keep your CobbleDollars, no relic"),
         LIBRARY_STUDY(Room.LIBRARY, "library_study", "Library: study, and take a scouting relic"),
-        LIBRARY_SKIP(Room.LIBRARY, "library_skip", "Library: skip it"),
+        LIBRARY_SKIP(Room.LIBRARY, "library_skip", "Refuse to study: no relic"),
         VAULT_CRACK(Room.VAULT, "vault_crack", "Vault: crack it (even odds: a purse for everyone, or an ambush)"),
-        VAULT_LEAVE(Room.VAULT, "vault_leave", "Vault: leave it sealed"),
+        VAULT_LEAVE(Room.VAULT, "vault_leave", "Refuse the vault: leave it sealed"),
         POOL_DIVE(Room.POOL, "pool_dive", "Mystic Pool: dive, and swap a relic for a different one"),
-        POOL_STAY(Room.POOL, "pool_stay", "Mystic Pool: stay dry"),
+        POOL_STAY(Room.POOL, "pool_stay", "Refuse the pool: keep your relics"),
         TRICK_OPEN(Room.TRICK_OR_TREAT, "trick_open", "Jack-o'-Lantern Vault: open it (even odds: a treat, or a mimic. Lose to the mimic and you lose a relic and 5% of the final loot)"),
-        TRICK_LEAVE(Room.TRICK_OR_TREAT, "trick_leave", "Jack-o'-Lantern Vault: leave it shut"),
+        TRICK_LEAVE(Room.TRICK_OR_TREAT, "trick_leave", "Refuse the Jack-o'-Lantern Vault: leave it shut, no treat, no mimic"),
         ECHO_FIGHT(Room.ECHO_DUEL, "echo_fight", "Echo Duel: face a champion's team (a safe exhibition, 100 CobbleDollars if you win)"),
-        ECHO_DECLINE(Room.ECHO_DUEL, "echo_decline", "Echo Duel: decline");
+        ECHO_DECLINE(Room.ECHO_DUEL, "echo_decline", "Refuse the Echo Duel: no fight, no reward");
 
         private final Room room;
         private final String id;
@@ -125,6 +125,7 @@ public final class IntermissionEvents {
         return switch (option) {
             case FORGE_PAY -> "Forge: every player pays " + forgeCost(floorIndex) + " CobbleDollars for a battle relic";
             case VAULT_CRACK -> "Vault: crack it (even odds: " + vaultPurse(floorIndex) + " CobbleDollars for everyone, or an ambush)";
+            case REST_PRESS_ON -> "Refuse the rest: +" + restPurse(floorIndex) + " CobbleDollars each, the party stays hurt";
             default -> option.label();
         };
     }
@@ -137,6 +138,22 @@ public final class IntermissionEvents {
     /** What a cracked Vault pays each player on this floor. */
     public static int vaultPurse(int floorIndex) {
         return 150 + 25 * floorIndex;
+    }
+
+    /**
+     * What refusing a rest pays each player on this floor: at least twice the vendor's 25 CobbleDollar full heal, growing with the floor, so a hurt party
+     * that presses on is paid for the risk (TODO #8).
+     */
+    public static int restPurse(int floorIndex) {
+        return 50 + 10 * floorIndex;
+    }
+
+    private static final Set<Option> REFUSALS = Set.of(Option.SHRINE_LEAVE, Option.GAMBLER_PASS, Option.REST_PRESS_ON, Option.FORGE_LEAVE,
+            Option.LIBRARY_SKIP, Option.VAULT_LEAVE, Option.POOL_STAY, Option.TRICK_LEAVE, Option.ECHO_DECLINE);
+
+    /** Whether an option is the room's refusal (always its second card): the pedestals mark it, and it answers in words of its own. */
+    public static boolean isRefusal(Option option) {
+        return REFUSALS.contains(option);
     }
 
     /**
@@ -358,6 +375,34 @@ public final class IntermissionEvents {
             }
             case REST_HEAL -> {
                 return new Outcome(state, true, "The party rests and is fully healed.");
+            }
+            case REST_PRESS_ON -> {
+                int purse = restPurse(floorIndex);
+                return new Outcome(state, false, "You refuse the rest and press on hurt: +" + purse + " CobbleDollars each.", false, purse);
+            }
+            case SHRINE_LEAVE -> {
+                return new Outcome(state, false, "You refuse the shrine's offering. Nothing changes.");
+            }
+            case GAMBLER_PASS -> {
+                return new Outcome(state, false, "You refuse the wager and keep your relics.");
+            }
+            case FORGE_LEAVE -> {
+                return new Outcome(state, false, "You refuse the forge and keep your CobbleDollars.");
+            }
+            case LIBRARY_SKIP -> {
+                return new Outcome(state, false, "You refuse to study. The shelves stay closed.");
+            }
+            case VAULT_LEAVE -> {
+                return new Outcome(state, false, "You refuse the vault and leave it sealed.");
+            }
+            case POOL_STAY -> {
+                return new Outcome(state, false, "You refuse the pool and keep your relics.");
+            }
+            case TRICK_LEAVE -> {
+                return new Outcome(state, false, "You refuse the vault and leave it shut. No treat, no mimic.");
+            }
+            case ECHO_DECLINE -> {
+                return new Outcome(state, false, "You refuse the duel. The Echo fades.");
             }
             default -> {
                 return new Outcome(state, false, "You press on.");

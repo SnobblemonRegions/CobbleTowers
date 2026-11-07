@@ -25,12 +25,35 @@ public final class VendorNpcRules {
         return WITCH_TOWERS.contains(tower);
     }
 
+    /** The deepest floor of the early band and of the middle band; the floors after them are the last stretch, and the last floor of all is the boss. */
+    private static final int EARLY_LAST = 3;
+    private static final int MIDDLE_LAST = 6;
+    private static final int BOSS_FLOOR = 10;
+
+    private static final String[] EARLY = {
+            "Heh heh heh... fresh faces! What'll it be, dearie?",
+            "Come in, come in, mind the cobwebs. Plenty for little trainers.",
+            "Ooh, you still smell of the sunshine. Buy something before it wears off!"};
+    private static final String[] MIDDLE = {
+            "Still breathing, are we? Heh heh... the good stock is saved for the survivors.",
+            "The ghosts have been talking about you, dearie. Spend your corn, quick, quick.",
+            "Deeper and deeper... you'll be wanting something sharper than a smile."};
+    private static final String[] LATE = {
+            "Hush now, can you hear it? Something big is waiting upstairs. Best buy while you can.",
+            "Heh heh... few come this far. My finest goods, for my finest customers.",
+            "Every coin you carry is a coin the Hollow gets if you fall. Spend it!"};
+    private static final String[] BOSS = {
+            "The last door, dearie. Whatever you don't buy now, you'll wish you had.",
+            "Grizelda has never seen anyone return from up there... so no refunds, heh heh!"};
+
     /**
-     * What the goblin witch says when a party opens her stall on {@code floor} (1-based): one short line in her voice.
-     * TODO(human): write her patter. Vary it by how deep the party is, e.g. a floor band for the early, middle and boss floors.
+     * What the goblin witch says when a party opens her stall on {@code floor} (1-based): one short line in her voice, chosen by how deep the party
+     * is and varying from floor to floor within a stretch so it is never the same sentence twice in a row. A floor below the first is the first.
      */
     public static String witchGreeting(int floor) {
-        return "Heh heh heh... what'll it be, dearie?";
+        int at = Math.max(1, floor);
+        String[] lines = at >= BOSS_FLOOR ? BOSS : at > MIDDLE_LAST ? LATE : at > EARLY_LAST ? MIDDLE : EARLY;
+        return lines[at % lines.length];
     }
 
     public static String runTag(UUID runId) {

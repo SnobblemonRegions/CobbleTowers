@@ -120,6 +120,7 @@ public final class TowerGates {
             if (!WalkRules.strandedAt(player.getX(), player.getY(), player.getZ(), layout.get().spectator(),
                     origin.get().getX(), origin.get().getY(), origin.get().getZ())) continue;
             player.teleportTo(level, vendor.getX() + 0.5 + moved, vendor.getY(), vendor.getZ() + 2.5, layout.get().exit().yaw(), 0.0f);
+            LaneStairs.fadeIn(player);
             moved++;
         }
         return moved;

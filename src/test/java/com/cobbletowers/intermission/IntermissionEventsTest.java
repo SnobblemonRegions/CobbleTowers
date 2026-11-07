@@ -161,6 +161,33 @@ class IntermissionEventsTest {
         assertFalse(IntermissionEvents.resolve(content(), run, 1, Option.REST_PRESS_ON).healParty());
     }
 
+    @Test
+    @DisplayName("refusing the rest pays every player a purse that grows with the floor; resting is free")
+    void refusingTheRestPays() {
+        PersistedRun run = run(1, 1, RunModifierState.EMPTY);
+        var pressed = IntermissionEvents.resolve(content(), run, 1, Option.REST_PRESS_ON);
+        assertEquals(IntermissionEvents.restPurse(1), pressed.walletEach());
+        assertTrue(pressed.walletEach() >= 50, "at least twice the vendor's 25 CobbleDollar heal");
+        assertTrue(IntermissionEvents.resolve(content(), run, 6, Option.REST_PRESS_ON).walletEach() > pressed.walletEach());
+        assertEquals(0, IntermissionEvents.resolve(content(), run, 1, Option.REST_HEAL).walletEach());
+        assertTrue(pressed.message().contains(String.valueOf(pressed.walletEach())), pressed.message());
+    }
+
+    @Test
+    @DisplayName("every refusal answers in its own words, says it was a refusal, and none is the old generic line")
+    void refusalsAnswerSpecifically() {
+        PersistedRun run = run(1, 1, RunModifierState.EMPTY);
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (Option option : Option.values()) {
+            if (!IntermissionEvents.isRefusal(option)) continue;
+            String message = IntermissionEvents.resolve(content(), run, 1, option).message();
+            assertFalse(message.equals("You press on."), option + " still answers with the generic line");
+            assertTrue(message.toLowerCase(java.util.Locale.ROOT).contains("refuse"), option + ": " + message);
+            assertTrue(seen.add(message), option + " repeats another refusal's line: " + message);
+        }
+        assertEquals(9, seen.size(), "one refusal per room");
+    }
+
     // ---- P45 rooms ---------------------------------------------------------------------------------
 
     private static ModifierDefinition tagged(String path, String tag) {

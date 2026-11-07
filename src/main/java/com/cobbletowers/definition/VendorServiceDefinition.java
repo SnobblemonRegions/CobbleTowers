@@ -55,7 +55,7 @@ public record VendorServiceDefinition(
         try {
             return VendorEffect.valueOf(raw.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("field 'effect' must be full_heal or cure_status, got '" + raw + "'");
+            throw new IllegalArgumentException("field 'effect' must be full_heal, cure_status or mystery_bag, got '" + raw + "'");
         }
     }
 }

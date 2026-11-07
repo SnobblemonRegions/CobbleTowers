@@ -1,0 +1,230 @@
+{
+ "providers": [
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/panel_left.png",
+   "ascent": 17,
+   "height": 230,
+   "chars": [
+    "\ue000"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/panel_right.png",
+   "ascent": 17,
+   "height": 230,
+   "chars": [
+    "\ue001"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_icons.png",
+   "ascent": -22,
+   "height": 18,
+   "chars": [
+    "\ue100\ue101\ue102\ue103\ue104\ue105\ue106\ue107\ue108\ue109\ue10a\ue10b\ue10c"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_icons.png",
+   "ascent": -58,
+   "height": 18,
+   "chars": [
+    "\ue120\ue121\ue122\ue123\ue124\ue125\ue126\ue127\ue128\ue129\ue12a\ue12b\ue12c"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_icons.png",
+   "ascent": -94,
+   "height": 18,
+   "chars": [
+    "\ue140\ue141\ue142\ue143\ue144\ue145\ue146\ue147\ue148\ue149\ue14a\ue14b\ue14c"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_icons.png",
+   "ascent": -125,
+   "height": 18,
+   "chars": [
+    "\ue160\ue161\ue162\ue163\ue164\ue165\ue166\ue167\ue168\ue169\ue16a\ue16b\ue16c"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_icons.png",
+   "ascent": -143,
+   "height": 18,
+   "chars": [
+    "\ue180\ue181\ue182\ue183\ue184\ue185\ue186\ue187\ue188\ue189\ue18a\ue18b\ue18c"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_icons.png",
+   "ascent": -161,
+   "height": 18,
+   "chars": [
+    "\ue1a0\ue1a1\ue1a2\ue1a3\ue1a4\ue1a5\ue1a6\ue1a7\ue1a8\ue1a9\ue1aa\ue1ab\ue1ac"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_rings.png",
+   "ascent": -20,
+   "height": 22,
+   "chars": [
+    "\ue200"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/links_straight.png",
+   "ascent": -29,
+   "height": 4,
+   "chars": [
+    "\ue300"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_rings.png",
+   "ascent": -56,
+   "height": 22,
+   "chars": [
+    "\ue201"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/links_straight.png",
+   "ascent": -65,
+   "height": 4,
+   "chars": [
+    "\ue301"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/route_rings.png",
+   "ascent": -92,
+   "height": 22,
+   "chars": [
+    "\ue202"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/links_straight.png",
+   "ascent": -101,
+   "height": 4,
+   "chars": [
+    "\ue302"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/links_down.png",
+   "ascent": -31,
+   "height": 36,
+   "chars": [
+    "\ue310"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/links_up.png",
+   "ascent": -31,
+   "height": 36,
+   "chars": [
+    "\ue320"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/links_down.png",
+   "ascent": -67,
+   "height": 36,
+   "chars": [
+    "\ue311"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/links_up.png",
+   "ascent": -67,
+   "height": 36,
+   "chars": [
+    "\ue321"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/digits.png",
+   "ascent": -9,
+   "height": 8,
+   "chars": [
+    "\ue400\ue401\ue402\ue403\ue404\ue405\ue406\ue407\ue408\ue409\ue40a"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/names.png",
+   "ascent": -130,
+   "height": 9,
+   "chars": [
+    "\ue500\ue501\ue502\ue503\ue504\ue505\ue506\ue507\ue508\ue509\ue50a\ue50b"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/names.png",
+   "ascent": -148,
+   "height": 9,
+   "chars": [
+    "\ue510\ue511\ue512\ue513\ue514\ue515\ue516\ue517\ue518\ue519\ue51a\ue51b"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/names.png",
+   "ascent": -166,
+   "height": 9,
+   "chars": [
+    "\ue520\ue521\ue522\ue523\ue524\ue525\ue526\ue527\ue528\ue529\ue52a\ue52b"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "cobbletowers:font/screen/arrows.png",
+   "ascent": -186,
+   "height": 12,
+   "chars": [
+    "\ue600\ue601"
+   ]
+  },
+  {
+   "type": "space",
+   "advances": {
+    "\ue700": 1,
+    "\ue710": -1,
+    "\ue701": 2,
+    "\ue711": -2,
+    "\ue702": 4,
+    "\ue712": -4,
+    "\ue703": 8,
+    "\ue713": -8,
+    "\ue704": 16,
+    "\ue714": -16,
+    "\ue705": 32,
+    "\ue715": -32,
+    "\ue706": 64,
+    "\ue716": -64
+   }
+  }
+ ]
+}
