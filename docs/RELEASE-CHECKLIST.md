@@ -3,9 +3,12 @@
 Written 2026-10-07 from the deferred-items list and the P37 session. Tick items as they are done; add the date and what was observed.
 Ordered by how badly each blocks a release.
 
+**Refreshed 2026-11-07** for the 1.0.14 release (notes: `docs/releases/1.0.14.md`). Lines marked "2026-11-07" were checked that day; everything else is as it was on its own date and has not been re-checked. The section "Open for 1.0.14" near the end lists what this release adds to the list.
+
 ## Blockers
 
 - [x] **Test elements out of the release jar** (2026-10-13). The default build is the release; `./gradlew build -Pdev` makes `CobbleTowers-<version>-dev.jar` with the Test Tower, `com.cobbletowers.dev`, the client screenshot/remote/frame tooling and the bot-only commands (`runs create|earn|allocate|encounter|watchdog|advance|fx|validate`, `vendor credit|buy`, `draft force`, `echoes add|record|endbattle`). Smoke and rig scripts need the dev jar. Verify a release with `unzip -l` for `dev/`, `ScreenshotHarness`, `towers/test.json`.
+  - 2026-11-07: the release jar `CobbleTowers-1.0.14+fabric-1.21.1.jar` (plain `./gradlew build`, tests green) has none of `com/cobbletowers/dev/`, `ScreenshotHarness` or `towers/test.json`.
 
 - [ ] **P37 battle tracks builds and passes tests.** The code (design: `docs/design/P37-tracks.md`) was written without ever being compiled or tested.
   - [x] `./gradlew build` is green, including `MasteryTrackTest` (the shipped `mastery_tracks/default.json` must match the old rank and perk table at every level 0..30).
@@ -20,10 +23,12 @@ Ordered by how badly each blocks a release.
     - Decided (owner, 2026-10-07): claim by default, `auto_claim: true` restores the old behaviour. It is in the release notes.
   - [x] Commit and push.
 - [ ] **A human plays a full tower.** Everything so far is headless bots and screenshots. At least two real players, one full tower, watching: animation feel at a real frame rate, mouse feel, audio, the vendor villager, the HUD, worn armor, the Shift tooltip, the Test Tower chambers.
+  - 2026-11-07: the owner has played the Hollow's Eve tower on the rig with one real client (won a floor, the intermission screen and route map, the Mastery, Trials and rewards screens). Still open: two real players on one full tower.
 - [ ] **Cell allocation on the server thread.** A burst of allocate/abandon cycles (hundreds a minute) backs up chunk saves until the 60 s watchdog kills the server, and even ordinary run starts and ends stall a tick for 0.3 to 0.9 s. Options, costs and a recommended order are in `docs/design/cell-allocation-async.md`; the owner picks (three questions at its end).
   - Partly addressed 2026-10-08: the warm pool builds a slice per tick (`SlicedBuild`, longest hold about 60 ms against a 343 ms mean for the synchronous paste) and a finished run's cell is cleared a slice per tick (`CellClearJobs`), so `soak_test --pause 0` queues instead of stalling. Still synchronous: a run start without a warm cell (about 340 ms) and the cold first allocation after boot (2 to 3 s). See "As built" in `docs/design/cell-allocation-async.md`.
-- [x] **Bump the build version string** (2026-10-14: `0.29.0-p48-beta-ready`; 2026-10-08: `0.23.0-p38-regions-armor`; it had never been bumped before 2026-10-07). Bump it again for every build you deploy, so a log says which jar runs.
+- [x] **Bump the build version string** (2026-11-07: `1.0.14+fabric-1.21.1`; 2026-10-14: `0.29.0-p48-beta-ready`; 2026-10-08: `0.23.0-p38-regions-armor`; it had never been bumped before 2026-10-07). Bump it again for every build you deploy, so a log says which jar runs.
 - [ ] **Deployment.** Ship the CobbleTowers jar and the AscensionLib jar (with the rental craft lock) together; find out where the real server gets AscensionLib (source: `L:\Codex\CobbleAscend\ascensionlib`). Keep the CobbleRaids version label pinned (`0.8.162-admin-helper`).
+  - 2026-11-07: the pins have moved. CobbleRaids is built from what its main publishes (`0.8.204-mew-model-fix`). AscensionLib is `SnobblemonRegions/AscensionLib` `main` at `ba03047` (Threat band info #6 and the vouchers call #7 merged; jar `AscensionLib-1.0.0+fabric.jar`, built in `_integration/ascend-bands`). The Mystery Bag and the Threat picker need both. Nothing has been confirmed on the real server yet.
 
 ### P37 code review (2026-10-07, read-only plus small fixes, still uncompiled)
 
@@ -71,6 +76,20 @@ Still open, for the owner or the next session:
 - [ ] Stellar Titles 1.1.2 compatibility jar: menu not tested with a player.
 - [ ] Tab list and chat tag with another chat plugin installed (double or hidden tag; `chat_tags: false` switches it off).
 - [ ] `floor_encounter_test.py` "boss never starts" flake (not reproduced, cause unknown). Since 2026-10-08 the check "the opponent is marked uncatchable" also fails about 1 run in 3 (passes on rerun; suspected test race, not bisected).
+
+## Open for 1.0.14 (added 2026-11-07)
+
+Verification state of what this release adds; the items are in `docs/releases/1.0.14.md`.
+
+- [ ] Two real players on one full Hollow's Eve tower (lobby with more than one member, a non-host previewing a Threat band, a split pedestal vote).
+- [ ] The bridge screens at GUI scales 2, 3 and 4, and with shaders. Only the default scale has been looked at by the owner.
+- [x] 2026-11-07: the Mystery Bag opening against the merged AscensionLib works (owner confirmed in game).
+- [ ] The Haunted rare driven by a real Trick or Treat vault (only the dev preview has been tried), and the spectator box on the overlay.
+- [x] 2026-11-07: the tray width is fine (owner confirmed; it is nearly screen-wide on the bridge overlay, as the web tray was).
+- [ ] CobbleTowers PRs #11 to #14, AscensionLib #6 and #7: checks were green on 2026-11-07 (one check each; not confirmed that each ran on the latest push). The bridge repo has no checks.
+- [ ] Retire WebGUI from CobbleTowers (the `webgui` package, the `web/` bundle and its CI checks, the WebGUI config handling) once the bridge covers every screen. After the release.
+- [x] 2026-11-07: the floor clear no longer opens the route screen by itself; the map opens on request (`/cobbletowers play route`). Owner confirmed it works as intended.
+- [x] 2026-11-07: the bridge's Progress tab, Mastery, Trials, the rewards popup and the modifier vote look right after this week's fixes (owner screenshots; owner confirmed they work as intended).
 
 ## Already in good shape (this session)
 

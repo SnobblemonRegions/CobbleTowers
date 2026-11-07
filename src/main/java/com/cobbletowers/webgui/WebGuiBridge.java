@@ -173,7 +173,7 @@ public final class WebGuiBridge {
                 config.heartbeatSeconds(), LOAD_MILLIS);
         if (flagged(payload) && !hud) TowerLog.info("WebGUI {} for {}: {}", PayloadJson.kindOf(payload.getClass()), player.getGameProfile().getName(), action);
         switch (action) {
-            case EMIT -> WebGuiLink.emit(player, json);
+            case EMIT -> WebGuiLink.emit(player, json, hud);
             // The page is not loaded when the open arrives, so nothing is emitted now: it asks for what it missed with a
             // `hello` as soon as it has loaded (see onPage).
             case OPEN -> {
@@ -191,7 +191,7 @@ public final class WebGuiBridge {
         String json = "{\"kind\":\"SpectatorPanel\",\"data\":null}";
         SESSIONS.computeIfAbsent(player.getUUID(), id -> new PageSession())
                 .hold(PageSession.HUD_KIND, json, System.currentTimeMillis());
-        WebGuiLink.emit(player, json);
+        WebGuiLink.emit(player, json, true);
     }
 
     // ---- page to server
@@ -220,9 +220,11 @@ public final class WebGuiBridge {
         boolean hud = message.has("hud") && message.get("hud").isJsonPrimitive() && message.get("hud").getAsBoolean();
         long now = System.currentTimeMillis();
         switch (kind) {
-            case "hello" -> {
-                for (String missed : SESSIONS.computeIfAbsent(player.getUUID(), id -> new PageSession()).hello(hud, now)) {
-                    WebGuiLink.emit(player, missed);
+            // the bridge's overlay page says hello with its own kind, since its layout cannot add the page's {"hud": true}
+            case "hello", "hud_hello" -> {
+                boolean overlay = hud || "hud_hello".equals(kind);
+                for (String missed : SESSIONS.computeIfAbsent(player.getUUID(), id -> new PageSession()).hello(overlay, now)) {
+                    WebGuiLink.emit(player, missed, overlay);
                 }
             }
             case "ping" -> {
