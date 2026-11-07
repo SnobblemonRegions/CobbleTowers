@@ -159,6 +159,7 @@ public final class CobbleTowers implements ModInitializer {
         com.cobbletowers.economy.MysteryBagService.install();
         com.cobbletowers.route.RouteIcons.bootstrap();
         com.cobbletowers.route.RouteMapItemService.install();
+        com.cobbletowers.instance.TowerBlockProtection.install();   // nobody breaks or places blocks, or turns a decoration, inside the tower
         com.cobbletowers.intermission.PedestalService.install();
         com.cobbletowers.mastery.MasteryService.install();
         com.cobbletowers.trial.TrialService.install();
