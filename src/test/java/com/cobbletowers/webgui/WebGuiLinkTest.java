@@ -15,4 +15,10 @@ class WebGuiLinkTest {
         assertEquals("cobbletowers", WebGuiLink.pageId("cobbletowers"));
         assertEquals("wiki", WebGuiLink.pageId("webgui://wiki/index.html"));
     }
+
+    @Test
+    void theOverlayIsThePagesOwnHudPage() {
+        assertEquals("cobbletowers_hud", WebGuiLink.hudPageId("webgui://cobbletowers/index.html#hud"));
+        assertEquals("cobbletowers_hud", WebGuiLink.hudPageId("webgui:/cobbletowers/index.html"));
+    }
 }

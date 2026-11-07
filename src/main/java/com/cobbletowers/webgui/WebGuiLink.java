@@ -35,6 +35,7 @@ final class WebGuiLink {
     private static MethodHandle bOpenHud;
     private static MethodHandle bIsHudLayout;
     private static MethodHandle bOpenPage;
+    private static MethodHandle bHudPage;
     private static MethodHandle bEmitJson;
 
     private static final String BRIDGE_MOD = "snobblemon_server";
@@ -79,6 +80,14 @@ final class WebGuiLink {
         return cut < 0 ? rest : rest.substring(0, cut);
     }
 
+    /**
+     * The bridge page a HUD request ({@code <url>#hud}) is shown on: the tower page's own overlay, {@code <page>_hud}, so the player keeps the mouse (the Haunted
+     * rare tray is clicked through to the vault). The suffix is the convention of the bridge's layouts.
+     */
+    static String hudPageId(String url) {
+        return pageId(url) + "_hud";
+    }
+
     private static void installDirect() throws Throwable {
         Class<?> api = Class.forName(BRIDGE_CLASS);
         MethodHandles.Lookup lookup = MethodHandles.publicLookup();
@@ -87,6 +96,7 @@ final class WebGuiLink {
         bOpenHud = lookup.findStatic(api, "openHud", MethodType.methodType(boolean.class, ServerPlayer.class, String.class));
         bIsHudLayout = lookup.findStatic(api, "isHudLayout", MethodType.methodType(boolean.class, String.class));
         bOpenPage = lookup.findStatic(api, "openPage", MethodType.methodType(String.class, ServerPlayer.class));
+        bHudPage = lookup.findStatic(api, "hudPage", MethodType.methodType(String.class, ServerPlayer.class));
         bEmitJson = lookup.findStatic(api, "emitJson", MethodType.methodType(void.class, ServerPlayer.class, String.class, String.class, String.class));
         MethodHandle onMessage = lookup.findStatic(api, "onMessage", MethodType.methodType(void.class, String.class, BiConsumer.class));
         BiConsumer<ServerPlayer, String> handler = WebGuiBridge::onPage;
@@ -162,9 +172,10 @@ final class WebGuiLink {
     static void openHud(ServerPlayer player, String url) {
         try {
             if (direct) {
-                String id = pageId(url);
-                // a page with no overlay layout is shown as a full page, as WebGUI's compat shim does; the tower page is one
-                boolean overlay = (boolean) bIsHudLayout.invokeExact(id);
+                // the tower page's overlay when the bridge has one; otherwise, as WebGUI's compat shim does, the full page
+                String hud = hudPageId(url);
+                boolean overlay = (boolean) bIsHudLayout.invokeExact(hud);
+                String id = overlay ? hud : pageId(url);
                 boolean shown = overlay ? (boolean) bOpenHud.invokeExact(player, id) : (boolean) bOpen.invokeExact(player, id);
                 if (!shown) com.cobbletowers.TowerLog.warn("No Snobblemon page '{}' to show {} (or {} has no Snobblemon Client)", id, url, player.getGameProfile().getName());
                 return;
@@ -176,9 +187,15 @@ final class WebGuiLink {
     }
 
     static void emit(ServerPlayer player, String json) {
+        emit(player, json, false);
+    }
+
+    /** @param hud whether this is for the overlay (the spectator panel, the Haunted rare tray) rather than the full page */
+    static void emit(ServerPlayer player, String json, boolean hud) {
         try {
             if (direct) {
-                String page = (String) bOpenPage.invokeExact(player);
+                String overlay = hud ? (String) bHudPage.invokeExact(player) : null;
+                String page = overlay != null ? overlay : (String) bOpenPage.invokeExact(player);
                 if (page != null) bEmitJson.invokeExact(player, page, EVENT, json);
                 return;
             }

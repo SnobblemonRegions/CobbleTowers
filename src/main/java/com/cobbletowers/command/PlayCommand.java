@@ -44,6 +44,15 @@ public final class PlayCommand {
         var playNode = playRoot
                         .executes(PlayCommand::open)
                         .then(Commands.literal("menu").executes(PlayCommand::hall))
+                        // The route map on request, anywhere in a run: a fallback beside the pedestals, never opened by the tower itself.
+                        .then(Commands.literal("route").executes(context -> {
+                            var player = context.getSource().getPlayerOrException();
+                            if (!mayType(context, player)) return 0;
+                            com.cobbletowers.webgui.WebGuiBridge.userAsked(player);
+                            if (IntermissionService.openRoute(context.getSource().getServer(), player)) return 1;
+                            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("You are not in a run."));
+                            return 0;
+                        }))
                         // The Tower Keeper NPC runs this one (operator level, so the dialog's server source passes).
                         .then(Commands.literal("keeper")
                                 .then(Commands.argument("player", EntityArgument.player()).executes(PlayCommand::hallFor)))

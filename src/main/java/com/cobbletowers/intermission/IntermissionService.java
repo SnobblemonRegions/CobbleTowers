@@ -136,6 +136,18 @@ public final class IntermissionService {
     }
 
     /**
+     * Opens the route map for a player who asked for it, at any point of their run (a fallback beside the pedestals; never called on its own).
+     * Away from an intermission no vote is open, so the screen is only a map: picking a stop still goes through {@link #pick} and is refused there.
+     * @return false when the player is not in a run
+     */
+    public static boolean openRoute(MinecraftServer server, ServerPlayer player) {
+        Optional<PersistedRun> run = TowerRuns.forPlayer(player.getUUID());
+        if (run.isEmpty()) return false;
+        send(server, run.get(), player, "", true);
+        return true;
+    }
+
+    /**
      * One line for {@code runs show}: who is ready, who is cashing out, and whether the next floor is counting down.
      */
     public static String describe(PersistedRun run) {
@@ -414,7 +426,10 @@ public final class IntermissionService {
             if (player == null) continue;
             if (!message.isEmpty()) player.sendSystemMessage(Component.literal(message));
             if (open) player.sendSystemMessage(shortcuts(run));
-            send(server, run, player, message, open);
+            // The screen never opens by itself: routes and votes are taken on the pedestals, and a player opens the menu on purpose
+            // (/tower, the Tower Menu key, /tower play route). An already open screen is updated; a closed one stays closed. `open` only
+            // decides whether the chat line with the [Open menu] button is sent.
+            send(server, run, player, message, false);
         }
     }
 
@@ -470,7 +485,8 @@ public final class IntermissionService {
                 draft.map(PersistedDraft::arenas).orElse(List.of()), ahead,
                 com.cobbletowers.modifier.DraftService.routeRules(run), floor -> content.milestoneAt(run.towerId(), floor).isPresent());
         var tower = content.towers().get(run.towerId());
-        if (tower == null || !tower.routeMap() || route.now().isEmpty()) return route;
+        // with no route vote open (mid-floor, asked for with /tower play route) the map is still drawn, with nothing to pick
+        if (tower == null || !tower.routeMap()) return route;
         // a tower with a branching map shows the whole map; the per-step look-ahead would disagree with it
         var spot = com.cobbletowers.modifier.DraftService.mapSpot(content, tower, run);
         return new IntermissionStatePayload.Route(spot.lane(), route.now(), List.of(),
