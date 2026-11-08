@@ -23,6 +23,7 @@ public final class AscensionLibScouting {
     private static Method threatEnabled;
     private static Method recommendedThreat;
     private static Method threatBands;
+    private static Method leaveEncounter;
     private static boolean saidUnknown;
 
     private AscensionLibScouting() {}
@@ -74,6 +75,19 @@ public final class AscensionLibScouting {
             disarm.invoke(null, players);
         } catch (ReflectiveOperationException | RuntimeException | LinkageError ex) {
             TowerLog.error("Disarming the battle of {} failed", players, ex);
+        }
+    }
+
+    /**
+     * One player leaves an encounter that carries on for their teammates (they withdrew or died): their scouting panel clears and they stop being one of
+     * its participants. A no-op when the library is missing or too old for it. Safe to repeat.
+     */
+    public static void leave(String encounterId, UUID player) {
+        if (!resolve() || leaveEncounter == null) return;
+        try {
+            leaveEncounter.invoke(null, encounterId, player);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ex) {
+            TowerLog.error("Removing {} from scouting encounter {} failed", player, encounterId, ex);
         }
     }
 
@@ -138,6 +152,12 @@ public final class AscensionLibScouting {
                 } catch (NoSuchMethodException older) {
                     threatEnabled = null;
                     recommendedThreat = null;
+                }
+                try {
+                    // Newer again: one player leaving an encounter that goes on for the others. Without it their scouting panel stays until it ends.
+                    leaveEncounter = encounters.getMethod("leaveEncounter", String.class, UUID.class);
+                } catch (NoSuchMethodException older) {
+                    leaveEncounter = null;
                 }
                 try {
                     // Newer still: what each band is, for the lobby's picker. Without it the picker has no detail to show.

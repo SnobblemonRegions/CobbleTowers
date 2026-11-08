@@ -67,7 +67,11 @@ public final class TowerBossAdapter {
     /** Handles an individual exit without terminating the teammates' shared Cobblemon battle. */
     private static boolean withdrawParticipant(ServerPlayer player) {
         for (UUID encounterId : List.copyOf(BY_ENCOUNTER.keySet())) {
-            if (CobbleRaidsEncounters.withdraw(encounterId, player)) return true;
+            if (CobbleRaidsEncounters.withdraw(encounterId, player)) {
+                // The fight goes on for the rest of the party; this player's scouting panel must not (a teammate keeps the encounter alive).
+                com.cobbletowers.economy.AscensionLibScouting.leave(encounterId.toString(), player.getUUID());
+                return true;
+            }
         }
         return false;
     }
