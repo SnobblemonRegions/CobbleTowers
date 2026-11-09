@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 10,
+  "revision": 11,
   "display_name": "Duskvale Tower Rewards",
   "growth_percent_per_floor": 8,
   "tiers": {
@@ -348,8 +348,8 @@
       },
       {
         "item": "cobbleraids:raid_points",
-        "min_amount": 5,
-        "max_amount": 10,
+        "min_amount": 2,
+        "max_amount": 5,
         "weight": 60
       },
       {

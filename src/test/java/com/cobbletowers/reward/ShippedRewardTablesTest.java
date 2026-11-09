@@ -146,7 +146,8 @@ class ShippedRewardTablesTest {
 
                 assertTrue(items >= 20 && items <= 90, where + " -- item count out of the modest range (measured 47-78 before the floor and boss rolls were cut to one; about 30-55 after)");
                 // Balance phase 0: the F5 boss pays 10 RP (was 25) and the champion 25 (was 75), so raids, not towers, are the main source of RP.
-                assertTrue(raidPoints >= 35 && raidPoints <= 120, where + " -- Raid Points out of range (about 35-80 expected after the phase 0 cut; was 100-145)");
+                // 35 guaranteed (10 + 25) plus ten boss rolls of 2-5: about 42 expected; was about 51 with 5-10 rolls.
+                assertTrue(raidPoints >= 35 && raidPoints <= 70, where + " -- Raid Points out of range (about 42 expected since the 2-5 boss roll; was 100-145 before phase 0)");
                 assertTrue(candies >= 2, where + " -- the two guaranteed XL candies should always be there");
                 assertTrue(packs >= 2 && packs <= 12, where + " -- card pack grants out of range (mean about 3.4, 2-9 over 400 seeds when re-measured in P24; armor is archived, so a few more)");
                 // Exactly two guaranteed XL candies per participant, no more: one at each milestone.
