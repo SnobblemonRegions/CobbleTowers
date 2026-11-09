@@ -741,7 +741,7 @@ public final class PedestalService {
         return false;
     }
 
-    private static void click(ServerPlayer player, Entity entity) {
+    public static void click(ServerPlayer player, Entity entity) {
         if (repeatedClick(player)) return;
         Optional<UUID> pedestalRun = entity.getTags().stream().map(PedestalRules::runOf).flatMap(Optional::stream).findFirst();
         Optional<Integer> card = entity.getTags().stream().map(PedestalRules::cardOf).flatMap(Optional::stream).findFirst();

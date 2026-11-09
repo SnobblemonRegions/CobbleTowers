@@ -17,12 +17,13 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Keeps a party from falling out of a floor they have just been sent to.
+ * Keeps a party safe on a floor they have just been sent to.
  *
- * <p>A floor built from nothing (no warm cell was waiting) can stall the server for several seconds, and the ticks it owes are then run back to back.
- * A player placed over a spot that is not ready yet falls the whole way to the void inside that burst, so they die the moment they arrive. Two things stop it:
- * the arrival point is checked (and its chunk loaded) before anyone is sent, moving to a nearby standing place when the exact one is not solid; and for a few
- * seconds after arriving a player who has dropped well below the arrival point is put back on it. Ids and positions only, server thread only.
+ * <p>The tower dimension shares the main world's border, and cells are built thousands of blocks out: on a server with a smaller border (the live one has
+ * 5000 blocks) everyone who arrived was killed at once by the border ("left the confines of this world"). The tower's own border is therefore kept wide open,
+ * and {@link TowerBorderSync} tells players in the tower about it. As a safety net besides: the arrival point is checked (and its chunk loaded) before anyone
+ * is sent, moving to a nearby standing place when the exact one is not solid, and for a few seconds after arriving a player who has dropped well below the
+ * arrival point is put back on it. Ids and positions only, server thread only.
  */
 final class ArrivalGuard {
 
@@ -41,6 +42,8 @@ final class ArrivalGuard {
 
     static void install() {
         ServerTickEvents.END_SERVER_TICK.register(ArrivalGuard::tick);
+        TowerBorderSync.install();
+        TowerLog.info("Arrival guard on: arrival points are checked, falls out of a fresh floor are caught, and the tower keeps its own open world border");
     }
 
     /**
@@ -48,6 +51,7 @@ final class ArrivalGuard {
      * few blocks, else {@code wanted} again with a warning. Loads the chunk, so a floor that is still being placed is complete before anyone arrives.
      */
     static BlockPos standingSpot(ServerLevel level, BlockPos wanted) {
+        if (level.dimension().equals(com.cobbletowers.instance.TowerDimension.LEVEL)) keepBorderOpen(level);
         level.getChunk(wanted.getX() >> 4, wanted.getZ() >> 4);
         if (canStand(level, wanted)) return wanted;
         for (int offset = 1; offset <= SEARCH_BLOCKS; offset++) {
@@ -73,7 +77,29 @@ final class ArrivalGuard {
         WATCHED.put(player.getUUID(), new Watch(level.dimension(), x, y, z, yaw, server.getTickCount() + WATCH_TICKS));
     }
 
+    /** The widest border the game allows; the tower dimension never needs a smaller one. */
+    private static final double OPEN_BORDER = 5.9999968E7;
+
+    /**
+     * The tower dimension takes the border of the main world, so a server whose border is smaller than where its cells are built kills everyone who arrives
+     * ("left the confines of this world"). The tower has no use for a border: its own is kept wide open, and put back if the main world's border change reaches it.
+     */
+    private static void keepBorderOpen(MinecraftServer server) {
+        ServerLevel tower = server.getLevel(com.cobbletowers.instance.TowerDimension.LEVEL);
+        if (tower != null) keepBorderOpen(tower);
+    }
+
+    static void keepBorderOpen(ServerLevel tower) {
+        net.minecraft.world.level.border.WorldBorder border = tower.getWorldBorder();
+        if (border.getSize() >= OPEN_BORDER) return;
+        TowerLog.warn("The tower dimension had a world border of {} blocks (centre {}, {}); opened it so floors built outside it are safe", (int) border.getSize(),
+                (int) border.getCenterX(), (int) border.getCenterZ());
+        border.setCenter(0.0, 0.0);
+        border.setSize(OPEN_BORDER);
+    }
+
     private static void tick(MinecraftServer server) {
+        if (server.getTickCount() % 40 == 0) keepBorderOpen(server);
         if (WATCHED.isEmpty()) return;
         long now = server.getTickCount();
         for (Iterator<Map.Entry<UUID, Watch>> it = WATCHED.entrySet().iterator(); it.hasNext(); ) {
