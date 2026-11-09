@@ -70,7 +70,7 @@ public final class VendorNpc {
         return runOf(entity).flatMap(TowerRuns::get).filter(run -> run.state() == RunState.INTERMISSION).isPresent();
     }
 
-    private static void use(ServerPlayer player, Entity vendor) {
+    public static void use(ServerPlayer player, Entity vendor) {
         Optional<UUID> vendorRun = runOf(vendor);
         if (vendorRun.isEmpty()) return;
         Optional<PersistedRun> playerRun = TowerRuns.forPlayer(player.getUUID());

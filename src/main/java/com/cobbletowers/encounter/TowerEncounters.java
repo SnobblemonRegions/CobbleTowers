@@ -85,6 +85,7 @@ public final class TowerEncounters {
     /** Wires this to the adapter. Called once at startup. */
     public static void install() {
         CobblemonBattleAdapter.install(TowerEncounters::onResolved);
+        ArrivalGuard.install();
         TowerBossAdapter.install(new TowerBossAdapter.Listener() {
             @Override
             public void onBossEnded(MinecraftServer server, TowerBossAdapter.Binding binding,
@@ -169,7 +170,8 @@ public final class TowerEncounters {
     /** Puts the party in the arena before anything is fought. */
     private static void arrive(MinecraftServer server, FloorSetup setup, List<ServerPlayer> fighters) {
         FloorAnchor entry = setup.layout().entry();
-        BlockPos arrival = entry.in(setup.origin());
+        // A floor built from nothing can stall the server; the point is checked (and its chunk loaded) before anyone is sent, and a player is watched after.
+        BlockPos arrival = ArrivalGuard.standingSpot(setup.level(), entry.in(setup.origin()));
         for (int ordinal = 0; ordinal < fighters.size(); ordinal++) {
             ServerPlayer player = fighters.get(ordinal);
             // Where they stand now is where they go home to (P20); skipped if they are already inside.
@@ -177,8 +179,9 @@ public final class TowerEncounters {
             // Somebody who climbed here on foot (a walkable tower) is already at the door of the arena: nobody is moved who is there.
             if (player.serverLevel() == setup.level() && com.cobbletowers.route.WalkRules.arrived(player.getX(), player.getY(), player.getZ(),
                     arrival.getX() + 0.5, arrival.getY(), arrival.getZ() + 0.5)) continue;
-            player.teleportTo(setup.level(), arrival.getX() + 0.5 + ordinal * 2, arrival.getY(),
-                    arrival.getZ() + 0.5, entry.yaw(), 0.0f);
+            double x = arrival.getX() + 0.5 + ordinal * 2;
+            player.teleportTo(setup.level(), x, arrival.getY(), arrival.getZ() + 0.5, entry.yaw(), 0.0f);
+            ArrivalGuard.watch(server, player, setup.level(), x, arrival.getY(), arrival.getZ() + 0.5, entry.yaw());
             com.cobbletowers.route.LaneStairs.fadeIn(player);   // a change of floor is never a cut (P58)
         }
     }
