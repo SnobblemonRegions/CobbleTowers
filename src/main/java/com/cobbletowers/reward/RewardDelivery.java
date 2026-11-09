@@ -85,8 +85,16 @@ public final class RewardDelivery {
                 } else if (reward.item().equals(RaidPointsCurrency.ITEM_ID)) {
                     // CobbleRaids' own currency, credited through its public API (P21).
                     int points = com.cobbletowers.armor.ArmorBonusEffects.raidPoints(player, reward.amount(), reward.runId());
-                    CobbleRaidsPoints.award(server, player.getUUID(), points);
-                    delivered.add(shown(reward, points, "Raid Points"));
+                    // Points a tower run earned count against CobbleRaids' daily tower cap. Season and mastery grants
+                    // and admin grants carry an id that is no run, and stay uncapped: they are one-off rewards. A run
+                    // retired past the retention window pays uncapped too, the same edge its mastery bonus already has.
+                    boolean fromRun = com.cobbletowers.runtime.TowerRuns.get(reward.runId()).isPresent();
+                    int credited = fromRun
+                            ? com.cobbletowers.economy.RaidPointsCredit.awardFromRun(server, player.getUUID(), points)
+                            : points;
+                    if (!fromRun) CobbleRaidsPoints.award(server, player.getUUID(), points);
+                    // Listed as what was credited; a reward the cap took entirely is not listed as "0 Raid Points".
+                    if (credited > 0) delivered.add(shown(reward, credited, "Raid Points"));
                 } else if (com.cobbletowers.economy.AscensionMaterials.of(reward.item()).isPresent()) {
                     // An AscensionLib material (dust, facet, mark, scouter, core): its own stack, named as the library names it.
                     var material = com.cobbletowers.economy.AscensionMaterials.of(reward.item()).get();
