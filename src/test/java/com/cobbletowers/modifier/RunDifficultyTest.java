@@ -37,6 +37,27 @@ class RunDifficultyTest {
     }
 
     @Test
+    @DisplayName("a completion's score spreads the tiers: eight easy cards are Bronze, eight severe ones reach Mythic, and it is never negative")
+    void completionScoreSpreadsTiers() {
+        Map<ResourceLocation, ModifierDefinition> all = new HashMap<>();
+        for (ModifierDefinition m : new ModifierDefinition[] {card("a", "minor"), card("b", "moderate"), card("c", "severe")}) all.put(m.id(), m);
+        var content = TestRuns.contentWith(all);
+        RunModifierState minor = RunModifierState.EMPTY, mixed = RunModifierState.EMPTY, severe = RunModifierState.EMPTY;
+        for (int i = 0; i < 8; i++) {
+            minor = minor.accumulating(id("a"));
+            mixed = mixed.accumulating(id(i % 2 == 0 ? "a" : "b"));
+            severe = severe.accumulating(id("c"));
+        }
+        // AscensionLib's tiers: Bronze 0, Silver 2, Gold 5, Mythic 8 (before its cycle and flawless bonuses).
+        assertEquals(0, RunDifficulty.completionScore(content, RunModifierState.EMPTY));
+        assertEquals(true, RunDifficulty.completionScore(content, minor) < 2, "eight minor challenges stay Bronze");
+        int m = RunDifficulty.completionScore(content, mixed);
+        assertEquals(true, m >= 2 && m < 8, "a mixed run lands between Silver and Gold, got " + m);
+        assertEquals(true, RunDifficulty.completionScore(content, severe) >= 8, "an all-severe run reaches Mythic");
+        assertEquals(true, RunDifficulty.completionScore(content, mixed.lockingIn(id("b"))) > m, "a locked-in copy adds risk");
+    }
+
+    @Test
     @DisplayName("the labels step at 1, 4, 8 and 13 points, and the line reads well")
     void labels() {
         assertEquals("Standard", RunDifficulty.labelOf(0));
