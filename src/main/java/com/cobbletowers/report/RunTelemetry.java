@@ -36,6 +36,8 @@ public final class RunTelemetry {
             Optional<PersistedRun> found = TowerRuns.get(runId);
             if (found.isEmpty()) return;
             PersistedRun run = found.get();
+            // Per-run gameplay events in AscensionLib's log (floors, arena waits, where and why the run ended).
+            TowerTelemetry.onTransition(run, from, to, event);
             if (to == RunState.ALLOCATING_INSTANCE && from == RunState.VALIDATING_PARTY) {
                 TuningCounters.bump(server, "run_start.total");
                 TuningCounters.bump(server, "run_start." + startKind(run));

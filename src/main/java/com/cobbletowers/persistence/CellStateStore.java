@@ -42,6 +42,7 @@ public final class CellStateStore extends TowerStore {
         setDirty();
         server.overworld().getDataStorage().save();
         TowerLog.warn("Cell {} quarantined: {}", entry.cell(), entry.reason());
+        com.cobbletowers.report.TowerTelemetry.cellQuarantined(entry.cell(), entry.reason());
     }
 
     /** Returns a cell to circulation. Returns false when it was not quarantined. */

@@ -379,6 +379,11 @@ public final class TowerEncounters {
                 floorIndex, runId);
         TowerRuns.get(runId).ifPresent(run -> earn(server, runId,
                 LedgerEntry.forfeited(floorIndex, run.towerId(), now)));
+        // Seen on the rig: a party that all disconnected mid-floor is dropped from the boss fight by its reconnect grace and lands here as a
+        // wipe, before the tower's own window would have said "disconnect". Nobody online means nobody lost the fight.
+        TowerRuns.get(runId).filter(run -> run.participants().stream()
+                        .noneMatch(p -> server.getPlayerList().getPlayer(p.playerId()) != null))
+                .ifPresent(run -> com.cobbletowers.report.TowerTelemetry.endCause(runId, "disconnect"));
         RunTransitionService.apply(server, runId, RunEvent.ENCOUNTER_RESOLVED_WIPED, now);
     }
 
