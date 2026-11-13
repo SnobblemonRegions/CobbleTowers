@@ -99,6 +99,28 @@ class RewardBankServiceTest {
         assertEquals(noBanking.rewardTable(id("rewards")), RewardBankService.bankPoint(noBanking, run));
     }
 
+    private static PersistedRun runIn(RunState state) {
+        return new PersistedRun(RUN, PersistedRun.SCHEMA_VERSION, TestRuns.TOWER, 1, "digest", 1, 0, 1L,
+                2, state, List.of(new PersistedParticipant(PLAYER_A, ParticipantState.joined(), List.of())),
+                Optional.empty(), List.of(), TestRuns.NOW, OptionalInt.empty(), List.of(),
+                RunModifierState.EMPTY, 0, Map.of());
+    }
+
+    @Test
+    @DisplayName("a parked run is never an ordinary payout point")
+    void parkedRunIsNotABankPoint() {
+        assertEquals(Optional.empty(), RewardBankService.bankPoint(contentWith(true), runIn(RunState.RECOVERY_REQUIRED)));
+    }
+
+    @Test
+    @DisplayName("a parked run being closed prices its cleared floors from the tower's table")
+    void parkedRunPricesFromTheTowersTable() {
+        TowerContent content = contentWith(false);
+        assertEquals(content.rewardTable(id("rewards")), RewardBankService.parkedTable(content, runIn(RunState.RECOVERY_REQUIRED)));
+        assertEquals(Optional.empty(), RewardBankService.parkedTable(content, runIn(RunState.ENCOUNTER_ACTIVE)),
+                "only a parked run banks this way");
+    }
+
     @Test
     @DisplayName("only entries earned since the last bank, through the current floor, are priced")
     void unbankedRange() {

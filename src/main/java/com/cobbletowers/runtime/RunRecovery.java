@@ -8,8 +8,9 @@ import net.minecraft.server.MinecraftServer;
 
 /**
  * What happens to runs in flight when the server stopped: they have no instance any more, so they are parked in
- * RECOVERY_REQUIRED keeping their last checkpoint (TDS #28). That is waiting, not a loss. Parking goes through the
- * transition service; terminal and already-parked runs are left alone.
+ * RECOVERY_REQUIRED keeping their last checkpoint (TDS #28). A parked run is closed once one of its players is online
+ * ({@code TowerPresence}), and the floors it cleared since its last payout are banked then, so a restart is not the
+ * team's loss. Parking goes through the transition service; terminal and already-parked runs are left alone.
  */
 public final class RunRecovery {
 

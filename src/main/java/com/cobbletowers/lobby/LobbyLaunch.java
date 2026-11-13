@@ -75,10 +75,11 @@ final class LobbyLaunch {
 
         Plan plan = inspect(server, lobby, ruleset);
         checkAscension(server, lobby, plan);
-        // The entry item (decided 2026-10-05): one key per player, checked here and taken only once the run
-        // has really started, so a launch that fails costs nothing.
+        // The entry item (decided 2026-10-05): one key per player, checked here and again just before floor 1 opens,
+        // and taken then, so a launch that fails costs nothing. The second check matters when the arena is built over
+        // several seconds: a key moved away during that wait must not start the run.
         Optional<TowerKeys.Kind> keyKind = TowerKeyPolicy.keyFor(TowerKeys.required(), lobby.trial().isPresent(), plan.rentalRun());
-        if (keyKind.isPresent()) checkKeys(server, plan, keyKind.get());
+        if (keyKind.isPresent()) plan.problems().addAll(missingKeys(server, plan, keyKind.get()));
         if (!plan.problems().isEmpty()) {
             TowerLog.info("The lobby of {} could not start {}: {}", lobby.host(), lobby.tower(),
                     String.join("; ", plan.problems()));
@@ -98,7 +99,7 @@ final class LobbyLaunch {
             if (lobby.trial().isEmpty()) announceCode(server, lobby, plan, created.get());
 
             if (!lockParties(server, lobby, plan, runId, now)) return;
-            started = setUp(server, lobby, plan, runId, now);
+            started = setUp(server, lobby, plan, runId, now, keyKind);
         } catch (RuntimeException ex) {
             // The returns above undo themselves; a throw would leave the run registered with nothing started and the
             // team's Pokemon moved, and the team unable to try again ("already in a run").
@@ -106,7 +107,7 @@ final class LobbyLaunch {
             return;
         }
         switch (started) {
-            case OPENED -> finishLaunch(server, lobby, plan, runId, keyKind);
+            case OPENED -> finishLaunch(server, lobby, plan, runId);
             case BUILDING -> {
                 // No ready arena: it is built a slice per tick rather than in one stall, and the launch finishes when it is up.
                 PENDING.put(runId, new PendingLaunch(lobby, plan, keyKind));
@@ -153,8 +154,9 @@ final class LobbyLaunch {
                 Optional<RunTransitionService.Outcome> allocated = RunLifecycle.pollAllocation(server, runId, now);
                 if (allocated.isEmpty()) continue;
                 PENDING.remove(runId);
-                if (afterAllocation(server, pending.lobby(), pending.plan(), runId, now, allocated.get()) == Started.OPENED) {
-                    finishLaunch(server, pending.lobby(), pending.plan(), runId, pending.keyKind());
+                if (afterAllocation(server, pending.lobby(), pending.plan(), runId, now, allocated.get(),
+                        pending.keyKind()) == Started.OPENED) {
+                    finishLaunch(server, pending.lobby(), pending.plan(), runId);
                 }
             } catch (RuntimeException ex) {
                 PENDING.remove(runId);
@@ -171,10 +173,8 @@ final class LobbyLaunch {
         LobbyService.broadcast(server, lobby, "Cannot start: something went wrong on the server. Try again.");
     }
 
-    /** Once the run has really started: keys, trial notes, and the lobby is done. */
-    private static void finishLaunch(MinecraftServer server, TowerLobby lobby, Plan plan, UUID runId, Optional<TowerKeys.Kind> keyKind) {
-        // The attempt is spent only now that the run has really started: a launch that failed above costs nothing.
-        keyKind.ifPresent(kind -> takeKeys(server, plan, runId, kind));
+    /** Once the run has really started (its keys were taken as floor 1 opened): trial notes, and the lobby is done. */
+    private static void finishLaunch(MinecraftServer server, TowerLobby lobby, Plan plan, UUID runId) {
         TowerRuns.get(runId).ifPresent(started -> {
             TrialService.recordLaunch(server, started);
             if (started.options().isTrial()) {
@@ -287,30 +287,60 @@ final class LobbyLaunch {
                 TrialClock.dayKey(TrialService.today()));
     }
 
-    private static void checkKeys(MinecraftServer server, Plan plan, TowerKeys.Kind kind) {
+    /** Who cannot pay to start: offline, or no free run and no key in their inventory. */
+    private static List<String> missingKeys(MinecraftServer server, Plan plan, TowerKeys.Kind kind) {
+        List<String> missing = new ArrayList<>();
         for (UUID id : plan.players()) {
             ServerPlayer keyholder = server.getPlayerList().getPlayer(id);
             if (keyholder != null && hasFreeRun(server, id, kind)) continue;
             if (keyholder == null || TowerKeys.count(keyholder, kind) < 1) {
-                plan.problems().add((keyholder == null ? "A teammate" : LobbyService.name(keyholder))
+                missing.add((keyholder == null ? "A teammate" : LobbyService.name(keyholder))
                         + " needs a " + kind.label() + " to start (ask a moderator if you have none)");
             }
         }
+        return missing;
     }
 
-    private static void takeKeys(MinecraftServer server, Plan plan, UUID runId, TowerKeys.Kind kind) {
+    /** What one player paid to start: a key, or the day's free run. */
+    private record Paid(UUID player, boolean freeRun) {}
+
+    /**
+     * Takes each player's key or free run, in the same tick as {@link #missingKeys} found everyone able to pay, so
+     * nothing can move in between.
+     */
+    private static List<Paid> takeKeys(MinecraftServer server, Plan plan, UUID runId, TowerKeys.Kind kind) {
+        List<Paid> paid = new ArrayList<>();
         for (UUID id : plan.players()) {
             ServerPlayer keyholder = server.getPlayerList().getPlayer(id);
-            if (keyholder != null && hasFreeRun(server, id, kind)) {
+            if (keyholder == null) continue;
+            if (hasFreeRun(server, id, kind)) {
                 TowerFreeRunStore.get(server).markUsed(id, TrialClock.dayKey(TrialService.today()));
                 keyholder.sendSystemMessage(Component.literal("Today's first run is free. Runs after it use a Tower Key."));
+                paid.add(new Paid(id, true));
+            } else if (TowerKeys.take(keyholder, kind)) {
+                keyholder.sendSystemMessage(Component.literal("Used 1 " + kind.label() + "."));
+                paid.add(new Paid(id, false));
+            } else {
+                TowerLog.warn("Run {}: player {} had no {} to take after the check", runId, id, kind.label());
+            }
+        }
+        return paid;
+    }
+
+    /** Gives back what {@link #takeKeys} took, when floor 1 then failed to open. */
+    private static void refundKeys(MinecraftServer server, List<Paid> paid, TowerKeys.Kind kind) {
+        String today = TrialClock.dayKey(TrialService.today());
+        for (Paid each : paid) {
+            if (each.freeRun()) {
+                TowerFreeRunStore.get(server).unmark(each.player(), today);
                 continue;
             }
-            // The run is open and cannot be undone here, so a key that vanished in the gap is logged, not enforced.
-            if (keyholder != null && TowerKeys.take(keyholder, kind)) {
-                keyholder.sendSystemMessage(Component.literal("Used 1 " + kind.label() + "."));
+            ServerPlayer player = server.getPlayerList().getPlayer(each.player());
+            if (player != null) {
+                TowerKeys.refund(player, kind);
+                player.sendSystemMessage(Component.literal("Your " + kind.label() + " was given back."));
             } else {
-                TowerLog.warn("Run {} started but player {} had no {} left to take", runId, id, kind.label());
+                TowerLog.warn("Could not give a {} back to offline player {}", kind.label(), each.player());
             }
         }
     }
@@ -385,7 +415,8 @@ final class LobbyLaunch {
     }
 
     /** Validates the parties, allocates a cell and opens floor 1; on any failure undoes what it can. BUILDING: finished by {@link #tickPending}. */
-    private static Started setUp(MinecraftServer server, TowerLobby lobby, Plan plan, UUID runId, long now) {
+    private static Started setUp(MinecraftServer server, TowerLobby lobby, Plan plan, UUID runId, long now,
+                                 Optional<TowerKeys.Kind> keyKind) {
         RunTransitionService.Outcome validated = RunLifecycle.validateParty(server, runId, now,
                 id -> Optional.ofNullable(server.getPlayerList().getPlayer(id)).map(PartyReader::members));
         if (!(validated instanceof RunTransitionService.Move move)
@@ -400,12 +431,12 @@ final class LobbyLaunch {
 
         RunLifecycle.Allocation allocation = RunLifecycle.beginAllocation(server, runId, now);
         if (allocation instanceof RunLifecycle.Building) return Started.BUILDING;
-        return afterAllocation(server, lobby, plan, runId, now, ((RunLifecycle.Allocated) allocation).outcome());
+        return afterAllocation(server, lobby, plan, runId, now, ((RunLifecycle.Allocated) allocation).outcome(), keyKind);
     }
 
     /** The rest of {@link #setUp} once the run has its cell (or has failed to get one): open floor 1, or undo. */
     private static Started afterAllocation(MinecraftServer server, TowerLobby lobby, Plan plan, UUID runId, long now,
-                                           RunTransitionService.Outcome allocated) {
+                                           RunTransitionService.Outcome allocated, Optional<TowerKeys.Kind> keyKind) {
         if (!(allocated instanceof RunTransitionService.Move)) {
             // Frees a team held by a run that never got a cell, so they can retry.
             RunTransitionService.apply(server, runId, RunEvent.RECOVERY_ABANDONED, now);
@@ -415,9 +446,23 @@ final class LobbyLaunch {
             return Started.FAILED;
         }
 
+        if (keyKind.isPresent()) {
+            List<String> missing = missingKeys(server, plan, keyKind.get());
+            if (!missing.isEmpty()) {
+                // A key moved away (ender chest, a teammate, a death) while the arena was being prepared.
+                com.cobbletowers.report.TowerTelemetry.endCause(runId, "start_failed");
+                RunTransitionService.apply(server, runId, RunEvent.ABANDON_REQUESTED, now);
+                restoreParties(server, plan.players());
+                LobbyService.broadcast(server, lobby, "Cannot start: " + String.join("; ", missing));
+                return Started.FAILED;
+            }
+        }
+        List<Paid> paid = keyKind.map(kind -> takeKeys(server, plan, runId, kind)).orElse(List.of());
+
         if (!openFloor(server, runId, now)) {
-            // The run is parked by openFloor; it holds the team until recovery or an operator settles it.
-            LobbyService.dissolve(server, lobby, "The floor could not be opened; the run is parked for recovery.");
+            // The run is parked by openFloor; floor 1 was never played, so what was paid to start it goes back.
+            keyKind.ifPresent(kind -> refundKeys(server, paid, kind));
+            LobbyService.dissolve(server, lobby, "The floor could not be opened, so the run has ended and what it cost was given back.");
             return Started.FAILED;
         }
         return Started.OPENED;
