@@ -95,6 +95,28 @@ public final class CellWarmPool {
         WANTED.put(layout.structure(), layout);
     }
 
+    /**
+     * The first-floor layouts of every tower a run can start in now, one per building. Pure. The pool learned what to keep ready only from a run
+     * that had already started, so after every restart the first run of each tower built its floor on the server thread, holding the tick for the
+     * whole paste (0.3 to 1 s, docs/design/cell-allocation-async.md). Wanting these at start lets the sliced build have them ready first.
+     */
+    static java.util.List<FloorLayout> startLayouts(com.cobbletowers.definition.TowerContent content, long nowMillis) {
+        Map<ResourceLocation, FloorLayout> byStructure = new LinkedHashMap<>();
+        for (var tower : content.openCatalogTowers(nowMillis)) {
+            content.floorAt(tower.id(), 1).flatMap(com.cobbletowers.definition.FloorDefinition::layout)
+                    .ifPresent(layout -> byStructure.putIfAbsent(layout.structure(), layout));
+        }
+        return java.util.List.copyOf(byStructure.values());
+    }
+
+    /** Asks the pool to keep every open tower's first floor ready; the once-a-second tick builds them, a slice at a time. */
+    public static int prewarm(com.cobbletowers.definition.TowerContent content, long nowMillis) {
+        var layouts = startLayouts(content, nowMillis);
+        layouts.forEach(CellWarmPool::want);
+        if (!layouts.isEmpty()) TowerLog.info("Warm pool will keep {} building(s) ready for run starts", layouts.size());
+        return layouts.size();
+    }
+
     /** The build in progress (one at a time) and who holds its lease. */
     private static SlicedBuild BUILD;
     private static UUID BUILD_TENANT;
@@ -150,7 +172,9 @@ public final class CellWarmPool {
         UUID tenant = BUILD_TENANT;
         BUILD = null;
         BUILD_TENANT = null;
-        com.cobbletowers.diagnostics.TowerMetrics.recordAllocation(server, build.workMillis());
+        // The longest step, not the total: the allocation budget is about how long the server was held, and a sliced build's total
+        // (spread over many ticks) read as a one-second stall in the diagnostics when no tick was held that long.
+        com.cobbletowers.diagnostics.TowerMetrics.recordAllocation(server, build.longestStepMillis());
         if (status == SlicedBuild.Status.DONE && build.problems().isEmpty()) {
             InstanceAllocator.transferLease(build.cell, tenant, POOL);
             Deque<Integer> ready = READY.computeIfAbsent(build.layout.structure(), key -> new ArrayDeque<>());
@@ -168,6 +192,13 @@ public final class CellWarmPool {
     private static int ticks;
 
     public static void install() {
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            try {
+                prewarm(com.cobbletowers.definition.TowerDefinitionRegistry.content(), System.currentTimeMillis());
+            } catch (RuntimeException ex) {
+                TowerLog.error("The warm pool could not plan its start-up builds", ex);
+            }
+        });
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
             try {
                 CellClearJobs.advance(server);

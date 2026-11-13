@@ -93,3 +93,15 @@ known clean and returns; the once-a-second exit sweep comes back, finds the cell
 HeavyWork slot). A burst (`soak_test --pause 0`, peak 66 cells held) now queues instead of stalling. Cost: a cell is released about a second later than before, and a burst holds
 its chunks loaded until each cell's turn. A server stopped mid-clear leaves the run holding its cell, and the exit sweep releases it after the restart as it does for any deferred release.
 `floor_encounter_test` failed one check ("the opponent is marked uncatchable: No entity was found") in 1 of 5 runs and passed on rerun; it looks like a timing race in the test.
+
+### Start-up pre-warm and an honest allocation metric (2026-11-12)
+
+Live data from 12 Nov (`cobbletowers_diagnostics.dat`, AscensionLib's `server.tick` telemetry) showed two things:
+- The `allocation` category averaged 1.1 s over 658 samples, but the warm pool recorded its sliced builds' *total* work there, spread over many ticks. That read as a
+  one-second stall when no tick was held that long. It now records the build's longest step, so `allocation` means the longest single hold, which is what its budget checks.
+- Each shipped tower is one building for all its floors, so the in-place floor rebuild only runs on a detour into another region's building. The common synchronous paste was
+  the run start after a restart: the pool only learned what to build from a run that had already started. `CellWarmPool.prewarm` now wants every open tower's first floor at
+  start-up, so the sliced build has those cells ready before the first run.
+
+Still synchronous: a run start when the pool for that building is empty (a burst, or a building nobody started yet), and the detour rebuild. Option B for those
+(a `PREPARING` wait, the party moved to a separately built cell for a floor change) is not built.
