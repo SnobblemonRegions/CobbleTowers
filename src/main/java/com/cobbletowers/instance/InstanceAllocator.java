@@ -169,11 +169,11 @@ public final class InstanceAllocator {
         CELL_BY_RUN.put(to, cell);
     }
 
-    /** Takes a cell out of service by hand. */
+    /** Takes a cell out of service by hand. Only an operator returns it; automatic recovery leaves it alone. */
     public static void quarantine(MinecraftServer server, int cell, String reason) {
         CellGrid.requireValid(cell);
         CellStateStore.get(server).quarantine(server,
-                new CellQuarantine(cell, reason, System.currentTimeMillis()));
+                new CellQuarantine(cell, reason, System.currentTimeMillis(), true));
     }
 
     /** Returns a quarantined cell to service. False when it was not quarantined. */

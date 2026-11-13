@@ -71,8 +71,8 @@ public final class CellsCommand {
                     "  " + index + "  leased by " + runId), false));
         }
         for (CellQuarantine entry : quarantined.values()) {
-            source.sendSuccess(() -> Component.literal("  " + entry.cell() + "  quarantined: " + entry.reason())
-                    .withStyle(ChatFormatting.RED), false);
+            source.sendSuccess(() -> Component.literal("  " + entry.cell() + "  quarantined" + (entry.manual() ? " by hand (clear it yourself)" : " (retried every 5 min)")
+                    + ": " + entry.reason()).withStyle(ChatFormatting.RED), false);
         }
         return InstanceAllocator.leasedCount();
     }
