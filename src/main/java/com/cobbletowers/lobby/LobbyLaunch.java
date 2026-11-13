@@ -165,6 +165,7 @@ final class LobbyLaunch {
 
     private static void failAfterThrow(MinecraftServer server, TowerLobby lobby, Plan plan, UUID runId, long now, RuntimeException ex) {
         TowerLog.error("Starting run " + runId + " threw; abandoning it", ex);
+        com.cobbletowers.report.TowerTelemetry.endCause(runId, "start_failed");
         RunTransitionService.apply(server, runId, RunEvent.ABANDON_REQUESTED, now);
         restoreParties(server, plan.players());
         LobbyService.broadcast(server, lobby, "Cannot start: something went wrong on the server. Try again.");
@@ -371,6 +372,7 @@ final class LobbyLaunch {
                     || result == PartyJournalService.Lock.NO_ROOM || result == PartyJournalService.Lock.TOO_MANY
                     || result == RentalPartyService.Lock.FAILED || result == RentalPartyService.Lock.NO_ROOM
                     || result == RentalPartyService.Lock.IN_BATTLE) {
+                com.cobbletowers.report.TowerTelemetry.endCause(runId, "start_failed");
                 RunTransitionService.apply(server, runId, RunEvent.ABANDON_REQUESTED, now);
                 restoreParties(server, plan.players());
                 LobbyService.broadcast(server, lobby, "Cannot start: " + (player == null ? "a player went offline"

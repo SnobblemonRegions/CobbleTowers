@@ -154,6 +154,7 @@ public final class TowerPresence {
         for (PersistedRun run : java.util.List.copyOf(TowerRuns.all())) {
             if (run.state() != com.cobbletowers.api.tower.RunState.RECOVERY_REQUIRED) continue;
             if (run.participants().stream().noneMatch(p -> p.playerId().equals(player.getUUID()))) continue;
+            com.cobbletowers.report.TowerTelemetry.endCause(run.runId(), "restart");
             RunTransitionService.Outcome outcome =
                     RunTransitionService.apply(server, run.runId(), com.cobbletowers.api.tower.RunEvent.RECOVERY_ABANDONED, now);
             if (outcome instanceof RunTransitionService.Move) {
@@ -176,6 +177,7 @@ public final class TowerPresence {
         // Settle the last membership before boss-withdrawal callbacks can report a party wipe.
         TowerRuns.get(runId).filter(run -> !anybodyCouldReturn(run, now)).ifPresent(run -> {
             TowerLog.info("Run {} has nobody left in it; ending it", runId);
+            com.cobbletowers.report.TowerTelemetry.endCause(runId, "left");
             RunTransitionService.apply(server, runId, RunEvent.ABANDON_REQUESTED, now);
         });
         guarded("drop the departing player", () ->
@@ -316,6 +318,7 @@ public final class TowerPresence {
             TowerRuns.get(runId).ifPresent(run -> {
                 if (anybodyCouldReturn(run, now)) return;
                 TowerLog.info("Run {} has nobody online and nobody expected back; ending it", runId);
+                com.cobbletowers.report.TowerTelemetry.endCause(runId, "disconnect");
                 RunTransitionService.apply(server, runId, RunEvent.ABANDON_REQUESTED, now);
             });
         }

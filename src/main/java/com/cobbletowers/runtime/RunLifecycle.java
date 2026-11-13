@@ -319,6 +319,7 @@ public final class RunLifecycle {
         // changes, so the run stays where it was and the caller can ask again once the backlog drains.
         int pending = releasesPending(TowerRuns.all());
         if (!admitsAllocation(pending)) {
+            com.cobbletowers.report.TowerTelemetry.allocationRefused(runId, "busy", pending);
             return new RunTransitionService.Refusal(RunTransitionService.Reason.BUSY, pending
                     + " ended run(s) still hold a cell waiting to be cleared; try again in a moment");
         }

@@ -394,6 +394,7 @@ public final class IntermissionService {
             case PREPARING -> {
                 if (round != null && !round.awaitingArena()) {
                     round.awaitArena(true);
+                    com.cobbletowers.report.TowerTelemetry.arenaWaitStarted(runId);
                     broadcast(server, run, "The next arena is being prepared...", false);
                 }
             }
