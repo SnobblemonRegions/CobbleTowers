@@ -123,4 +123,20 @@ class RunTimelineTest {
         assertEquals("technical", RunTimeline.causeOf(RunEvent.TECHNICAL_FAILURE));
         assertEquals("party_rejected", RunTimeline.causeOf(RunEvent.PARTY_REJECTED));
     }
+
+    @Test void aParkSaysWhetherARestartOrAFaultCausedIt() {
+        // Seen on the rig: a run parked by a fault mid-play was later closed as "restart" though no restart happened.
+        move(1, RunState.FLOOR_READY, RunState.ENCOUNTER_ACTIVE, RunEvent.ENCOUNTER_STARTED, 0);
+        move(1, RunState.ENCOUNTER_ACTIVE, RunState.RECOVERY_REQUIRED, RunEvent.TECHNICAL_FAILURE, 5_000);
+        assertEquals("technical", of("tower_run_parked").get(0).fields().get("cause"));
+        assertFalse(timeline.parkedByRestart(RUN));
+
+        UUID other = UUID.randomUUID();
+        timeline.notePark(other, true);
+        written.addAll(timeline.onTransition(new RunTimeline.RunFacts(other, "cobbletowers:spire", 3, 2, 0, "plain", List.of(P1)),
+                RunState.INTERMISSION, RunState.RECOVERY_REQUIRED, RunEvent.TECHNICAL_FAILURE, 9_000));
+        assertEquals("restart", of("tower_run_parked").get(1).fields().get("cause"));
+        assertTrue(timeline.parkedByRestart(other));
+        assertFalse(timeline.parkedByRestart(UUID.randomUUID()));
+    }
 }

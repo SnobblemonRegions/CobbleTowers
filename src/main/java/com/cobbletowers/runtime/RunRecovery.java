@@ -21,6 +21,7 @@ public final class RunRecovery {
         for (PersistedRun run : TowerRuns.all()) {
             if (!run.state().isLive()) continue;
             OptionalInt cell = run.cell();
+            com.cobbletowers.report.TowerTelemetry.parkedByRestart(run.runId());
             RunTransitionService.Outcome outcome =
                     RunTransitionService.apply(server, run.runId(), RunEvent.TECHNICAL_FAILURE, now);
             if (outcome instanceof RunTransitionService.Move) {

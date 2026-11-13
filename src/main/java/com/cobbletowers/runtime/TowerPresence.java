@@ -154,7 +154,7 @@ public final class TowerPresence {
         for (PersistedRun run : java.util.List.copyOf(TowerRuns.all())) {
             if (run.state() != com.cobbletowers.api.tower.RunState.RECOVERY_REQUIRED) continue;
             if (run.participants().stream().noneMatch(p -> p.playerId().equals(player.getUUID()))) continue;
-            com.cobbletowers.report.TowerTelemetry.endCause(run.runId(), "restart");
+            com.cobbletowers.report.TowerTelemetry.endCause(run.runId(), com.cobbletowers.report.TowerTelemetry.parkedCloseCause(run.runId()));
             RunTransitionService.Outcome outcome =
                     RunTransitionService.apply(server, run.runId(), com.cobbletowers.api.tower.RunEvent.RECOVERY_ABANDONED, now);
             if (outcome instanceof RunTransitionService.Move) {

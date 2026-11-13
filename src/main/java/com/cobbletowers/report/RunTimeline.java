@@ -34,6 +34,7 @@ public final class RunTimeline {
         long floorMillis;
         int busyRefusals;
         String cause;
+        boolean restartPark;
     }
 
     private final Map<UUID, Clock> clocks = new ConcurrentHashMap<>();
@@ -41,6 +42,17 @@ public final class RunTimeline {
     /** Why the run is about to end, when the transition alone cannot tell (a disconnect and a leave are both ABANDON_REQUESTED). */
     public void noteEndCause(UUID runId, String cause) {
         clock(runId).cause = cause;
+    }
+
+    /** The next park of this run comes from a restart ({@code RunRecovery} at boot), not a fault during play. */
+    public void notePark(UUID runId, boolean byRestart) {
+        clock(runId).restartPark = byRestart;
+    }
+
+    /** Whether this run was parked by a restart during this server's life; a run parked before it is not known to have been. */
+    public boolean parkedByRestart(UUID runId) {
+        Clock clock = clocks.get(runId);
+        return clock != null && clock.restartPark;
     }
 
     /** A run asked for its next arena and has to wait for it to be built (the intermission's "next arena is being prepared"). */
@@ -81,6 +93,7 @@ public final class RunTimeline {
             Map<String, Object> f = base(run);
             f.put("from", id(from));
             f.put("event", id(event));
+            f.put("cause", clock.restartPark ? "restart" : "technical");
             out.add(new Event("tower_run_parked", f));
         }
         if (to.isTerminal()) {
