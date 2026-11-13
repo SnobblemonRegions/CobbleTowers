@@ -47,7 +47,9 @@ public final class RunTransitionService {
         /** A checkpoint key already committed is being committed again for a different outcome. */
         KEY_REUSED,
         /** The party is still being offered a modifier and has not settled on one (TDS #2). */
-        DRAFT_OPEN
+        DRAFT_OPEN,
+        /** The tower is still clearing the cells of runs that ended; nothing changed, ask again in a moment. */
+        BUSY
     }
 
     private RunTransitionService() {}

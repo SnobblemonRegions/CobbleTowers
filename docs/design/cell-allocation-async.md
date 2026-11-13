@@ -137,3 +137,19 @@ Rig results (2026-11-12, a copy of the integration rig on the C: SSD, dev jars o
 The `--pause 0` crash is the same on both builds: `RunsCommand.allocate` -> `allocateInstance` -> `CellPreparer.prepare` -> `reset` -> a blocking
 `getChunk`, the collapse under bursts described at the top. The operator command stays synchronous and is what the soak drives; player starts go
 through `beginAllocation` and never call `prepare`. Not covered: a kill during a detour build, and a detour with a spectator.
+
+### Operator allocation admission: the `--pause 0` watchdog (2026-11-12)
+
+`/tower runs allocate` (the operator command every rig test drives) still pastes synchronously, so it can return the built cell at once. Under a burst it
+outran the releases: each ended run keeps its cell's 49 chunks loaded until its sliced clear and release finish, the held chunks climbed past 2,000, and the
+paste's blocking `getChunk` calls queued behind their saves until the watchdog fired. `RunLifecycle.allocateInstance` now counts ended runs that still hold a
+cell and, at `MAX_RELEASES_PENDING` (4), refuses with `Reason.BUSY` before touching the run, so the caller can ask again once the backlog drains. Player starts
+(`beginAllocation`) and the in-place detour fallback are unchanged.
+
+Rig (copy of the integration rig on C:, dev jar of this branch):
+
+| Test | Before | After |
+|---|---|---|
+| `soak_test --pause 0 --minutes 4` | watchdog crash within ~40 cycles, chunks ~1,000 -> 2,000 | **6/6**, 3,896 cycles, chunks peak 294, 98 after the drain; worst stalls ~2.5 s (the synchronous paste itself) |
+| `soak_test --pause 2` | 6/6 | **6/6**, 76 cycles, chunks peak 147 |
+| `validation/ci_local.sh` | | passes (`CellWarmPoolStartTest` now compares sorted: `TowerContent` copies its towers with `Map.copyOf`, whose order changes per JVM) |
