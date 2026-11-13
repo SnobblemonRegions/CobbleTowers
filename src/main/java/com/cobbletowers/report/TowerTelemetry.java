@@ -45,6 +45,24 @@ public final class TowerTelemetry {
         }
     }
 
+    /** The park about to happen comes from a restart (boot-time recovery), so a later close says "restart". */
+    public static void parkedByRestart(UUID runId) {
+        try {
+            TIMELINE.notePark(runId, true);
+        } catch (RuntimeException ex) {
+            // Telemetry only.
+        }
+    }
+
+    /** The cause to give a parked run that is being closed: {@code restart} if a restart parked it, else {@code parked_abandoned}. */
+    public static String parkedCloseCause(UUID runId) {
+        try {
+            return TIMELINE.parkedByRestart(runId) ? "restart" : "parked_abandoned";
+        } catch (RuntimeException ex) {
+            return "parked_abandoned";
+        }
+    }
+
     /** The party is waiting on its next arena (the intermission's "The next arena is being prepared..."). */
     public static void arenaWaitStarted(UUID runId) {
         try {
