@@ -133,4 +133,19 @@ class IntermissionRoundTest {
         assertFalse(round.walking());
         assertFalse(round.walkDue(Long.MAX_VALUE));
     }
+
+    @Test
+    @DisplayName("a round waiting on its next arena says so, survives the walk being cancelled, and checks about once a second")
+    void awaitingArena() {
+        IntermissionRound round = new IntermissionRound();
+        assertFalse(round.awaitingArena());
+        round.awaitArena(true);
+        round.cancelWalk();
+        assertTrue(round.awaitingArena(), "the walk ends before the arena is up; the wait must outlast it");
+        assertTrue(round.arenaCheckDue(10_000));
+        assertFalse(round.arenaCheckDue(10_500));
+        assertTrue(round.arenaCheckDue(11_000));
+        round.awaitArena(false);
+        assertFalse(round.awaitingArena());
+    }
 }

@@ -218,6 +218,11 @@ public final class RunTransitionService {
     private static void releaseInstance(MinecraftServer server, PersistedRun run, long now) {
         // Stop the run's battles first so a leftover opponent cannot quarantine the cell.
         TowerEncounters.abandon(server, run.runId());
+        // A cell still being built for it (its first floor, or a next floor in another building) is nobody's now: retired, not leaked.
+        effect("give back a cell built for it", run.runId(), () -> {
+            com.cobbletowers.instance.RunBuildJobs.abandon(run.runId());
+            com.cobbletowers.instance.RunBuildJobs.abandon(com.cobbletowers.instance.RunBuildJobs.nextFloorTenant(run.runId()));
+        });
 
         if (run.cell().isEmpty()) return;
         // P20: never reset a cell with a player standing in it. The run keeps its lease for the beat and the

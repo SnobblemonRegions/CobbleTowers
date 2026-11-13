@@ -104,8 +104,12 @@ def main() -> None:
                 raise RuntimeError(f"{BOT} never joined; see {bot_log}")
 
             baseline = overview_counts(rcon.command("cobbletowers diagnostics"))
-            results.append(Result("the baseline starts with nothing active",
-                                  baseline[0] == 0 and baseline[2] == 0, str(baseline)))
+            # Since the start-up pre-warm (2026-11-12) the warm pool builds cells as the server starts: their chunks are held on purpose.
+            # Allowed: every warm cell's 49 chunks, plus one cell still being built.
+            warm = re.search(r"(\d+) warm", rcon.command("cobbletowers cells list"))
+            allowed_chunks = ((int(warm.group(1)) if warm else 0) + 1) * 49
+            results.append(Result("the baseline starts with nothing active (warm pool cells aside)",
+                                  baseline[0] == 0 and baseline[2] <= allowed_chunks, f"{baseline}, allowed {allowed_chunks} chunks"))
 
             deadline = time.time() + args.minutes * 60
             cycles = 0

@@ -93,3 +93,47 @@ known clean and returns; the once-a-second exit sweep comes back, finds the cell
 HeavyWork slot). A burst (`soak_test --pause 0`, peak 66 cells held) now queues instead of stalling. Cost: a cell is released about a second later than before, and a burst holds
 its chunks loaded until each cell's turn. A server stopped mid-clear leaves the run holding its cell, and the exit sweep releases it after the restart as it does for any deferred release.
 `floor_encounter_test` failed one check ("the opponent is marked uncatchable: No entity was found") in 1 of 5 runs and passed on rerun; it looks like a timing race in the test.
+
+### Start-up pre-warm and an honest allocation metric (2026-11-12)
+
+Live data from 12 Nov (`cobbletowers_diagnostics.dat`, AscensionLib's `server.tick` telemetry) showed two things:
+- The `allocation` category averaged 1.1 s over 658 samples, but the warm pool recorded its sliced builds' *total* work there, spread over many ticks. That read as a
+  one-second stall when no tick was held that long. It now records the build's longest step, so `allocation` means the longest single hold, which is what its budget checks.
+- Each shipped tower is one building for all its floors, so the in-place floor rebuild only runs on a detour into another region's building. The common synchronous paste was
+  the run start after a restart: the pool only learned what to build from a run that had already started. `CellWarmPool.prewarm` now wants every open tower's first floor at
+  start-up, so the sliced build has those cells ready before the first run.
+
+### Run start and floor change, a slice per tick (2026-11-12, owner approved a short wait)
+
+`RunBuildJobs` builds the floors a party waits on with the same `SlicedBuild` the warm pool uses, one job a tick, ahead of the warm pool (which steps aside
+while any party waits).
+
+- **Run start, empty pool:** `RunLifecycle.beginAllocation` takes a warm cell when there is one, as before; otherwise it leases a cell to the run, starts a job
+  and returns `Building`. The run stays at `ALLOCATING_INSTANCE`; the lobby says "Your arena is being prepared..." and `LobbyLaunch.tickPending` finishes the
+  launch through `pollAllocation` (same INSTANCE_ALLOCATED checkpoint, same failure handling). The lobby cannot launch twice while it waits.
+- **Floor change into another building (a detour):** the party stands in its own cell, so that cell cannot be rebuilt a slice at a time. The next building is
+  built in a separate cell under the run's next-floor tenant (taken from the warm pool when one is ready), started about a second after the route is
+  settled. `openNextFloor` returns `PREPARING` until it is up (the intermission round waits and asks again each second, "The next arena is being
+  prepared..."); then the run moves: the old cell is swept of entities as the in-place rebuild's sweep did, the leases swap, the run is checkpointed with
+  its new cell, spectators are moved (fighters are moved by the floor's start), and the old cell is retired (cleared in slices, swept, released).
+- **Fallbacks:** no free cell, a structure that is not loaded, or a separate build that fails falls back to the old in-place synchronous rebuild, so a run is
+  never worse off than before. `/tower runs allocate` (operator) stays synchronous.
+- **Ending and restarts:** a run that ends gives back any cell still being built for it (`RunBuildJobs.abandon` from `releaseInstance`). Jobs live in memory:
+  a restart parks every live run as before, and a lease never written to a run is free again (dirty, so its next build resets it).
+
+Rig results (2026-11-12, a copy of the integration rig on the C: SSD, dev jars of `main` e379c8c and of this branch, run side by side):
+
+| Test | main | this branch |
+|---|---|---|
+| `lobby_test` (keys off) | 12/12 | 12/12 |
+| `route_arena_test` | no detour met before the rig's Tower Key ran out | **12/12**: a detour built in its own cell (longest step 173 ms), the run moved cell 2 -> 3 and back |
+| `sliced_build_test` (new; keys off) | n/a | **9/9**: sliced start (longest step 81 to 250 ms), a hard kill mid-build parks the run, no quarantine, the cell is reused |
+| `cell_reset_test` | 6/6 | 6/6 |
+| `soak_test --pause 2` | 6/6 | 5/6 before the baseline check allowed the pre-warm's chunks; same cycle count (92 vs 90) and end state |
+| `soak_test --pause 0` | **watchdog crash** | **same watchdog crash** |
+| `instance_lifecycle_test` | (not rerun) | 14/14 |
+| `floor_encounter_test` | 11/16 | 11/16, the same five checks (no battle starts: the test predates the boss-only towers) |
+
+The `--pause 0` crash is the same on both builds: `RunsCommand.allocate` -> `allocateInstance` -> `CellPreparer.prepare` -> `reset` -> a blocking
+`getChunk`, the collapse under bursts described at the top. The operator command stays synchronous and is what the soak drives; player starts go
+through `beginAllocation` and never call `prepare`. Not covered: a kill during a detour build, and a detour with a spectator.

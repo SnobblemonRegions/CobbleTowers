@@ -5,8 +5,11 @@ Plays the real path (play tower / confirm / start, a draft pick, ready, the coun
 milestone_floor_test.py does. A detour is one lane in about a third of the steps, so the test plays runs until it meets one. It proves:
 
 1. A route step can offer one stop whose battle is in another tower's building (the stop shows `@<tower>`).
-2. Taking it builds that building for the next floor (the cell is prepared with that tower's structure) and `runs show` says so.
-3. The floor after is back in the run's own building (the cell is prepared with its structure again).
+2. Taking it builds that building for the next floor (a cell is prepared with that tower's structure, or the run moves into one) and `runs show` says so.
+3. The floor after is back in the run's own building (prepared with its structure again, or moved into a ready one).
+
+Since sliced floor builds (2026-11-12), a floor in another building is built in a cell of its own and the run moves into it; a ready cell from the
+warm pool prints no "prepared with" line at that moment, only "moved from cell A to cell B for <structure>", so either line counts.
 4. Nothing throws.
 
     python validation/smoke/route_arena_test.py --server-dir <rig>/testserver-181 --java <jdk21 java> [--jar build/libs/CobbleTowers-<version>-dev.jar]
@@ -60,6 +63,12 @@ def stops(shown: str) -> list[tuple[int, str, str]]:
     if not found:
         return []
     return [(int(lane), kind, arena) for lane, kind, arena in re.findall(r"(\d)=([A-Z]+)(?:@(\S+))?", found.group(1))]
+
+
+def built_lines(log: str, place: str) -> int:
+    """How often a cell was built for, or a run moved into, that tower's building."""
+    moved = len(re.findall(rf"moved from cell \d+ to cell \d+ for cobbletowers:battle_tower_{place}", log))
+    return log.count(f"prepared with cobbletowers:battle_tower_{place}") + moved
 
 
 def built_in(shown: str, floor: int) -> str:
@@ -145,7 +154,7 @@ def main() -> None:
                         log = server.read_log()
                         results.append(Result(f"floor {floor + 1} opens after the detour", opened, run_line(rcon)))
                         results.append(Result(f"the cell was prepared with {place}'s building for it",
-                                              log.count(f"prepared with cobbletowers:battle_tower_{place}") > log_before.count(f"prepared with cobbletowers:battle_tower_{place}"),
+                                              built_lines(log, place) > built_lines(log_before, place),
                                               f"no 'prepared with battle_tower_{place}' line after the pick"))
                         shown_there = rcon.command(f"cobbletowers runs show {run}")
                         results.append(Result("and the run reports the building it stands in", built_in(shown_there, floor + 1) == offered[away[0]][2], built_in(shown_there, floor + 1)))
@@ -166,7 +175,7 @@ def main() -> None:
                         results.append(Result(f"floor {floor + 2} opens", wait_state(rcon, "ENCOUNTER_ACTIVE", floor + 2, seconds=60), run_line(rcon)))
                         log2 = server.read_log()
                         results.append(Result("the party is back in the run's own building: the cell is prepared with it again",
-                                              log2.count(f"prepared with cobbletowers:battle_tower_{HOME}") > log_before2.count(f"prepared with cobbletowers:battle_tower_{HOME}"),
+                                              built_lines(log2, HOME) > built_lines(log_before2, HOME),
                                               f"no 'prepared with battle_tower_{HOME}' line after the detour"))
                         results.append(Result("and the run reports it", built_in(rcon.command(f'cobbletowers runs show {run}'), floor + 2) == f"cobbletowers:{HOME}", ""))
                         met = True
