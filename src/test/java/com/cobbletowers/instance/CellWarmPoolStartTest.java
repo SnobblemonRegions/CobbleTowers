@@ -56,8 +56,9 @@ class CellWarmPoolStartTest {
         buildings.put("rootvale", "battle_tower_rootvale");
         buildings.put("trial", "battle_tower_neutral"); // shares a building: one entry, not two
         List<FloorLayout> layouts = CellWarmPool.startLayouts(content(buildings, Map.of()), NOW);
+        // Compared sorted: TowerContent keeps its towers in an unordered map, so the order varies from one JVM to the next.
         assertEquals(List.of(TestRuns.id("battle_tower_neutral"), TestRuns.id("battle_tower_rootvale")),
-                layouts.stream().map(FloorLayout::structure).toList());
+                layouts.stream().map(FloorLayout::structure).sorted().toList());
     }
 
     @Test

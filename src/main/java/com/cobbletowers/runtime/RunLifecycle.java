@@ -313,6 +313,16 @@ public final class RunLifecycle {
         }
         PersistedRun run = found.get();
 
+        // Admission (docs/design/cell-allocation-async.md, "collapse under bursts"): every ended run still holding a cell keeps its 49 chunks
+        // loaded until its sliced clear and release finish. Back-to-back allocations outran those releases, the held chunks climbed past 2,000,
+        // and the synchronous paste's chunk loads queued behind their saves until the watchdog stopped the server. Refused before anything
+        // changes, so the run stays where it was and the caller can ask again once the backlog drains.
+        int pending = releasesPending(TowerRuns.all());
+        if (!admitsAllocation(pending)) {
+            return new RunTransitionService.Refusal(RunTransitionService.Reason.BUSY, pending
+                    + " ended run(s) still hold a cell waiting to be cleared; try again in a moment");
+        }
+
         Optional<FloorLayout> layout = com.cobbletowers.route.FloorLayouts.layoutOf(TowerDefinitionRegistry.content(), run, run.floorIndex());
         if (layout.isEmpty()) {
             TowerLog.error("Run {} is on {} floor {}, which declares no layout; parking it",
@@ -325,6 +335,23 @@ public final class RunLifecycle {
             return RunTransitionService.apply(server, runId, RunEvent.ALLOCATION_FAILED, now);
         }
         return finishAllocation(server, run, cell, layout.get(), now);
+    }
+
+    /** How many ended runs may still hold a cell (awaiting their clear and release) before a synchronous allocation is refused. */
+    static final int MAX_RELEASES_PENDING = 4;
+
+    /** Ended runs whose cell has not been given back yet: each keeps a whole cell's chunks loaded until its release. */
+    static int releasesPending(java.util.Collection<PersistedRun> runs) {
+        int pending = 0;
+        for (PersistedRun run : runs) {
+            if (run.isRetired() && run.cell().isPresent()) pending++;
+        }
+        return pending;
+    }
+
+    /** Whether a synchronous allocation may go ahead with this many releases still pending. */
+    static boolean admitsAllocation(int releasesPending) {
+        return releasesPending < MAX_RELEASES_PENDING;
     }
 
     /** What starting a run's allocation came to: settled now, or a cell still being built (poll {@link #pollAllocation}). */
