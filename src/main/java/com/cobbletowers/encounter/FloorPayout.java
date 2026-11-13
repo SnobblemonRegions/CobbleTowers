@@ -66,11 +66,9 @@ final class FloorPayout {
             boolean flawless = stats != null && stats.faints == 0;
             int cycle = tower.ascensionOf(binding.floorIndex());
             int band = com.cobbletowers.ascension.ThreatPolicy.bandFor(run.options().entryThreat(), cycle, true);
-            // Balance phase 2: under Threat the chest is scored by risk points (minor 1, moderate 2, severe 3; relics 0),
-            // so one severe card counts for more than three minor ones. Ascension is already in the band.
-            int score = band > 0
-                    ? com.cobbletowers.modifier.RunDifficulty.of(content, run.modifiers(), 0).points()
-                    : run.modifiers().accumulated().size();
+            // Scored by the risk the party chose above the floor every run must take, on both paths: card counts and raw risk
+            // points were never below 8, so every completion was Mythic. Ascension is added by AscensionLib (and is in the band).
+            int score = com.cobbletowers.modifier.RunDifficulty.completionScore(content, run.modifiers());
             AscensionLibRewards.settleCompletion(server, result.encounterId(), outcome, binding.floorIndex(),
                     cycle, score, flawless, run.towerId().toString(), members, now, band);
             return;
