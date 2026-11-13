@@ -121,5 +121,19 @@ while any party waits).
 - **Ending and restarts:** a run that ends gives back any cell still being built for it (`RunBuildJobs.abandon` from `releaseInstance`). Jobs live in memory:
   a restart parks every live run as before, and a lease never written to a run is free again (dirty, so its next build resets it).
 
-Not verified on the rig yet: `soak_test` (both pauses), `floor_encounter_test`, a kill during a run-start build and during a detour build, and a detour
-with a spectator. Run those before this goes live.
+Rig results (2026-11-12, a copy of the integration rig on the C: SSD, dev jars of `main` e379c8c and of this branch, run side by side):
+
+| Test | main | this branch |
+|---|---|---|
+| `lobby_test` (keys off) | 12/12 | 12/12 |
+| `route_arena_test` | no detour met before the rig's Tower Key ran out | **12/12**: a detour built in its own cell (longest step 173 ms), the run moved cell 2 -> 3 and back |
+| `sliced_build_test` (new; keys off) | n/a | **9/9**: sliced start (longest step 81 to 250 ms), a hard kill mid-build parks the run, no quarantine, the cell is reused |
+| `cell_reset_test` | 6/6 | 6/6 |
+| `soak_test --pause 2` | 6/6 | 5/6 before the baseline check allowed the pre-warm's chunks; same cycle count (92 vs 90) and end state |
+| `soak_test --pause 0` | **watchdog crash** | **same watchdog crash** |
+| `instance_lifecycle_test` | (not rerun) | 14/14 |
+| `floor_encounter_test` | 11/16 | 11/16, the same five checks (no battle starts: the test predates the boss-only towers) |
+
+The `--pause 0` crash is the same on both builds: `RunsCommand.allocate` -> `allocateInstance` -> `CellPreparer.prepare` -> `reset` -> a blocking
+`getChunk`, the collapse under bursts described at the top. The operator command stays synchronous and is what the soak drives; player starts go
+through `beginAllocation` and never call `prepare`. Not covered: a kill during a detour build, and a detour with a spectator.

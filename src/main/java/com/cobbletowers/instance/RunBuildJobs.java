@@ -127,7 +127,8 @@ public final class RunBuildJobs {
             TowerMetrics.recordAllocation(server, job.build.longestStepMillis());
             if (status == SlicedBuild.Status.DONE && job.build.problems().isEmpty()) {
                 job.state = State.READY;
-                TowerLog.info("Cell {} built for {} in {} ms of slices (longest {} ms)", job.cell, job.build.layout.structure(),
+                // Worded like CellPreparer's line ("prepared with"), which the live tests and log readers already look for.
+                TowerLog.info("Cell {} prepared with {} in {} ms of slices (longest {} ms)", job.cell, job.build.layout.structure(),
                         job.build.workMillis(), job.build.longestStepMillis());
             } else {
                 job.state = State.FAILED;

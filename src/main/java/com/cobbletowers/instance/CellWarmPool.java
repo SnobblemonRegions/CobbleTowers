@@ -111,6 +111,8 @@ public final class CellWarmPool {
 
     /** Asks the pool to keep every open tower's first floor ready; the once-a-second tick builds them, a slice at a time. */
     public static int prewarm(com.cobbletowers.definition.TowerContent content, long nowMillis) {
+        // A live test that needs a run start with no ready cell turns this off; the pool still learns from runs, as before.
+        if ("off".equals(System.getProperty("cobbletowers.prewarm"))) return 0;
         var layouts = startLayouts(content, nowMillis);
         layouts.forEach(CellWarmPool::want);
         if (!layouts.isEmpty()) TowerLog.info("Warm pool will keep {} building(s) ready for run starts", layouts.size());
