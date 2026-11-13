@@ -231,6 +231,13 @@ public final class IntermissionService {
             return;
         }
         IntermissionRound round = ROUNDS.get(runId);
+        if (round.awaitingArena()) {
+            // The next floor's building is being built in a cell of its own; it opens as soon as it is up.
+            if (round.arenaCheckDue(now)) openNext(server, runId, found.get(), now);
+            return;
+        }
+        // Once the route is settled, a next floor in another building starts building now, so it is often ready when the team is.
+        if (round.arenaCheckDue(now)) com.cobbletowers.runtime.RunLifecycle.prepareNextFloor(server, runId);
         if (round.walking()) {
             tickWalk(server, found.get(), round, now);
             return;
@@ -381,7 +388,15 @@ public final class IntermissionService {
 
     private static void openNext(MinecraftServer server, UUID runId, PersistedRun run, long now) {
         RunLifecycle.Opened result = RunLifecycle.openNextFloor(server, runId, now);
+        IntermissionRound round = ROUNDS.get(runId);
+        if (result != RunLifecycle.Opened.PREPARING && round != null) round.awaitArena(false);
         switch (result) {
+            case PREPARING -> {
+                if (round != null && !round.awaitingArena()) {
+                    round.awaitArena(true);
+                    broadcast(server, run, "The next arena is being prepared...", false);
+                }
+            }
             case OPENED -> ROUNDS.remove(runId);
             case BLOCKED -> broadcast(server, run, "The next floor cannot open yet.", false);
             case FAILED -> {

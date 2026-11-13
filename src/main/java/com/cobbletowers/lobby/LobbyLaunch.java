@@ -61,6 +61,10 @@ final class LobbyLaunch {
 
     static void launch(MinecraftServer server, TowerLobby lobby, long now) {
         lobby.cancelCountdown();
+        if (isPreparing(lobby)) {
+            LobbyService.broadcast(server, lobby, "Your arena is still being prepared...");
+            return;
+        }
         TowerContent content = TowerDefinitionRegistry.content();
         TowerDefinition tower = content.towers().get(lobby.tower());
         RulesetDefinition ruleset = RulesetResolver.forTower(content, tower, lobby.playlist());
@@ -89,21 +93,85 @@ final class LobbyLaunch {
         }
         UUID runId = created.get().run().runId();
         TowerRuns.save(server, created.get().run(), true);
+        Started started;
         try {
             if (lobby.trial().isEmpty()) announceCode(server, lobby, plan, created.get());
 
             if (!lockParties(server, lobby, plan, runId, now)) return;
-            if (!setUp(server, lobby, plan, runId, now)) return;
+            started = setUp(server, lobby, plan, runId, now);
         } catch (RuntimeException ex) {
             // The returns above undo themselves; a throw would leave the run registered with nothing started and the
             // team's Pokemon moved, and the team unable to try again ("already in a run").
-            TowerLog.error("Starting run " + runId + " threw; abandoning it", ex);
-            RunTransitionService.apply(server, runId, RunEvent.ABANDON_REQUESTED, now);
-            restoreParties(server, plan.players());
-            LobbyService.broadcast(server, lobby, "Cannot start: something went wrong on the server. Try again.");
+            failAfterThrow(server, lobby, plan, runId, now, ex);
             return;
         }
+        switch (started) {
+            case OPENED -> finishLaunch(server, lobby, plan, runId, keyKind);
+            case BUILDING -> {
+                // No ready arena: it is built a slice per tick rather than in one stall, and the launch finishes when it is up.
+                PENDING.put(runId, new PendingLaunch(lobby, plan, keyKind));
+                LobbyService.broadcast(server, lobby, "Your arena is being prepared...");
+            }
+            case FAILED -> { }
+        }
+    }
 
+    /** What setting a run up came to. */
+    private enum Started { OPENED, BUILDING, FAILED }
+
+    /** A launch waiting on its arena: what it needs to finish. */
+    private record PendingLaunch(TowerLobby lobby, Plan plan, Optional<TowerKeys.Kind> keyKind) {}
+
+    private static final Map<UUID, PendingLaunch> PENDING = new LinkedHashMap<>();
+
+    static {
+        com.cobbletowers.ServerState.onStop(PENDING::clear);
+    }
+
+    /** Whether any launch is waiting on its arena (the lobby tick keeps running for it even with no lobby open). */
+    static boolean hasPending() {
+        return !PENDING.isEmpty();
+    }
+
+    /** Whether this lobby is already waiting on its arena: a second launch would start a second run. */
+    static boolean isPreparing(TowerLobby lobby) {
+        return PENDING.values().stream().anyMatch(pending -> pending.lobby() == lobby);
+    }
+
+    /** Every tick: finishes the launches whose arena is now built. */
+    static void tickPending(MinecraftServer server, long now) {
+        if (PENDING.isEmpty()) return;
+        for (Map.Entry<UUID, PendingLaunch> entry : List.copyOf(PENDING.entrySet())) {
+            UUID runId = entry.getKey();
+            PendingLaunch pending = entry.getValue();
+            try {
+                if (TowerRuns.get(runId).map(run -> run.state().isTerminal()).orElse(true)) {
+                    // Ended while its arena was being built (the team left, an operator abandoned it): its cell was given back with it.
+                    PENDING.remove(runId);
+                    continue;
+                }
+                Optional<RunTransitionService.Outcome> allocated = RunLifecycle.pollAllocation(server, runId, now);
+                if (allocated.isEmpty()) continue;
+                PENDING.remove(runId);
+                if (afterAllocation(server, pending.lobby(), pending.plan(), runId, now, allocated.get()) == Started.OPENED) {
+                    finishLaunch(server, pending.lobby(), pending.plan(), runId, pending.keyKind());
+                }
+            } catch (RuntimeException ex) {
+                PENDING.remove(runId);
+                failAfterThrow(server, pending.lobby(), pending.plan(), runId, now, ex);
+            }
+        }
+    }
+
+    private static void failAfterThrow(MinecraftServer server, TowerLobby lobby, Plan plan, UUID runId, long now, RuntimeException ex) {
+        TowerLog.error("Starting run " + runId + " threw; abandoning it", ex);
+        RunTransitionService.apply(server, runId, RunEvent.ABANDON_REQUESTED, now);
+        restoreParties(server, plan.players());
+        LobbyService.broadcast(server, lobby, "Cannot start: something went wrong on the server. Try again.");
+    }
+
+    /** Once the run has really started: keys, trial notes, and the lobby is done. */
+    private static void finishLaunch(MinecraftServer server, TowerLobby lobby, Plan plan, UUID runId, Optional<TowerKeys.Kind> keyKind) {
         // The attempt is spent only now that the run has really started: a launch that failed above costs nothing.
         keyKind.ifPresent(kind -> takeKeys(server, plan, runId, kind));
         TowerRuns.get(runId).ifPresent(started -> {
@@ -314,8 +382,8 @@ final class LobbyLaunch {
         return true;
     }
 
-    /** Validates the parties, allocates a cell and opens floor 1; on any failure undoes what it can. */
-    private static boolean setUp(MinecraftServer server, TowerLobby lobby, Plan plan, UUID runId, long now) {
+    /** Validates the parties, allocates a cell and opens floor 1; on any failure undoes what it can. BUILDING: finished by {@link #tickPending}. */
+    private static Started setUp(MinecraftServer server, TowerLobby lobby, Plan plan, UUID runId, long now) {
         RunTransitionService.Outcome validated = RunLifecycle.validateParty(server, runId, now,
                 id -> Optional.ofNullable(server.getPlayerList().getPlayer(id)).map(PartyReader::members));
         if (!(validated instanceof RunTransitionService.Move move)
@@ -325,25 +393,32 @@ final class LobbyLaunch {
             restoreParties(server, plan.players());
             LobbyService.broadcast(server, lobby,
                     "Cannot start: a party changed while the run was being set up. Try again.");
-            return false;
+            return Started.FAILED;
         }
 
-        RunTransitionService.Outcome allocated = RunLifecycle.allocateInstance(server, runId, now);
+        RunLifecycle.Allocation allocation = RunLifecycle.beginAllocation(server, runId, now);
+        if (allocation instanceof RunLifecycle.Building) return Started.BUILDING;
+        return afterAllocation(server, lobby, plan, runId, now, ((RunLifecycle.Allocated) allocation).outcome());
+    }
+
+    /** The rest of {@link #setUp} once the run has its cell (or has failed to get one): open floor 1, or undo. */
+    private static Started afterAllocation(MinecraftServer server, TowerLobby lobby, Plan plan, UUID runId, long now,
+                                           RunTransitionService.Outcome allocated) {
         if (!(allocated instanceof RunTransitionService.Move)) {
             // Frees a team held by a run that never got a cell, so they can retry.
             RunTransitionService.apply(server, runId, RunEvent.RECOVERY_ABANDONED, now);
             restoreParties(server, plan.players());
             LobbyService.broadcast(server, lobby,
                     "Cannot start: no tower space is free right now. Try again in a moment.");
-            return false;
+            return Started.FAILED;
         }
 
         if (!openFloor(server, runId, now)) {
             // The run is parked by openFloor; it holds the team until recovery or an operator settles it.
             LobbyService.dissolve(server, lobby, "The floor could not be opened; the run is parked for recovery.");
-            return false;
+            return Started.FAILED;
         }
-        return true;
+        return Started.OPENED;
     }
 
     /** PREPARING -> FLOOR_READY, then the floor itself; parks the run on failure. */

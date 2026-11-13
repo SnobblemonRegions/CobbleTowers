@@ -130,7 +130,7 @@ public final class CellWarmPool {
      * were started.
      */
     public static int tick(MinecraftServer server, long now) {
-        if (BUILD != null) return 0;
+        if (BUILD != null || RunBuildJobs.busy()) return 0;
         for (FloorLayout layout : WANTED.values()) {
             Deque<Integer> ready = READY.get(layout.structure());
             if (ready != null && ready.size() >= TARGET_PER_STRUCTURE) continue;
@@ -202,7 +202,9 @@ public final class CellWarmPool {
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
             try {
                 CellClearJobs.advance(server);
-                advance(server);
+                RunBuildJobs.advance(server);
+                // A party waiting on its arena comes first: the warm pool's slice would only lengthen that tick.
+                if (!RunBuildJobs.busy()) advance(server);
                 if (++ticks % 20 == 0) tick(server, System.currentTimeMillis());
             } catch (RuntimeException ex) {
                 TowerLog.error("The warm pool tick failed", ex);

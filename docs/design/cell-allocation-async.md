@@ -103,5 +103,23 @@ Live data from 12 Nov (`cobbletowers_diagnostics.dat`, AscensionLib's `server.ti
   the run start after a restart: the pool only learned what to build from a run that had already started. `CellWarmPool.prewarm` now wants every open tower's first floor at
   start-up, so the sliced build has those cells ready before the first run.
 
-Still synchronous: a run start when the pool for that building is empty (a burst, or a building nobody started yet), and the detour rebuild. Option B for those
-(a `PREPARING` wait, the party moved to a separately built cell for a floor change) is not built.
+### Run start and floor change, a slice per tick (2026-11-12, owner approved a short wait)
+
+`RunBuildJobs` builds the floors a party waits on with the same `SlicedBuild` the warm pool uses, one job a tick, ahead of the warm pool (which steps aside
+while any party waits).
+
+- **Run start, empty pool:** `RunLifecycle.beginAllocation` takes a warm cell when there is one, as before; otherwise it leases a cell to the run, starts a job
+  and returns `Building`. The run stays at `ALLOCATING_INSTANCE`; the lobby says "Your arena is being prepared..." and `LobbyLaunch.tickPending` finishes the
+  launch through `pollAllocation` (same INSTANCE_ALLOCATED checkpoint, same failure handling). The lobby cannot launch twice while it waits.
+- **Floor change into another building (a detour):** the party stands in its own cell, so that cell cannot be rebuilt a slice at a time. The next building is
+  built in a separate cell under the run's next-floor tenant (taken from the warm pool when one is ready), started about a second after the route is
+  settled. `openNextFloor` returns `PREPARING` until it is up (the intermission round waits and asks again each second, "The next arena is being
+  prepared..."); then the run moves: the old cell is swept of entities as the in-place rebuild's sweep did, the leases swap, the run is checkpointed with
+  its new cell, spectators are moved (fighters are moved by the floor's start), and the old cell is retired (cleared in slices, swept, released).
+- **Fallbacks:** no free cell, a structure that is not loaded, or a separate build that fails falls back to the old in-place synchronous rebuild, so a run is
+  never worse off than before. `/tower runs allocate` (operator) stays synchronous.
+- **Ending and restarts:** a run that ends gives back any cell still being built for it (`RunBuildJobs.abandon` from `releaseInstance`). Jobs live in memory:
+  a restart parks every live run as before, and a lease never written to a run is free again (dirty, so its next build resets it).
+
+Not verified on the rig yet: `soak_test` (both pauses), `floor_encounter_test`, a kill during a run-start build and during a detour build, and a detour
+with a spectator. Run those before this goes live.

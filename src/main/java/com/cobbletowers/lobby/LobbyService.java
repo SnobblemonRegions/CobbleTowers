@@ -48,7 +48,7 @@ public final class LobbyService {
 
     public static void install() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (BY_HOST.isEmpty()) return;
+            if (BY_HOST.isEmpty() && !LobbyLaunch.hasPending()) return;
             try {
                 tick(server, System.currentTimeMillis());
             } catch (RuntimeException ex) {
@@ -448,6 +448,11 @@ public final class LobbyService {
     // ---- the tick ----------------------------------------------------------------------------
 
     static void tick(MinecraftServer server, long now) {
+        try {
+            LobbyLaunch.tickPending(server, now);
+        } catch (RuntimeException ex) {
+            TowerLog.error("Finishing a launch that waited on its arena failed", ex);
+        }
         for (TowerLobby lobby : List.copyOf(BY_HOST.values())) {
             // One lobby's fault must not stall the others, nor repeat every tick: its countdown is cancelled.
             try {

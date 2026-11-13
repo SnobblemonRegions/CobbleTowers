@@ -91,6 +91,25 @@ public final class IntermissionRound {
         autoWalkTried = true;
     }
 
+    private boolean awaitingArena;
+    private long nextArenaCheck;
+
+    /** The next floor is another building still being built in its own cell: the round asks again until it opens. */
+    public boolean awaitingArena() {
+        return awaitingArena;
+    }
+
+    public void awaitArena(boolean waiting) {
+        awaitingArena = waiting;
+    }
+
+    /** True about once a second, for checks that need not run every tick. */
+    public boolean arenaCheckDue(long now) {
+        if (now < nextArenaCheck) return false;
+        nextArenaCheck = now + 1_000L;
+        return true;
+    }
+
     public void cancelWalk() {
         walkEndsAt = -1;
         climbLane = -1;
