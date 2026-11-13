@@ -17,6 +17,27 @@ class DailyCompletionBudgetTest {
     }
 
     @Test
+    void reachingTheTopAlwaysCounts() {
+        assertTrue(DailyCompletionBudget.countsAsCompletion(com.cobbletowers.api.tower.RunState.COMPLETED, 10, 10));
+    }
+
+    @Test
+    void cashingOutPastHalfwayCounts() {
+        var cashedOut = com.cobbletowers.api.tower.RunState.CASHED_OUT;
+        assertTrue(DailyCompletionBudget.countsAsCompletion(cashedOut, 9, 10), "one floor short of the top");
+        assertTrue(DailyCompletionBudget.countsAsCompletion(cashedOut, 5, 10));
+        assertFalse(DailyCompletionBudget.countsAsCompletion(cashedOut, 4, 10), "bailing early stays cheap");
+        assertTrue(DailyCompletionBudget.countsAsCompletion(cashedOut, 3, 5), "odd towers round the halfway floor up");
+        assertFalse(DailyCompletionBudget.countsAsCompletion(cashedOut, 0, 10), "a cash-out that priced nothing");
+    }
+
+    @Test
+    void midRunAndParkedPayoutsDoNotCount() {
+        assertFalse(DailyCompletionBudget.countsAsCompletion(com.cobbletowers.api.tower.RunState.INTERMISSION, 5, 10));
+        assertFalse(DailyCompletionBudget.countsAsCompletion(com.cobbletowers.api.tower.RunState.RECOVERY_REQUIRED, 9, 10));
+    }
+
+    @Test
     void fullPayoutAlwaysKeepsEverything() {
         for (long seed = 0; seed < 500; seed++) assertTrue(DailyCompletionBudget.keeps(seed, 100));
     }

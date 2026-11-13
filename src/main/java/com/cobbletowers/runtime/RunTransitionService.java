@@ -124,6 +124,13 @@ public final class RunTransitionService {
         if (found.isEmpty()) {
             return new Refusal(Reason.UNKNOWN_RUN, "no run with id " + runId);
         }
+        if (event == RunEvent.RECOVERY_ABANDONED && found.get().state() == RunState.RECOVERY_REQUIRED) {
+            // A parked run is closed by a restart or a fault, not by the team: the floors it cleared since its last
+            // payout are banked first, while it is still parked (so a crash in between re-banks nothing twice).
+            effect("bank the parked run's floors", runId, () -> RewardBankService.bankParked(server, runId, now));
+            found = TowerRuns.get(runId);
+            if (found.isEmpty()) return new Refusal(Reason.UNKNOWN_RUN, "no run with id " + runId);
+        }
         PersistedRun run = found.get();
         if (event == RunEvent.RECOVERY_COMPLETED) {
             // Checked here rather than in decide, because whether a cell is usable is a question

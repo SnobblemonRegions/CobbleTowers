@@ -50,6 +50,7 @@ public final class RewardBankService {
     static Optional<RewardTableDefinition> bankPoint(TowerContent content, PersistedRun run) {
         TowerDefinition tower = content.towers().get(run.towerId());
         if (tower == null) return Optional.empty();
+        if (run.state() == RunState.RECOVERY_REQUIRED) return Optional.empty();   // only through bankParked
         if (run.state() == RunState.INTERMISSION) {
             boolean banks = content.milestoneAt(run.towerId(), run.floorIndex())
                     .map(MilestoneDefinition::banksRewards)
@@ -60,6 +61,13 @@ public final class RewardBankService {
             if (!banks) return Optional.empty();
         }
         return content.rewardTable(tower.rewardTableId());
+    }
+
+    /** The table a parked run's cleared floors are priced from; empty for any run that is not parked. */
+    static Optional<RewardTableDefinition> parkedTable(TowerContent content, PersistedRun run) {
+        if (run.state() != RunState.RECOVERY_REQUIRED) return Optional.empty();
+        TowerDefinition tower = content.towers().get(run.towerId());
+        return tower == null ? Optional.empty() : content.rewardTable(tower.rewardTableId());
     }
 
     /** Whether one granted item reaches this player at their share of the daily budget. Seeded, so a replay keeps the same items. */
@@ -140,13 +148,26 @@ public final class RewardBankService {
      * it.
      */
     public static void bank(MinecraftServer server, UUID runId, long now) {
+        bank(server, runId, now, false);
+    }
+
+    /**
+     * Banks a parked run's floors cleared since its last payout, as the run is closed: a restart or a fault is not
+     * the team's loss, so what they cleared is kept, at the table's normal value and without the risk bonus (that is
+     * for finishing or cashing out). Only for a run in RECOVERY_REQUIRED; idempotent like {@link #bank}.
+     */
+    public static void bankParked(MinecraftServer server, UUID runId, long now) {
+        bank(server, runId, now, true);
+    }
+
+    private static void bank(MinecraftServer server, UUID runId, long now, boolean parked) {
         Optional<PersistedRun> found = TowerRuns.get(runId);
         if (found.isEmpty()) return;
         PersistedRun run = found.get();
         if (run.floorIndex() <= run.lastBankedFloor()) return;
 
         TowerContent content = TowerDefinitionRegistry.content();
-        Optional<RewardTableDefinition> table = bankPoint(content, run);
+        Optional<RewardTableDefinition> table = parked ? parkedTable(content, run) : bankPoint(content, run);
         if (table.isEmpty()) return;
 
         String key = grantKey(runId, run.floorIndex());
@@ -219,7 +240,10 @@ public final class RewardBankService {
         store.checkpoint(server);
         if (budgeted) {
             var tower = content.towers().get(run.towerId());
-            boolean completes = tower != null && priced.stream().anyMatch(entry -> tower.contentFloor(entry.floorIndex()) == tower.floorCount());
+            int highestPriced = tower == null ? 0
+                    : priced.stream().mapToInt(entry -> tower.contentFloor(entry.floorIndex())).max().orElse(0);
+            boolean completes = tower != null
+                    && DailyCompletionBudget.countsAsCompletion(run.state(), highestPriced, tower.floorCount());
             for (UUID playerId : participants) {
                 int share = percent.get(playerId);
                 ServerPlayer online = server.getPlayerList().getPlayer(playerId);

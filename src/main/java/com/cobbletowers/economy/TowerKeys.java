@@ -181,6 +181,13 @@ public final class TowerKeys {
         if (!player.getInventory().add(keys)) player.drop(keys, false);
     }
 
+    /** Gives one key back after a start that took it and then failed. */
+    public static void refund(ServerPlayer player, Kind kind) {
+        if (kind.item == null) return;
+        ItemStack key = new ItemStack(kind.item, 1);
+        if (!player.getInventory().add(key)) player.drop(key, false);
+    }
+
     /** Whether this stack is a tower key, which stays with its holder (the rental key can be sold and traded). */
     public static boolean isTradeLocked(ItemStack stack) {
         return Kind.TOWER.item != null && stack.is(Kind.TOWER.item);

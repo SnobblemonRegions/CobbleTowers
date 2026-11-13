@@ -32,6 +32,11 @@ public final class TowerFreeRunStore extends TowerStore {
         setDirty();
     }
 
+    /** Gives back a free run taken on {@code dayKey} (its start then failed). */
+    public void unmark(UUID player, String dayKey) {
+        if (lastFreeDay.remove(player, dayKey)) setDirty();
+    }
+
     static TowerFreeRunStore load(CompoundTag tag, HolderLookup.Provider registries) {
         TowerFreeRunStore store = new TowerFreeRunStore();
         ListTag list = tag.getList(ENTRIES, Tag.TAG_COMPOUND);

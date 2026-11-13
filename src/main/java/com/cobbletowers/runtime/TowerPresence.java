@@ -148,19 +148,44 @@ public final class TowerPresence {
                 player.getGameProfile().getName(), run.runId(), late ? " after their window closed" : "");
     }
 
-    /** A run parked by a restart cannot be resumed (its floor is gone), so it ends for whoever comes back; banked rewards stay. */
+    /** A run parked by a restart cannot be resumed (its floor is gone), so it ends for whoever comes back. */
     private static void closeParkedRuns(MinecraftServer server, ServerPlayer player) {
         long now = System.currentTimeMillis();
         for (PersistedRun run : java.util.List.copyOf(TowerRuns.all())) {
             if (run.state() != com.cobbletowers.api.tower.RunState.RECOVERY_REQUIRED) continue;
             if (run.participants().stream().noneMatch(p -> p.playerId().equals(player.getUUID()))) continue;
-            com.cobbletowers.report.TowerTelemetry.endCause(run.runId(), com.cobbletowers.report.TowerTelemetry.parkedCloseCause(run.runId()));
-            RunTransitionService.Outcome outcome =
-                    RunTransitionService.apply(server, run.runId(), com.cobbletowers.api.tower.RunEvent.RECOVERY_ABANDONED, now);
-            if (outcome instanceof RunTransitionService.Move) {
-                TowerLog.info("Ended run {} that a restart interrupted, for {}", run.runId(), player.getGameProfile().getName());
-                player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                        "Your last run was interrupted by a server restart and has ended. What it had banked is kept."));
+            closeParked(server, run, now);
+        }
+    }
+
+    /**
+     * A run parked during play (a boss that could not start, a stalled floor) holds its players out of the lobby and
+     * keeps their party until it is closed, and nothing resumes it. Closed here as soon as one of them is online,
+     * rather than waiting for them to relog; the journal sweep then gives their Pokemon back.
+     */
+    private static void closeParkedRunsOfOnlinePlayers(MinecraftServer server, long now) {
+        for (PersistedRun run : java.util.List.copyOf(TowerRuns.all())) {
+            if (run.state() != com.cobbletowers.api.tower.RunState.RECOVERY_REQUIRED) continue;
+            boolean anyoneOnline = run.participants().stream()
+                    .anyMatch(p -> server.getPlayerList().getPlayer(p.playerId()) != null);
+            if (anyoneOnline) closeParked(server, run, now);
+        }
+    }
+
+    /** Ends a parked run (its cleared floors are banked by the transition) and tells whoever of its players is online. */
+    private static void closeParked(MinecraftServer server, PersistedRun run, long now) {
+        String cause = com.cobbletowers.report.TowerTelemetry.parkedCloseCause(run.runId());
+        com.cobbletowers.report.TowerTelemetry.endCause(run.runId(), cause);
+        RunTransitionService.Outcome outcome =
+                RunTransitionService.apply(server, run.runId(), com.cobbletowers.api.tower.RunEvent.RECOVERY_ABANDONED, now);
+        if (!(outcome instanceof RunTransitionService.Move)) return;
+        TowerLog.info("Ended parked run {} ({})", run.runId(), cause);
+        String why = "restart".equals(cause) ? "was interrupted by a server restart" : "broke on the server's side";
+        for (var participant : run.participants()) {
+            ServerPlayer online = server.getPlayerList().getPlayer(participant.playerId());
+            if (online != null) {
+                online.sendSystemMessage(net.minecraft.network.chat.Component.literal("Your last run " + why
+                        + " and has ended. Rewards from the floors you cleared are kept, and your party will be put back."));
             }
         }
     }
@@ -232,6 +257,7 @@ public final class TowerPresence {
         // Each step on its own: a fault in one must not leave the floors below unwatched.
         guarded("expire the reconnect windows", () -> expireGraceWindows(server, now));
         guarded("settle the abandoned drafts", () -> settleAbandonedDrafts(server, now));
+        guarded("close the parked runs", () -> closeParkedRunsOfOnlinePlayers(server, now));
 
         for (TowerEncounters.Round round : TowerEncounters.activeRounds()) {
             guarded("judge floor " + round.floorIndex() + " of run " + round.runId(),
