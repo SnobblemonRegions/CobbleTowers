@@ -9,6 +9,8 @@ import com.cobbletowers.halloween.door.TrickDoors;
 import com.cobbletowers.instance.TowerDimension;
 import com.cobbletowers.persistence.PersistedDraft;
 import com.cobbletowers.persistence.PersistedRun;
+import com.cobbletowers.route.door.SealDoorModels;
+import com.cobbletowers.route.door.SealDoors;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -137,11 +139,17 @@ public final class RoomDresser {
                 now.set(door, "");   // not dressed: try again next time
                 continue;
             }
-            // A Trick or Treat lane gets the Hallowbound door in a wall; any other lane has plain bars (P57).
-            if (RouteGraph.Kind.parse(wanted.get(door)) == RouteGraph.Kind.TRICK_OR_TREAT) {
+            // A Trick or Treat lane gets the Hallowbound door in a wall (P57); any other lane gets the Split Seal door in the tower's trim, showing
+            // the lane's icon (P59). A doorway too small for it keeps its bars.
+            RouteGraph.Kind kind = RouteGraph.Kind.parse(wanted.get(door));
+            if (kind == RouteGraph.Kind.TRICK_OR_TREAT) {
+                SealDoors.remove(doorway, origin);
                 if (!TrickDoors.install(level, run.runId(), doorway, origin, false)) now.set(door, "");
             } else {
                 TrickDoors.uninstall(level, doorway, origin);
+                if (!SealDoors.install(level, run.runId(), doorway, origin, SealDoorModels.trimOf(run.towerId()), SealDoorModels.stopOf(kind))) {
+                    now.set(door, "");
+                }
             }
         }
         DRESSED.put(run.runId(), now);

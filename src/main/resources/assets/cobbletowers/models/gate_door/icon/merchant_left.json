@@ -1,0 +1,1 @@
+{"textures":{"i":"cobbletowers:item/gate_door/icons","particle":"cobbletowers:item/gate_door/icons"},"elements":[{"name":"icon","from":[7.75,9.25,-0.97],"to":[10.0,13.75,-0.92],"faces":{"north":{"uv":[11.69231,0.0,12.30769,16.0],"texture":"#i"},"south":{"uv":[11.07692,0.0,11.07761,0.00889],"texture":"#i"}}}]}

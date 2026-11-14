@@ -131,6 +131,7 @@ public final class CobbleTowers implements ModInitializer {
         com.cobbletowers.armor.worn.WornModelService.install();
         com.cobbletowers.halloween.vault.VaultService.install();
         com.cobbletowers.halloween.door.TrickDoors.bootstrap();
+        com.cobbletowers.route.door.SealDoors.bootstrap();
         com.cobbletowers.trick.TrickOrTreatService.install();
         com.cobbletowers.season.SeasonTrimItems.register();
         com.cobbletowers.economy.TowerKeys.install();
