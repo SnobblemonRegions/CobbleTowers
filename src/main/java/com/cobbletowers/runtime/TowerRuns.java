@@ -74,6 +74,10 @@ public final class TowerRuns {
         index(run);
         // Every relic arrives through here, whatever gave it: show it to the party (P59). After indexing, so the card sees the run as saved.
         com.cobbletowers.modifier.RelicReveal.announce(server, run, com.cobbletowers.modifier.RelicReveal.gained(previous, run));
+        // the HUD's strip of held relics follows every change (a gain, a loss, a swap, a player leaving)
+        if (com.cobbletowers.modifier.RelicReveal.shelfChanged(previous, run) || participantsChanged(previous, run)) {
+            com.cobbletowers.modifier.RelicReveal.shelf(server, run);
+        }
         TowerRunStore store = TowerRunStore.get(server);
         if (!forceCheckpoint) {
             store.put(run);
@@ -90,6 +94,16 @@ public final class TowerRuns {
             TowerLog.error("Checkpoint for tower run {} could not be written to disk; it will be saved"
                     + " at the next world save instead", run.runId(), ex);
         }
+    }
+
+    /** Whether who is in the run (or whether the run is over) changed between two saves: the relic strip shows or goes for those players. */
+    static boolean participantsChanged(PersistedRun before, PersistedRun after) {
+        if (before == null || after == null) return false;
+        if (before.state().isTerminal() != after.state().isTerminal()) return true;
+        java.util.Set<UUID> was = new java.util.HashSet<>(), now = new java.util.HashSet<>();
+        for (PersistedParticipant p : before.participants()) if (p.state().isInRun()) was.add(p.playerId());
+        for (PersistedParticipant p : after.participants()) if (p.state().isInRun()) now.add(p.playerId());
+        return !was.equals(now);
     }
 
     /** Drops a run from the index and from disk. */

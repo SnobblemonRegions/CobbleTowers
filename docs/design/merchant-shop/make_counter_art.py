@@ -177,25 +177,55 @@ def portraits():
     view = dict(el=5, px=10.25, out=(410, 568), centre=(0, 20.5, 0), bg=clear)
     b.render(atlas, glow_, rects, 0, pose=b.idle_pose(0.0), **view).save(OUT / "merchant_full.png")
     b.render(atlas, glow_, rects, 0, pose=b.greet_pose(b.GREET_LEN * 0.45), **view).save(OUT / "merchant_bow.png")
-    # His idle loop and his bow as frames; the bridge shows each one for its slice of the loop (kf opacity keys). Every frame is cropped to the
-    # one box he moves in, across all of them, so the pack carries no empty pixels; merchant_frames.json says where that box sits.
-    for old in list(OUT.glob("merchant_idle_*.png")) + list(OUT.glob("merchant_bow_*.png")):
+    # He is drawn as a cut-out puppet (P59): one picture per moving part, each turned and lifted by the bridge's keyframes, which the client
+    # plays at its own frame rate (a flipbook could not reach 60 fps inside the bridge's limits). A part is hidden from a render by shrinking its
+    # cubes to nothing, so every cube keeps its index into the texture atlas. merchant_layers.json says where each part sits and turns.
+    import dataclasses
+    import numpy as np
+    for old in list(OUT.glob("merchant_idle_*.png")) + list(OUT.glob("merchant_bow_*.png")) + list(OUT.glob("merchant_layer_*.png")):
         old.unlink()
-    frames = [(f"merchant_idle_{i:02d}.png", b.render(atlas, glow_, rects, 0, pose=b.idle_pose(b.IDLE_LEN * i / IDLE_FRAMES), **view))
-              for i in range(IDLE_FRAMES)]
-    frames += [(f"merchant_bow_{i:02d}.png", b.render(atlas, glow_, rects, 0, pose=b.greet_pose(b.GREET_LEN * i / (BOW_FRAMES - 1)), **view))
-               for i in range(BOW_FRAMES)]
-    boxes = [im.getchannel("A").getbbox() for _, im in frames]
-    box = (min(b_[0] for b_ in boxes) - 1, min(b_[1] for b_ in boxes) - 1, max(b_[2] for b_ in boxes) + 1, max(b_[3] for b_ in boxes) + 1)
-    for name, im in frames:
-        im.crop(box).save(OUT / name, optimize=True)
-    (OUT / "merchant_frames.json").write_text(json.dumps({"x": box[0], "y": box[1], "w": box[2] - box[0], "h": box[3] - box[1],
-                                                         "idle": IDLE_FRAMES, "idle_ms": int(b.IDLE_LEN * 1000),
-                                                         "bow": BOW_FRAMES, "bow_ms": int(b.GREET_LEN * 1000)}, indent=1) + "\n")
+    every = list(b.ELS)
+    W, H = view["out"]
+    el, a0 = math.radians(view["el"]), 0.0
+    cam = np.array([math.sin(a0) * math.cos(el), math.sin(el), -math.cos(a0) * math.cos(el)])
+    right = np.cross(-cam, [0, 1, 0]); right /= np.linalg.norm(right)
+    up = np.cross(right, -cam)
+    worlds = b.bone_world({})
+
+    def project(bone):
+        m = worlds[bone]
+        p = m[:3, :3] @ np.array(b.BONES[bone].pivot, float) + m[:3, 3]
+        rel = p - np.array(view["centre"], float)
+        return float(rel @ right) * view["px"] + W / 2, -float(rel @ up) * view["px"] + H / 2
+
+    meta = {"spot": [W, H], "layers": []}
+    for name, bones, pivot in LAYERS:
+        b.ELS[:] = [e if e.bone in bones else dataclasses.replace(e, to=e.frm) for e in every]
+        im = b.render(atlas, glow_, rects, 0, **view)
+        box = im.getchannel("A").getbbox()
+        if pivot:
+            # centred on the joint it turns about, so the bridge can turn the picture about its own centre
+            px_, py_ = project(pivot)
+            half_w = max(px_ - box[0], box[2] - px_) + 2
+            half_h = max(py_ - box[1], box[3] - py_) + 2
+            box = (round(px_ - half_w), round(py_ - half_h), round(px_ + half_w), round(py_ + half_h))
+        else:
+            box = (box[0] - 1, box[1] - 1, box[2] + 1, box[3] + 1)
+        im.crop(box).save(OUT / f"merchant_layer_{name}.png", optimize=True)
+        meta["layers"].append({"name": name, "x": box[0], "y": box[1], "w": box[2] - box[0], "h": box[3] - box[1], "turns": bool(pivot)})
+    b.ELS[:] = every
+    (OUT / "merchant_layers.json").write_text(json.dumps(meta, indent=1) + "\n")
 
 
-IDLE_FRAMES = 48      # over his 4 s idle loop: 12 frames a second (16 read as choppy in game)
-BOW_FRAMES = 24       # over the 2 s bow, first and last frame standing
+# His parts, back to front, and the joint each turns about (None: it only moves with the breath).
+LAYERS = [
+    ("body", {"legs", "body", "torso", "mantle", "cape", "pack", "arm_r", "forearm_r", "arm_l", "forearm_l", "root"}, None),
+    ("purse", {"purse"}, "purse"),
+    ("head", {"head"}, "head"),
+    ("scale", {"scale"}, "scale"),
+    ("staff", {"staff"}, None),
+    ("lantern", {"lantern"}, "lantern"),
+]
 
 
 def main():
@@ -214,16 +244,16 @@ def main():
         for src, name in (("shop_wall.png", "merchant_wall.png"), ("shop_counter.png", "merchant_counter.png"), ("token.png", "tower_token.png"),
                           ("mystery_bag.png", "merchant_bag.png")):        # he is drawn from the idle and bow frames below
             shutil.copyfile(OUT / src, dest / name)
-        for pattern in ("merchant_idle_*.png", "merchant_bow_*.png"):
+        for pattern in ("merchant_idle_*.png", "merchant_bow_*.png", "merchant_layer_*.png"):
             for stale in dest.glob(pattern):
                 stale.unlink()
-            for frame in OUT.glob(pattern):
-                shutil.copyfile(frame, dest / frame.name)
+        for layer in OUT.glob("merchant_layer_*.png"):
+            shutil.copyfile(layer, dest / layer.name)
         print("copied to", dest)
     # the frame box and counts, for the bridge's layout generator (tools/gen_ui_towers.py reads tools/merchant_frames.json)
     if "--bridge-tools" in sys.argv:
         import shutil
-        shutil.copyfile(OUT / "merchant_frames.json", Path(sys.argv[sys.argv.index("--bridge-tools") + 1]) / "merchant_frames.json")
+        shutil.copyfile(OUT / "merchant_layers.json", Path(sys.argv[sys.argv.index("--bridge-tools") + 1]) / "merchant_layers.json")
 
 
 if __name__ == "__main__":

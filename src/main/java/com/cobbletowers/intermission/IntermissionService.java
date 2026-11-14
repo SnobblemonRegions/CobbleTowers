@@ -80,7 +80,9 @@ public final class IntermissionService {
                     player.displayClientMessage(Component.literal("Field Hospital: your party is fully healed."), true);
                 }
             }
-            broadcast(server, run, cycleEndMessage(run), true);
+            // A tower that votes at pedestals makes its choices in the room: the screen is sent so an open page stays current, but a floor
+            // clear never opens it over the world (it is still a button and a command away). A menu tower opens it as before.
+            broadcast(server, run, cycleEndMessage(run), !PedestalService.enabled(run));
         });
     }
 

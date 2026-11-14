@@ -6,6 +6,7 @@ import com.cobbletowers.definition.TowerDefinitionRegistry;
 import com.cobbletowers.menu.ModifierMenuText;
 import com.cobbletowers.network.ClientUi;
 import com.cobbletowers.network.RelicRevealPayload;
+import com.cobbletowers.network.RelicShelfPayload;
 import com.cobbletowers.persistence.PersistedParticipant;
 import com.cobbletowers.persistence.PersistedRun;
 import java.util.ArrayList;
@@ -69,6 +70,55 @@ public final class RelicReveal {
                 else tellInChat(player, payload);
             }
         }
+    }
+
+    /** Whether the run's held relics differ (gained, lost, swapped) between two saves, so the HUD strip needs sending. */
+    public static boolean shelfChanged(PersistedRun before, PersistedRun after) {
+        if (after == null) return false;
+        return before == null ? !after.modifiers().relics().isEmpty() : !before.modifiers().relics().equals(after.modifiers().relics());
+    }
+
+    /** The strip's contents for a run: its relics in the order gained. */
+    static RelicShelfPayload shelfOf(PersistedRun run) {
+        var modifiers = TowerDefinitionRegistry.content().modifiers();
+        List<RelicShelfPayload.Relic> relics = new ArrayList<>();
+        for (ResourceLocation id : run.modifiers().relics()) {
+            ModifierDefinition relic = modifiers.get(id);
+            if (relic != null) relics.add(new RelicShelfPayload.Relic(id, relic.displayName(), kindOf(relic)));
+        }
+        return new RelicShelfPayload(relics);
+    }
+
+    /** Sends the strip to everyone in the run, and an empty one to anybody who has left it. Only bridge players get it: chat has no strip. */
+    public static void shelf(MinecraftServer server, PersistedRun run) {
+        if (server == null) return;
+        if (run.state().isTerminal()) {               // the run is over: the strip comes down for everyone
+            clearShelf(server, run);
+            return;
+        }
+        RelicShelfPayload held = shelfOf(run);
+        for (PersistedParticipant participant : run.participants()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(participant.playerId());
+            if (player == null || !ClientUi.canShow(player, RelicShelfPayload.TYPE)) continue;
+            ClientUi.send(player, participant.state().isInRun() ? held : new RelicShelfPayload(List.of()));
+        }
+    }
+
+    /** Takes the strip down for everyone who was in a run that has ended. */
+    public static void clearShelf(MinecraftServer server, PersistedRun run) {
+        if (server == null) return;
+        for (PersistedParticipant participant : run.participants()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(participant.playerId());
+            if (player != null && ClientUi.canShow(player, RelicShelfPayload.TYPE)) ClientUi.send(player, new RelicShelfPayload(List.of()));
+        }
+    }
+
+    /** A player joining mid-run gets their strip back. */
+    public static void install() {
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                server.execute(() -> com.cobbletowers.runtime.TowerRuns.forPlayer(handler.getPlayer().getUUID())
+                        .filter(run -> !run.modifiers().relics().isEmpty())
+                        .ifPresent(run -> shelf(server, run))));
     }
 
     private static void tellInChat(ServerPlayer player, RelicRevealPayload relic) {

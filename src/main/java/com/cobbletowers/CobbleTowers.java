@@ -157,7 +157,8 @@ public final class CobbleTowers implements ModInitializer {
         com.cobbletowers.instance.TowerDropGuard.install();
         com.cobbletowers.instance.FaintDropGuard.install();
         com.cobbletowers.vendor.VendorNpc.install();
-        com.cobbletowers.prep.PrepRoomService.install();   // P59: the room the party waits in before floor 1
+        com.cobbletowers.prep.PrepRoomService.install();
+        com.cobbletowers.modifier.RelicReveal.install();   // P59: the relic strip comes back for a player joining mid-run   // P59: the room the party waits in before floor 1
         com.cobbletowers.economy.MysteryBagService.install();
         com.cobbletowers.route.RouteIcons.bootstrap();
         com.cobbletowers.route.RouteMapItemService.install();

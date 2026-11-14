@@ -38,6 +38,17 @@ class RelicRevealTest {
     }
 
     @Test
+    @DisplayName("the HUD strip is resent when the relics change at all (a gain, a loss, a swap) and not otherwise")
+    void shelf() {
+        assertEquals(true, RelicReveal.shelfChanged(holding(MASK), holding(MASK, PURSE)));
+        assertEquals(true, RelicReveal.shelfChanged(holding(MASK, PURSE), holding(MASK)));
+        assertEquals(true, RelicReveal.shelfChanged(holding(MASK), holding(PURSE)));
+        assertEquals(false, RelicReveal.shelfChanged(holding(MASK), holding(MASK)));
+        assertEquals(true, RelicReveal.shelfChanged(null, holding(MASK)), "a run that starts with a relic shows it");
+        assertEquals(false, RelicReveal.shelfChanged(null, holding()), "an empty new run sends nothing");
+    }
+
+    @Test
     @DisplayName("a run being created, or loaded after a restart, gains nothing to show")
     void noPrevious() {
         assertEquals(List.of(), RelicReveal.gained(null, holding(MASK)));
