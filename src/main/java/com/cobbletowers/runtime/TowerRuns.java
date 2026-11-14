@@ -72,6 +72,8 @@ public final class TowerRuns {
     public static void save(MinecraftServer server, PersistedRun run, boolean forceCheckpoint) {
         PersistedRun previous = BY_ID.get(run.runId());
         index(run);
+        // Every relic arrives through here, whatever gave it: show it to the party (P59). After indexing, so the card sees the run as saved.
+        com.cobbletowers.modifier.RelicReveal.announce(server, run, com.cobbletowers.modifier.RelicReveal.gained(previous, run));
         TowerRunStore store = TowerRunStore.get(server);
         if (!forceCheckpoint) {
             store.put(run);

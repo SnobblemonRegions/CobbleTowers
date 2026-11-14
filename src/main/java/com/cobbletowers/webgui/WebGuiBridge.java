@@ -53,7 +53,8 @@ public final class WebGuiBridge {
             IntermissionStatePayload.TYPE, RentalDraftPayload.TYPE, RewardRevealPayload.TYPE, VendorCatalogPayload.TYPE,
             TowerHallStatePayload.TYPE, PlayStatePayload.TYPE, TowerFeatureState.TYPE, TrackStatePayload.TYPE,
             RegistrationStatePayload.TYPE, MasteryScreenPayload.TYPE, RanksStatePayload.TYPE,
-            ScoutingRevealPayload.TYPE, SpectatorPanelPayload.TYPE, com.cobbletowers.network.HauntedRareTrayPayload.TYPE);
+            ScoutingRevealPayload.TYPE, SpectatorPanelPayload.TYPE, com.cobbletowers.network.HauntedRareTrayPayload.TYPE,
+            com.cobbletowers.network.RelicRevealPayload.TYPE);
 
     private static volatile WebGuiConfig config = WebGuiConfig.OFF;
     private static volatile boolean linked;
@@ -159,7 +160,8 @@ public final class WebGuiBridge {
         }
         long now = System.currentTimeMillis();
         PageSession session = SESSIONS.computeIfAbsent(player.getUUID(), id -> new PageSession());
-        boolean hud = payload instanceof SpectatorPanelPayload || payload instanceof com.cobbletowers.network.HauntedRareTrayPayload;
+        boolean hud = payload instanceof SpectatorPanelPayload || payload instanceof com.cobbletowers.network.HauntedRareTrayPayload
+                || payload instanceof com.cobbletowers.network.RelicRevealPayload;      // the relic card slides in over the world (P59)
         // The completion reveal of AscensionLib is on screen (it opens in the same tick a cycle's champion falls): do not cover it. Our page is not showing,
         // so this only holds back an open, and the state is kept for the next payload or the player's own request.
         if (!hud && !session.alive(false, now, config.heartbeatSeconds()) && WebGuiLink.otherModScreenShowing(player)) {
