@@ -392,7 +392,7 @@ def cut_stair(g: Grid, c: int, f: int) -> None:
     g.box("trim", hi + 1, f + STEPS, LANDING_Z[0], hi + 1, f + 9, LANDING_Z[0] + 1)
     g.box("trim", lo, f + 9, LANDING_Z[0] + 1, hi, f + 9, LANDING_Z[0] + 1)
     g.at("accent", c, f + 9, LANDING_Z[0] + 1)
-    g.at(LANTERN, c, f + 8, VEST_Z - 1)
+    g.at(LANTERN, c, f + 9, VEST_Z - 1)                   # hung from the ceiling (f + 10): one lower it floated
 
 
 def build_act(theme: dict[str, str], act: int) -> Grid:

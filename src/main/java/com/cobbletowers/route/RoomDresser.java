@@ -56,6 +56,11 @@ public final class RoomDresser {
         return CobbleTowers.id("room_" + RouteGraph.Kind.parse(kind).name().toLowerCase(Locale.ROOT));
     }
 
+    /** A tower's own room for a stop (P59): {@code room_<tower path>_<kind>}, built in its palette by tools/tower_gen/rooms.py. */
+    public static ResourceLocation towerTemplateOf(ResourceLocation tower, String kind) {
+        return CobbleTowers.id("room_" + tower.getPath() + "_" + RouteGraph.Kind.parse(kind).name().toLowerCase(Locale.ROOT));
+    }
+
     /**
      * The kind of stop behind each door, left to right: the card whose lane is that door's, and a plain battle for a door no card rides on.
      * @param lanes the lane each card rides on; empty for a draft with no lanes, which dresses every door as a battle
@@ -135,7 +140,7 @@ public final class RoomDresser {
         for (int door = 0; door < wanted.size(); door++) {
             if (door < have.size() && have.get(door).equals(wanted.get(door))) continue;
             FloorDoor doorway = layout.doors().get(door);
-            if (!place(server, level, doorway, origin, wanted.get(door))) {
+            if (!place(server, level, doorway, origin, run.towerId(), wanted.get(door))) {
                 now.set(door, "");   // not dressed: try again next time
                 continue;
             }
@@ -155,8 +160,10 @@ public final class RoomDresser {
         DRESSED.put(run.runId(), now);
     }
 
-    private static boolean place(MinecraftServer server, ServerLevel level, FloorDoor door, BlockPos origin, String kind) {
-        Optional<StructureTemplate> template = server.getStructureManager().get(templateOf(kind));
+    private static boolean place(MinecraftServer server, ServerLevel level, FloorDoor door, BlockPos origin, ResourceLocation tower, String kind) {
+        // the tower's own room when it has one (the Neutral set, P59), else the shared room (the Halloween set)
+        Optional<StructureTemplate> template = server.getStructureManager().get(towerTemplateOf(tower, kind))
+                .or(() -> server.getStructureManager().get(templateOf(kind)));
         if (template.isEmpty()) {
             TowerLog.warn("No room structure {} for a {} stop", templateOf(kind), kind);
             return false;
