@@ -1,0 +1,82 @@
+{
+ "credit": "The Gilded Merchant (tools/gilded_merchant/build.py), original work for CobbleTowers",
+ "texture_size": [
+  256,
+  256
+ ],
+ "textures": {
+  "0": "cobbletowers:item/gilded_merchant/gilded_merchant",
+  "particle": "cobbletowers:item/gilded_merchant/gilded_merchant"
+ },
+ "elements": [
+  {
+   "name": "sleeve_l",
+   "from": [
+    7.125,
+    4.25,
+    7
+   ],
+   "to": [
+    8.625,
+    8.25,
+    9
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      12.375,
+      4.625,
+      12.75,
+      5.625
+     ],
+     "texture": "#0"
+    },
+    "east": {
+     "uv": [
+      10.625,
+      4.625,
+      11.125,
+      5.625
+     ],
+     "texture": "#0"
+    },
+    "south": {
+     "uv": [
+      12.75,
+      4.625,
+      13.125,
+      5.625
+     ],
+     "texture": "#0"
+    },
+    "west": {
+     "uv": [
+      11.125,
+      4.625,
+      11.625,
+      5.625
+     ],
+     "texture": "#0"
+    },
+    "up": {
+     "uv": [
+      1.5,
+      8.875,
+      1.875,
+      9.375
+     ],
+     "texture": "#0"
+    },
+    "down": {
+     "uv": [
+      1.875,
+      8.875,
+      2.25,
+      9.375
+     ],
+     "texture": "#0"
+    }
+   }
+  }
+ ]
+}

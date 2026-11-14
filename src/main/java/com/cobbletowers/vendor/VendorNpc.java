@@ -32,8 +32,8 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.VillagerProfession;
 
 /**
- * The vendor as a mob (P28): a cleric villager at the floor's exit anchor during an intermission that opens the
- * vendor screen on right-click. Vanilla, no AI, invulnerable and silent. Spawned on arrival, discarded when the run
+ * The vendor as a mob (P28): a click box at the floor's exit anchor during an intermission that opens the vendor screen on
+ * right-click, drawn as Grizelda on the Halloween tower and as the Gilded Merchant ({@link MerchantDisplay}) everywhere else. Vanilla, no AI, invulnerable and silent. Spawned on arrival, discarded when the run
  * leaves that state or the cell is released.
  */
 public final class VendorNpc {
@@ -57,8 +57,10 @@ public final class VendorNpc {
             }
             // the goblin's model rides the witch, on a fresh spawn and after a restart alike
             if (entity instanceof Witch witch) GoblinDisplay.attach(witch);
+            else if (entity instanceof Villager merchant) MerchantDisplay.attach(merchant);
         });
         GoblinDisplay.bootstrap();
+        MerchantDisplay.bootstrap();
     }
 
     private static Optional<UUID> runOf(Entity entity) {
@@ -84,6 +86,10 @@ public final class VendorNpc {
         if (vendor instanceof Witch) {
             player.serverLevel().playSound(null, vendor.blockPosition(), SoundEvents.WITCH_CELEBRATE, SoundSource.NEUTRAL, 1f, 1f);
             player.sendSystemMessage(Component.literal(VendorNpcRules.WITCH_NAME + ": " + VendorNpcRules.witchGreeting(playerRun.map(PersistedRun::floorIndex).orElse(0) + 1)));
+        }
+        if (vendor instanceof Villager) {
+            MerchantDisplay.greet(vendor);   // the bow
+            player.serverLevel().playSound(null, vendor.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.NEUTRAL, 1f, 1.2f);
         }
         String message = IntermissionService.vendor(player.server, player);
         if (!message.isEmpty()) player.displayClientMessage(Component.literal(message), true);
@@ -126,7 +132,8 @@ public final class VendorNpc {
         BlockPos spot = layout.get().exit().in(origin);
         BlockPos entry = layout.get().entry().in(origin);
 
-        // The Halloween tower's vendor is a goblin witch (vanilla Witch: green skin, hooked nose); every other tower keeps the cleric.
+        // The Halloween tower's vendor is a goblin witch (vanilla Witch: green skin, hooked nose); every other tower has the Gilded Merchant,
+        // whose click box is an invisible cleric.
         boolean witch = VendorNpcRules.isGoblinWitch(run.towerId());
         Mob vendor;
         if (witch) {
@@ -143,13 +150,14 @@ public final class VendorNpc {
             vendor = cleric;
         }
         // a LivingEntity recomputes its invisibility from its effects every tick, so setInvisible alone is undone at once
-        if (witch) vendor.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, MobEffectInstance.INFINITE_DURATION, 0, false, false, false));
+        vendor.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, MobEffectInstance.INFINITE_DURATION, 0, false, false, false));
         vendor.setNoAi(true);
         vendor.setInvulnerable(true);
         vendor.setSilent(true);
         vendor.setPersistenceRequired();
-        vendor.setCustomName(Component.literal(witch ? VendorNpcRules.WITCH_NAME : "Tower Vendor"));
-        vendor.setCustomNameVisible(true);
+        vendor.setCustomName(Component.literal(witch ? VendorNpcRules.WITCH_NAME : VendorNpcRules.MERCHANT_NAME));
+        // the merchant's name is a text display above his hood (his mob is invisible); Grizelda keeps the mob's own tag
+        vendor.setCustomNameVisible(witch);
         vendor.addTag(VendorNpcRules.VENDOR_TAG);
         vendor.addTag(VendorNpcRules.runTag(run.runId()));
         float yaw = VendorNpcRules.yawToward(spot.getX(), spot.getZ(), entry.getX(), entry.getZ());

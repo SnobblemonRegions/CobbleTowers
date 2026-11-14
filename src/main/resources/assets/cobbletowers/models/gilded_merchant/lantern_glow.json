@@ -1,0 +1,82 @@
+{
+ "credit": "The Gilded Merchant (tools/gilded_merchant/build.py), original work for CobbleTowers",
+ "texture_size": [
+  256,
+  256
+ ],
+ "textures": {
+  "0": "cobbletowers:item/gilded_merchant/gilded_merchant",
+  "particle": "cobbletowers:item/gilded_merchant/gilded_merchant"
+ },
+ "elements": [
+  {
+   "name": "lantern_glass",
+   "from": [
+    7.475,
+    4,
+    7.475
+   ],
+   "to": [
+    8.525,
+    6,
+    8.525
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      2.75,
+      8.875,
+      3.0,
+      9.375
+     ],
+     "texture": "#0"
+    },
+    "east": {
+     "uv": [
+      3.0,
+      8.875,
+      3.25,
+      9.375
+     ],
+     "texture": "#0"
+    },
+    "south": {
+     "uv": [
+      3.25,
+      8.875,
+      3.5,
+      9.375
+     ],
+     "texture": "#0"
+    },
+    "west": {
+     "uv": [
+      3.5,
+      8.875,
+      3.75,
+      9.375
+     ],
+     "texture": "#0"
+    },
+    "up": {
+     "uv": [
+      9.0,
+      10.125,
+      9.25,
+      10.375
+     ],
+     "texture": "#0"
+    },
+    "down": {
+     "uv": [
+      9.25,
+      10.125,
+      9.5,
+      10.375
+     ],
+     "texture": "#0"
+    }
+   }
+  }
+ ]
+}

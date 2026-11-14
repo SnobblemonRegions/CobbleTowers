@@ -15,6 +15,8 @@ public final class VendorNpcRules {
 
     /** The goblin witch's name tag. */
     public static final String WITCH_NAME = "Grizelda the Goblin Merchant";
+    /** The general shop vendor (every tower but Halloween). */
+    public static final String MERCHANT_NAME = "The Gilded Merchant";
 
     /** Towers whose vendor is the goblin witch merchant instead of the cleric. */
     private static final java.util.Set<net.minecraft.resources.ResourceLocation> WITCH_TOWERS = java.util.Set.of(com.cobbletowers.CobbleTowers.id("halloween"));

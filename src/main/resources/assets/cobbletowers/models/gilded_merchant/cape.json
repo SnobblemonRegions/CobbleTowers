@@ -1,0 +1,82 @@
+{
+ "credit": "The Gilded Merchant (tools/gilded_merchant/build.py), original work for CobbleTowers",
+ "texture_size": [
+  256,
+  256
+ ],
+ "textures": {
+  "0": "cobbletowers:item/gilded_merchant/gilded_merchant",
+  "particle": "cobbletowers:item/gilded_merchant/gilded_merchant"
+ },
+ "elements": [
+  {
+   "name": "cape",
+   "from": [
+    5.25,
+    -1.5,
+    7.9
+   ],
+   "to": [
+    10.75,
+    8,
+    8.125
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      0.5,
+      0.0,
+      1.875,
+      2.375
+     ],
+     "texture": "#0"
+    },
+    "east": {
+     "uv": [
+      3.25,
+      0.0,
+      3.3125,
+      2.375
+     ],
+     "texture": "#0"
+    },
+    "south": {
+     "uv": [
+      1.875,
+      0.0,
+      3.25,
+      2.375
+     ],
+     "texture": "#0"
+    },
+    "west": {
+     "uv": [
+      3.3125,
+      0.0,
+      3.375,
+      2.375
+     ],
+     "texture": "#0"
+    },
+    "up": {
+     "uv": [
+      10.125,
+      10.6875,
+      11.5,
+      10.75
+     ],
+     "texture": "#0"
+    },
+    "down": {
+     "uv": [
+      11.5,
+      10.6875,
+      12.875,
+      10.75
+     ],
+     "texture": "#0"
+    }
+   }
+  }
+ ]
+}
