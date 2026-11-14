@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 4,
+  "revision": 5,
   "display_name": "Neutral Tower",
   "ruleset": "cobbletowers:standard",
   "reward_table": "cobbletowers:neutral",

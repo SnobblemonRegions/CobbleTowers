@@ -52,7 +52,7 @@ SX, SZ = 66, 110
 SY = BASE_FEET + PITCH * (PER_ACT - 1) + 30     # the crown's vault tops out at feet + 26
 
 # ---- the plan (x) -----------------------------------------------------------------------------------------------------------
-HALL_X = (3, 62)
+HALL_X = (2, 62)                        # 61 wide, centred on MID_X like the lanes, the gate and the medallion
 MID_X = 32
 LANES = (16, 32, 48)                    # door / chamber / stair centres, west to east: lane 0 is the left door for somebody facing it
 DOOR_HALF = 2                           # doors are 5 wide, 6 high (the grand-door size)
@@ -60,9 +60,9 @@ CHAMBER_HALF = 5                        # RoomDresser.ROOM_WIDTH = 11
 STUB_HALF = 2                           # a lane stair is 5 wide
 GATE_X = (29, 35)
 PASSAGE_X = (28, 36)
-ARRIVAL_X = (11, 54)
-GALLERY_W, GALLERY_E = (3, 9), (56, 62)
-PIERS_X = (10, 55)
+ARRIVAL_X = (11, 53)
+GALLERY_W, GALLERY_E = (2, 8), (56, 62)
+PIERS_X = (9, 55)                       # mirrored about MID_X; each stands under a vault rib and runs up to it
 STAND = (52, 31)                        # the vendor stand's north-west corner in the atrium; the vendor stands at STAND + (3, 2), facing south
 
 # ---- the plan (z), north to south -----------------------------------------------------------------------------------------------
@@ -81,6 +81,7 @@ ARCH_Z = (105, 106)
 PEDESTAL_Z = 33
 ARRIVAL_ANCHOR_Z = 101
 MEDALLION = (MID_X, 68)
+PIER_Z0 = HALL_Z[0] + 3                 # column rows (and the hall's ribs) every 6 from here: 50 .. 86, mirrored about the medallion
 
 STEPS = 5
 CHAMBER_H = 8                           # RoomDresser.ROOM_HEIGHT
@@ -157,22 +158,31 @@ def room(g: Grid, x0: int, x1: int, z0: int, z1: int, f: int, height: int) -> No
         g.box("wall_low", x, f, z0, x, f + 1, z1)
 
 
-def vault(g: Grid, x0: int, x1: int, z0: int, z1: int, f: int, spring: int, rise: int, rib_every: int, coves: bool = True) -> None:
+def vault(g: Grid, x0: int, x1: int, z0: int, z1: int, f: int, spring: int, rise: int, rib_every: int, coves: bool = True,
+          rib_from: int | None = None) -> None:
     """A barrel vault along z: clear to feet + spring - 1 at the walls, climbing by `rise` to the ridge. Ribs stand one block proud every
-    `rib_every` rows (never lower than feet + 8, so they stay over everybody's head); light coves run under a trim band on both long walls."""
+    `rib_every` rows from `rib_from` (z0 when not given; never lower than feet + 8, so they stay over everybody's head); light coves run under a
+    trim band on both long walls."""
     cx, half = (x0 + x1) / 2, (x1 - x0) / 2 + 0.5
     for x in range(x0, x1 + 1):
         top = f + spring - 1 + int(round(rise * math.sqrt(max(0.0, 1 - ((x - cx) / half) ** 2))))
         g.air(x, f, z0, x, top, z1)
         g.box("vault", x, top + 1, z0, x, top + 1, z1)
         if top >= f + 8:
-            for z in range(z0, z1 + 1, rib_every):
+            for z in range(z0 if rib_from is None else rib_from, z1 + 1, rib_every):
                 g.at("rib", x, top, z)
     if coves:
         for x in (x0 - 1, x1 + 1):
             g.box("trim", x, f + spring - 1, z0, x, f + spring - 1, z1)
             for z in range(z0 + 1, z1, 3):
                 g.at("light", x, f + spring - 2, z)
+
+
+def column(g: Grid, x: int, z: int, f: int) -> None:
+    """A column from the floor to whatever is over it (a vault rib or the vault itself), with a trim capital where it meets it."""
+    top = ceiling_above(g, x, f, z)
+    g.box("pier", x, f, z, x, top - 1, z)
+    g.at("trim", x, top, z)
 
 
 def ceiling_above(g: Grid, x: int, y: int, z: int) -> int:
@@ -299,7 +309,7 @@ def build_floor(g: Grid, floor: int) -> None:
 
     # battle hall: a barrel vault, galleries with rails on decks over the side aisles, pier lines, the medallion, chandeliers, banners
     room(g, *HALL_X, *HALL_Z, f, spring)
-    vault(g, *HALL_X, *HALL_Z, f, spring, rise, 6)
+    vault(g, *HALL_X, *HALL_Z, f, spring, rise, 6, rib_from=PIER_Z0)
     for xa, xb, rail in ((*GALLERY_W, GALLERY_W[1]), (*GALLERY_E, GALLERY_E[0])):
         g.box("rib", xa, f + 5, HALL_Z[0], xb, f + 5, HALL_Z[1])
         g.box("rail", rail, f + 6, HALL_Z[0], rail, f + 6, HALL_Z[1])
@@ -307,16 +317,15 @@ def build_floor(g: Grid, floor: int) -> None:
         for z in range(HALL_Z[0] + 2, HALL_Z[1], 6):
             g.at(LANTERN, (xa + xb) // 2, f + 4, z)
     for x in PIERS_X:
-        for z in range(HALL_Z[0] + 3, HALL_Z[1] - 1, 6):
-            g.box("pier", x, f, z, x, f + spring - 2, z)
-            g.at("trim", x, f + spring - 1, z)
+        for z in range(PIER_Z0, HALL_Z[1] - 1, 6):
+            column(g, x, z, f)
     medallion(g, *MEDALLION, ground, 14 if crown else 12)
     g.box("inlay", MID_X - 1, ground, HALL_Z[0], MID_X + 1, ground, MEDALLION[1] - (16 if crown else 14))
     g.box("inlay", MID_X - 1, ground, MEDALLION[1] + (16 if crown else 14), MID_X + 1, ground, HALL_Z[1])
     for z in (56, 68, 80):
         for x in (17, MID_X, 47):
             chandelier(g, x, z, f, 8 if x == MID_X else 6)
-    for x in (6, 14, 42, 50):
+    for x in (6, 14, 49, 57):                 # two wide (x, x + 1): mirrored pairs about MID_X
         banner(g, x, f + spring - 2, GATE_Z[1], 7 if crown else 5)
         banner(g, x, f + spring - 2, PASSAGE_Z[0], 7 if crown else 5)
     if crown:
@@ -331,7 +340,7 @@ def build_floor(g: Grid, floor: int) -> None:
     room(g, *HALL_X, *ATRIUM_Z, f, 9)
     vault(g, *HALL_X, *ATRIUM_Z, f, 9, 3, 4)
     vendor_stand(g, STAND[0], STAND[1], f, "south")
-    for x in (8, 24, 40):
+    for x in LANES:
         chandelier(g, x, 38, f, 6)
     g.box("inlay", HALL_X[0], ground, 38, STAND[0] - 2, ground, 38)
 
@@ -428,10 +437,10 @@ def build_prep(theme: dict[str, str]) -> Grid:
         g.box("trim", x0, f + 11, z, x1, f + 11, z)
         for x in range(x0 + 2, x1, 4):
             g.at("light", x, f + 10, z)
+    # four columns at the corners of the floor, mirrored both ways, clear of the map wall, the stand and the dais, up to the dome
     for x in (x0 + 4, x1 - 4):
-        for z in range(z0 + 4, z1 - 3, 8):
-            g.box("pier", x, f, z, x, f + 10, z)
-            g.at("trim", x, f + 11, z)
+        for z in (z0 + 4, z1 - 4):
+            column(g, x, z, f)
     medallion(g, int(cx), int(cz), f - 1, 9)
     icz = int(cz)
     # west: the arch the party lands in front of
