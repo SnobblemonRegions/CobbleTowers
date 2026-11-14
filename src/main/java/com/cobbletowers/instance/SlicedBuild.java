@@ -77,6 +77,9 @@ final class SlicedBuild {
         int maxChunkX = (build.origin.getX() + size.getX() - 1) >> 4;
         int minChunkZ = build.origin.getZ() >> 4;
         int maxChunkZ = (build.origin.getZ() + size.getZ() - 1) >> 4;
+        // Only the held chunks are pasted and cleared: a building whose stored blocks reach past them loses its edges in play (P59 rig run).
+        // validate_definitions.py checks every stored block of every shipped structure against that window; a box check here could not tell
+        // empty padding from blocks.
         // Each reached chunk in bands of BAND_HEIGHT blocks, so no single step holds a tick for long.
         int bottom = build.origin.getY();
         int top = bottom + size.getY() - 1;

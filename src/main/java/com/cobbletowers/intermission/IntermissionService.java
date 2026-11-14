@@ -283,9 +283,11 @@ public final class IntermissionService {
         var content = TowerDefinitionRegistry.content();
         var current = com.cobbletowers.route.FloorLayouts.layoutOf(content, run, run.floorIndex());
         var next = com.cobbletowers.route.FloorLayouts.layoutOf(content, run, run.floorIndex() + 1);
-        if (current.isEmpty() || !com.cobbletowers.route.WalkRules.onFoot(current.get(), next)) return false;
+        if (current.isEmpty() || !(com.cobbletowers.route.WalkRules.onFoot(current.get(), next) || climbsAcross(run))) return false;
         com.cobbletowers.route.TowerDoors.ensureOpen(server, run);
         round.beginWalk(now, walkMillis);
+        // Climbing into another building of the same tower (P59: floor 5 into Act II): it is built now, while the team walks to the stair.
+        if (climbsAcross(run)) com.cobbletowers.runtime.RunLifecycle.prepareNextFloor(server, run.runId());
         if (current.get().laneStairs()) {
             // P58: the way up is the stair behind the door the vote opened; there is no shared gate.
             round.beginClimb(com.cobbletowers.route.TowerDoors.openLane(server, run));
@@ -295,6 +297,17 @@ public final class IntermissionService {
         com.cobbletowers.route.TowerGates.openB(server, run);
         broadcast(server, run, "The gate to the stair is open. Climb to the next floor: the fight starts when the whole team is at the arena door.", false);
         return true;
+    }
+
+    /** Whether this floor's lane stairs climb into the next floor's building, which is another building of the run's own tower (P59). */
+    private static boolean climbsAcross(PersistedRun run) {
+        var content = TowerDefinitionRegistry.content();
+        int floor = run.floorIndex();
+        var current = com.cobbletowers.route.FloorLayouts.layoutOf(content, run, floor);
+        boolean own = com.cobbletowers.route.FloorLayouts.placeOf(run, floor).equals(run.towerId())
+                && com.cobbletowers.route.FloorLayouts.placeOf(run, floor + 1).equals(run.towerId());
+        return current.isPresent() && com.cobbletowers.route.WalkRules.climbsAcross(current.get(),
+                com.cobbletowers.route.FloorLayouts.layoutOf(content, run, floor + 1), own);
     }
 
     /** The run's participants who can fight and are online, in the order the arrival spreads them. */
@@ -319,7 +332,19 @@ public final class IntermissionService {
             if (round.fadeDue(now)) {
                 int lane = round.climbLane();
                 String kind = com.cobbletowers.route.RoomDresser.kindOf(run, lane);
-                int moved = com.cobbletowers.route.LaneStairs.transfer(server, run, lane, kind, fighters);
+                PersistedRun climbing = run;
+                if (climbsAcross(run) && !com.cobbletowers.runtime.RunLifecycle.isAhead(run.runId())) {
+                    // The next building is ready (the fade waited for it): the run moves into its cell, then the team is taken to the arrival there.
+                    if (!com.cobbletowers.runtime.RunLifecycle.moveAhead(server, run.runId(), now)) {
+                        round.cancelWalk();
+                        TowerLog.warn("Run {}: lane {} of floor {} could not move into the next building; opening the next floor directly",
+                                run.runId(), lane, run.floorIndex());
+                        openNext(server, run.runId(), run, now);
+                        return true;
+                    }
+                    climbing = TowerRuns.get(run.runId()).orElse(run);
+                }
+                int moved = com.cobbletowers.route.LaneStairs.transfer(server, climbing, lane, kind, fighters);
                 if (moved == 0) {
                     // The stair could not be used (the next floor is not placed): fall back to opening the next floor as it always was.
                     round.cancelWalk();
@@ -332,6 +357,21 @@ public final class IntermissionService {
             return true;
         }
         if (round.walkDue(now) || com.cobbletowers.route.LaneStairs.everyoneOnLanding(server, run, round.climbLane(), fighters)) {
+            if (climbsAcross(run) && !com.cobbletowers.runtime.RunLifecycle.isAhead(run.runId())) {
+                // The fade waits for the next building: the team is never taken up into a building that is not there yet.
+                switch (com.cobbletowers.runtime.RunLifecycle.climbBuild(server, run.runId())) {
+                    case BUILDING -> {
+                        for (ServerPlayer player : fighters) player.displayClientMessage(Component.literal("The way up is being prepared..."), true);
+                        return true;
+                    }
+                    case FAILED -> {
+                        round.cancelWalk();
+                        openNext(server, run.runId(), run, now);
+                        return true;
+                    }
+                    case READY -> { }
+                }
+            }
             com.cobbletowers.route.LaneStairs.fadeOut(fighters);
             round.beginFade(now, com.cobbletowers.route.LaneStairs.FADE_OUT_MILLIS);
             return true;

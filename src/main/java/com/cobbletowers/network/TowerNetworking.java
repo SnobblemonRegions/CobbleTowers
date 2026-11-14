@@ -224,7 +224,11 @@ public final class TowerNetworking {
     public static void sendVendorCatalog(MinecraftServer server, ServerPlayer player, PersistedRun run, String message) {
         TowerContent content = TowerDefinitionRegistry.content();
         long balance = TowerWalletStore.get(server).balanceOf(player.getUUID());
+        // Only what is sold where the vendor is open now: the preparation room's stand sells run supplies only (P59).
+        com.cobbletowers.definition.VendorPlace place = com.cobbletowers.vendor.VendorNpc.openPlace(run)
+                .orElse(com.cobbletowers.definition.VendorPlace.ATRIUM);
         List<VendorCatalogPayload.Entry> entries = content.vendorCatalog().stream()
+                .filter(service -> service.soldAt(place))
                 .map(service -> catalogEntry(service, run, player))
                 .toList();
         // Everyone still in the run, the caller first: the picker defaults to "yourself".

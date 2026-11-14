@@ -30,6 +30,57 @@ public final class RunLifecycle {
     private RunLifecycle() {}
 
     /**
+     * Runs whose team climbed a lane stair into the next floor's building ahead of the floor change (P59): the run already holds the new cell, so
+     * the floor change must neither build it again nor rebuild in place. In memory only: a restart parks every run anyway.
+     */
+    private static final java.util.Set<UUID> AHEAD = new java.util.HashSet<>();
+
+    static {
+        com.cobbletowers.ServerState.onStop(AHEAD::clear);
+    }
+
+    /** How the next floor's building is coming along for a team about to climb into it. */
+    public enum ClimbBuild { READY, BUILDING, FAILED }
+
+    /** The state of the next floor's building for a climb across buildings, starting the build if nothing has started it yet. */
+    public static ClimbBuild climbBuild(MinecraftServer server, UUID runId) {
+        UUID key = com.cobbletowers.instance.RunBuildJobs.nextFloorTenant(runId);
+        Optional<com.cobbletowers.instance.RunBuildJobs.Status> status = com.cobbletowers.instance.RunBuildJobs.poll(key);
+        if (status.isEmpty()) {
+            prepareNextFloor(server, runId);
+            status = com.cobbletowers.instance.RunBuildJobs.poll(key);
+        }
+        if (status.isEmpty()) return ClimbBuild.FAILED;
+        return switch (status.get().state()) {
+            case BUILDING -> ClimbBuild.BUILDING;
+            case FAILED -> ClimbBuild.FAILED;
+            default -> ClimbBuild.READY;
+        };
+    }
+
+    /**
+     * Moves the run into the next floor's building, already built in a cell of its own, while it is still at its intermission: the team is about
+     * to be taken up the lane stair into it. The floor change that follows ({@link #openNextFloor}) then only begins the floor.
+     * @return false when there is no ready building to move into; nothing changed then
+     */
+    public static boolean moveAhead(MinecraftServer server, UUID runId, long now) {
+        Optional<PersistedRun> found = TowerRuns.get(runId);
+        if (found.isEmpty() || found.get().state() != com.cobbletowers.api.tower.RunState.INTERMISSION || found.get().cell().isEmpty()) return false;
+        Optional<FloorLayout> next = changedLayout(found.get(), found.get().floorIndex() + 1);
+        UUID key = com.cobbletowers.instance.RunBuildJobs.nextFloorTenant(runId);
+        Optional<com.cobbletowers.instance.RunBuildJobs.Status> status = com.cobbletowers.instance.RunBuildJobs.poll(key);
+        if (next.isEmpty() || status.isEmpty() || status.get().state() != com.cobbletowers.instance.RunBuildJobs.State.READY) return false;
+        moveToCell(server, runId, status.get().cell(), status.get().tenant(), next.get(), now);
+        AHEAD.add(runId);
+        return true;
+    }
+
+    /** Whether the run is already in its next floor's building (it climbed into it). */
+    public static boolean isAhead(UUID runId) {
+        return AHEAD.contains(runId);
+    }
+
+    /**
      * Submits a run's parties and settles them (TDS #41, #46): read, register, check against the ruleset, then
      * allocate an instance or abandon with reasons logged. Registration is written before the verdict event. {@code
      * partyOf} is empty for an offline player, which rejects the run.
@@ -128,6 +179,7 @@ public final class RunLifecycle {
         // A floor in another building is built in a cell of its own, a slice per tick, while the party stays where it is
         // (docs/design/cell-allocation-async.md, option B). Rebuilding the party's own cell could not be sliced: they stand in it.
         Optional<PersistedRun> current = TowerRuns.get(runId);
+        if (AHEAD.contains(runId)) return openAfterClimb(server, runId, now);
         if (current.isPresent() && current.get().state() == com.cobbletowers.api.tower.RunState.INTERMISSION
                 && !current.get().modifiers().hasOpenDraft()) {
             Optional<FloorLayout> changed = changedLayout(current.get(), current.get().floorIndex() + 1);
@@ -161,6 +213,19 @@ public final class RunLifecycle {
         return beginFloor(server, runId, now) ? Opened.OPENED : Opened.FAILED;
     }
 
+    /** The floor change of a run that already climbed into its next floor's building ({@link #moveAhead}): the moves, then the floor. */
+    private static Opened openAfterClimb(MinecraftServer server, UUID runId, long now) {
+        if (!(RunTransitionService.apply(server, runId, RunEvent.INTERMISSION_COMPLETE, now) instanceof RunTransitionService.Move)) {
+            return Opened.BLOCKED;            // still ahead: the next try begins the floor
+        }
+        AHEAD.remove(runId);
+        if (!(RunTransitionService.apply(server, runId, RunEvent.NEXT_FLOOR_CONFIRMED, now) instanceof RunTransitionService.Move)) {
+            RunTransitionService.apply(server, runId, RunEvent.TECHNICAL_FAILURE, now);
+            return Opened.FAILED;
+        }
+        return beginFloor(server, runId, now) ? Opened.OPENED : Opened.FAILED;
+    }
+
     /** The layout of {@code floorIndex} when it is a different building from the floor before it; empty when the party stays in its building. */
     static Optional<FloorLayout> changedLayout(PersistedRun run, int floorIndex) {
         var content = TowerDefinitionRegistry.content();
@@ -177,6 +242,7 @@ public final class RunLifecycle {
      */
     public static void prepareNextFloor(MinecraftServer server, UUID runId) {
         Optional<PersistedRun> found = TowerRuns.get(runId);
+        if (AHEAD.contains(runId)) return;    // already in the next building: building it again would take a second cell
         if (found.isEmpty() || found.get().state() != com.cobbletowers.api.tower.RunState.INTERMISSION
                 || found.get().modifiers().hasOpenDraft() || found.get().cell().isEmpty()) return;
         Optional<FloorLayout> changed = changedLayout(found.get(), found.get().floorIndex() + 1);

@@ -94,6 +94,28 @@ def read_structure(name: str):
     return tuple(root["size"]), occupied, supporting
 
 
+# A cell holds (loads, pastes and clears) the 7 x 7 chunks round its centre, a chunk boundary: CellTickets.RADIUS_CHUNKS = 3, so 48 blocks
+# north or west of the centre to 63 south or east. A structure is pasted centred (CellTickets.pasteOrigin: centre - size / 2). A stored block
+# outside that window is never pasted by the sliced build and never cleared (the first P59 rig run lost Neutral's lane stairs to this).
+HELD_LOW, HELD_HIGH = -48, 63
+# Known to overflow, with the reason it is tolerated. Anything else that overflows fails the build.
+HELD_EXEMPT = {"battle_tower_halloween": "archived event tower (P59); its outer edges were never pasted in play"}
+held_checked: set = set()
+
+
+def held_window_problems(name: str, size, occupied: set) -> list[str]:
+    if name in HELD_EXEMPT or not occupied:
+        return []
+    out = []
+    for axis, label in ((0, "x"), (2, "z")):
+        values = [position[axis] for position in occupied]
+        low, high = -(size[axis] // 2) + min(values), -(size[axis] // 2) + max(values)
+        if low < HELD_LOW or high > HELD_HIGH:
+            out.append(f"structure {name}: blocks reach {low}..{high} in {label} from the cell centre, but a cell only holds"
+                       f" {HELD_LOW}..{HELD_HIGH}; the rest is never pasted or cleared")
+    return out
+
+
 def check_layouts(content: dict, problems: list[str]) -> int:
     """Anchors are declared by hand, so they are checked against what was actually built.
 
@@ -119,6 +141,9 @@ def check_layouts(content: dict, problems: list[str]) -> int:
                             f" (expected {STRUCTURES.name}/{name}.nbt)")
             continue
         size, occupied, supporting = loaded
+        if name not in held_checked:
+            held_checked.add(name)
+            problems.extend(held_window_problems(name, size, occupied))
         for anchor_name in ANCHORS:
             anchor = layout.get(anchor_name)
             if anchor is None:

@@ -33,7 +33,7 @@ public final class CellPreparer {
      * What {@link #reset} sweeps: every chunk the cell holds, from just under the floor to the top of the world. A
      * cell is not told what was pasted into it, so all of it is covered; air-only sections are skipped.
      */
-    private static final int RESET_BELOW = 1;
+    private static final int RESET_BELOW = PrepPlacement.DROP + 1;      // down to the preparation room under the build (P59), and the row under it
 
     private CellPreparer() {}
 
