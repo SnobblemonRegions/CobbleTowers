@@ -7,6 +7,7 @@ Writes to art/: shop_wall.png (160 x 90, shown at 8x = 1280 x 720), shop_counter
 Pixel art in the merchant's own palette: near-black robes, gold trim, crimson mantle, amber lantern light. Fixed seed, so every
 run is the same.
 """
+import json
 import math
 import random
 from pathlib import Path
@@ -176,15 +177,25 @@ def portraits():
     view = dict(el=5, px=10.25, out=(410, 568), centre=(0, 20.5, 0), bg=clear)
     b.render(atlas, glow_, rects, 0, pose=b.idle_pose(0.0), **view).save(OUT / "merchant_full.png")
     b.render(atlas, glow_, rects, 0, pose=b.greet_pose(b.GREET_LEN * 0.45), **view).save(OUT / "merchant_bow.png")
-    # His idle loop and his bow as frames; the bridge shows each one for its slice of the loop (kf opacity keys).
-    for i in range(IDLE_FRAMES):
-        b.render(atlas, glow_, rects, 0, pose=b.idle_pose(b.IDLE_LEN * i / IDLE_FRAMES), **view).save(OUT / f"merchant_idle_{i:02d}.png")
-    for i in range(BOW_FRAMES):
-        b.render(atlas, glow_, rects, 0, pose=b.greet_pose(b.GREET_LEN * i / (BOW_FRAMES - 1)), **view).save(OUT / f"merchant_bow_{i:02d}.png")
+    # His idle loop and his bow as frames; the bridge shows each one for its slice of the loop (kf opacity keys). Every frame is cropped to the
+    # one box he moves in, across all of them, so the pack carries no empty pixels; merchant_frames.json says where that box sits.
+    for old in list(OUT.glob("merchant_idle_*.png")) + list(OUT.glob("merchant_bow_*.png")):
+        old.unlink()
+    frames = [(f"merchant_idle_{i:02d}.png", b.render(atlas, glow_, rects, 0, pose=b.idle_pose(b.IDLE_LEN * i / IDLE_FRAMES), **view))
+              for i in range(IDLE_FRAMES)]
+    frames += [(f"merchant_bow_{i:02d}.png", b.render(atlas, glow_, rects, 0, pose=b.greet_pose(b.GREET_LEN * i / (BOW_FRAMES - 1)), **view))
+               for i in range(BOW_FRAMES)]
+    boxes = [im.getchannel("A").getbbox() for _, im in frames]
+    box = (min(b_[0] for b_ in boxes) - 1, min(b_[1] for b_ in boxes) - 1, max(b_[2] for b_ in boxes) + 1, max(b_[3] for b_ in boxes) + 1)
+    for name, im in frames:
+        im.crop(box).save(OUT / name, optimize=True)
+    (OUT / "merchant_frames.json").write_text(json.dumps({"x": box[0], "y": box[1], "w": box[2] - box[0], "h": box[3] - box[1],
+                                                         "idle": IDLE_FRAMES, "idle_ms": int(b.IDLE_LEN * 1000),
+                                                         "bow": BOW_FRAMES, "bow_ms": int(b.GREET_LEN * 1000)}, indent=1) + "\n")
 
 
-IDLE_FRAMES = 16      # over his 4 s idle loop: a frame every 250 ms
-BOW_FRAMES = 12       # over the 2 s bow, first and last frame standing
+IDLE_FRAMES = 48      # over his 4 s idle loop: 12 frames a second (16 read as choppy in game)
+BOW_FRAMES = 24       # over the 2 s bow, first and last frame standing
 
 
 def main():
@@ -204,9 +215,15 @@ def main():
                           ("mystery_bag.png", "merchant_bag.png")):        # he is drawn from the idle and bow frames below
             shutil.copyfile(OUT / src, dest / name)
         for pattern in ("merchant_idle_*.png", "merchant_bow_*.png"):
+            for stale in dest.glob(pattern):
+                stale.unlink()
             for frame in OUT.glob(pattern):
                 shutil.copyfile(frame, dest / frame.name)
         print("copied to", dest)
+    # the frame box and counts, for the bridge's layout generator (tools/gen_ui_towers.py reads tools/merchant_frames.json)
+    if "--bridge-tools" in sys.argv:
+        import shutil
+        shutil.copyfile(OUT / "merchant_frames.json", Path(sys.argv[sys.argv.index("--bridge-tools") + 1]) / "merchant_frames.json")
 
 
 if __name__ == "__main__":
