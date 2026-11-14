@@ -80,7 +80,7 @@ public final class RewardDelivery {
                     int credited = (int) Math.min(Integer.MAX_VALUE, reward.amount() + (long) reward.amount() * bonus / 100);
                     TowerWalletStore.get(server).credit(player.getUUID(), credited);
                     // Listed as what was paid (bonus included) and named: a currency is not an item, so the id alone reads as air.
-                    delivered.add(shown(reward, credited, "CobbleDollars"));
+                    delivered.add(shown(reward, credited, "Tower Tokens"));
                     creditedWallet = true;
                 } else if (reward.item().equals(RaidPointsCurrency.ITEM_ID)) {
                     // CobbleRaids' own currency, credited through its public API (P21).

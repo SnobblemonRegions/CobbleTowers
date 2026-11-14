@@ -50,7 +50,7 @@ class PedestalHoloTest {
     @Test
     void aRoomNameIsSplitAtTheColonIntoATitleAndADetail() {
         IntermissionStatePayload.Card room = new IntermissionStatePayload.Card(ResourceLocation.fromNamespaceAndPath("cobbletowers", "x"),
-                "Forge: every player pays 125 CobbleDollars for a battle", 0, -1, "theme", List.of("Forge: every player pays 125 CobbleDollars for a battle"));
+                "Forge: every player pays 125 Tower Tokens for a battle", 0, -1, "theme", List.of("Forge: every player pays 125 Tower Tokens for a battle"));
         assertEquals("Forge", PedestalHolo.titleOf(room));
         String detail = PedestalHolo.detailOf(room);
         assertTrue(detail.startsWith("every player pays"), detail);

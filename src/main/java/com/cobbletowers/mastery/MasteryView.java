@@ -64,7 +64,7 @@ public final class MasteryView {
     public static String perksLine(MasteryPerks.Perks perks) {
         List<String> parts = new java.util.ArrayList<>();
         if (perks.vendorDiscountPercent() > 0) parts.add("vendor prices -" + perks.vendorDiscountPercent() + "%");
-        if (perks.cobbleDollarBonusPercent() > 0) parts.add("+" + perks.cobbleDollarBonusPercent() + "% CobbleDollars");
+        if (perks.cobbleDollarBonusPercent() > 0) parts.add("+" + perks.cobbleDollarBonusPercent() + "% Tower Tokens");
         if (perks.raidPointsBonusPercent() > 0) parts.add("+" + perks.raidPointsBonusPercent() + "% Raid Points");
         return parts.isEmpty() ? "none yet" : String.join(", ", parts);
     }

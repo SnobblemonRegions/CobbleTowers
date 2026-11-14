@@ -203,6 +203,13 @@ public final class VendorNpc {
         if (level != null) MerchantBooth.takeDown(level, run.runId());
     }
 
+    /** The Gilded Merchant bows after a sale (P59); Grizelda and a run with no merchant standing are left alone. */
+    public static void bowFor(MinecraftServer server, PersistedRun run) {
+        for (Entity vendor : vendorsOf(server, run)) {
+            if (vendor instanceof Villager) MerchantDisplay.greet(vendor);
+        }
+    }
+
     /** How many vendors the run has standing; a test seam, and the reason {@link #spawn} is idempotent. */
     public static int count(MinecraftServer server, PersistedRun run) {
         return vendorsOf(server, run).size();

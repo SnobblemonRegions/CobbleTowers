@@ -129,6 +129,28 @@ class PayloadJsonTest {
     }
 
     @Test
+    @DisplayName("the counter shop's extras reach the page: floor, place, line, goods sold elsewhere, each teammate's party health (P59)")
+    void counterShop() {
+        UUID me = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        ResourceLocation bag = ResourceLocation.fromNamespaceAndPath("cobbletowers", "mystery_bag");
+        var shop = new VendorCatalogPayload.Shop("Neutral Tower", 0, 10, "prep", "Supplies for the climb.",
+                List.of(new VendorCatalogPayload.Good(bag, "Mystery Bag", 500, "A sealed bag of tower loot.", false, "Sold on the floors")),
+                List.of(new VendorCatalogPayload.Party(me, List.of(new VendorCatalogPayload.Mon("Lucario", 0, true, ""),
+                        new VendorCatalogPayload.Mon("Volcarona", 100, false, "psn")))));
+        var vendor = new VendorCatalogPayload(413, List.of(), List.of(new VendorCatalogPayload.Teammate(me, "Alex", true)), "", shop);
+        JsonObject data = PayloadJson.envelope(vendor).getAsJsonObject("data").getAsJsonObject("shop");
+        assertEquals("prep", data.get("place").getAsString());
+        assertEquals(10, data.get("floors").getAsInt());
+        JsonObject good = data.getAsJsonArray("goods").get(0).getAsJsonObject();
+        assertEquals(false, good.get("here").getAsBoolean());
+        assertEquals("Sold on the floors", good.get("where").getAsString());
+        JsonObject mon = data.getAsJsonArray("parties").get(0).getAsJsonObject().getAsJsonArray("mons").get(1).getAsJsonObject();
+        assertEquals("psn", mon.get("status").getAsString());
+        // the web and native screens keep building the catalog without it
+        assertEquals(VendorCatalogPayload.Shop.NONE, new VendorCatalogPayload(1, List.of(), List.of(), "").shop());
+    }
+
+    @Test
     @DisplayName("the lobby carries what each teammate is bringing (P51)")
     void lobbyRosters() {
         var mon = new com.cobbletowers.network.TowerHallStatePayload.Mon("Arcanine", "arcanine", 50, false, 100, List.of("fire"));

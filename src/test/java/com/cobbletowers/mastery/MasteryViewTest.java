@@ -52,6 +52,6 @@ class MasteryViewTest {
         assertEquals("level 30 (Champion, the top)", MasteryView.progressLine(30));
         assertEquals("none yet", MasteryView.perksLine(MasteryPerks.at(2)));
         assertEquals("vendor prices -3%", MasteryView.perksLine(MasteryPerks.at(5)));
-        assertEquals("vendor prices -10%, +15% CobbleDollars, +10% Raid Points", MasteryView.perksLine(MasteryPerks.at(30)));
+        assertEquals("vendor prices -10%, +15% Tower Tokens, +10% Raid Points", MasteryView.perksLine(MasteryPerks.at(30)));
     }
 }

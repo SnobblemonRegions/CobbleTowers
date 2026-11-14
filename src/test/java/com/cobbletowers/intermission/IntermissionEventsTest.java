@@ -167,7 +167,7 @@ class IntermissionEventsTest {
         PersistedRun run = run(1, 1, RunModifierState.EMPTY);
         var pressed = IntermissionEvents.resolve(content(), run, 1, Option.REST_PRESS_ON);
         assertEquals(IntermissionEvents.restPurse(1), pressed.walletEach());
-        assertTrue(pressed.walletEach() >= 50, "at least twice the vendor's 25 CobbleDollar heal");
+        assertTrue(pressed.walletEach() >= 50, "at least twice the vendor's 25 Tower Token heal");
         assertTrue(IntermissionEvents.resolve(content(), run, 6, Option.REST_PRESS_ON).walletEach() > pressed.walletEach());
         assertEquals(0, IntermissionEvents.resolve(content(), run, 1, Option.REST_HEAL).walletEach());
         assertTrue(pressed.message().contains(String.valueOf(pressed.walletEach())), pressed.message());

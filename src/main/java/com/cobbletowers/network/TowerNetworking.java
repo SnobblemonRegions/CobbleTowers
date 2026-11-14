@@ -203,6 +203,8 @@ public final class TowerNetworking {
         ParticipantService.runOf(buyer.getUUID())
                 .ifPresent(current -> sendVendorCatalog(server, buyer, current, message));
         if (result == VendorPurchaseService.Result.SUCCESS) {
+            // The Gilded Merchant bows to the sale in the world, as the counter screen shows it (P59).
+            com.cobbletowers.vendor.VendorNpc.bowFor(server, run.get());
             // The party's health or status may have changed (a heal): the intermission screen behind the vendor shows it, so it is sent again,
             // to the buyer and to the teammate who got the service.
             IntermissionService.refresh(server, buyer);
@@ -241,7 +243,9 @@ public final class TowerNetworking {
             if (participant.playerId().equals(player.getUUID())) team.add(0, entry);
             else team.add(entry);
         }
-        sendVendorCatalog(player, new VendorCatalogPayload(balance, entries, team, message));
+        VendorCatalogPayload.Shop shop = com.cobbletowers.vendor.ShopView.build(server, player, run, content, place, balance,
+                team.stream().map(VendorCatalogPayload.Teammate::id).toList());
+        sendVendorCatalog(player, new VendorCatalogPayload(balance, entries, team, message, shop));
     }
 
     private static VendorCatalogPayload.Entry catalogEntry(VendorServiceDefinition service, PersistedRun run,

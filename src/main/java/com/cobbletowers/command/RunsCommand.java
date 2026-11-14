@@ -302,11 +302,11 @@ public final class RunsCommand {
         TowerNetworking.sendVendorCatalog(source.getServer(), player, run);
 
         long balance = TowerWalletStore.get(source.getServer()).balanceOf(player.getUUID());
-        source.sendSuccess(() -> Component.literal("CobbleDollars: " + balance).withStyle(ChatFormatting.GOLD), false);
+        source.sendSuccess(() -> Component.literal("Tower Tokens: " + balance).withStyle(ChatFormatting.GOLD), false);
         for (VendorServiceDefinition service : TowerDefinitionRegistry.content().vendorCatalog()) {
             int cap = service.maxPurchasesPerRun();
             String remaining = cap <= 0 ? "unlimited" : (cap - run.purchasesOf(service.id())) + "/" + cap + " left";
-            source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "  %s -- %d CobbleDollars (%s)",
+            source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "  %s -- %d Tower Tokens (%s)",
                     service.displayName(),
                     com.cobbletowers.armor.ArmorBonusEffects.vendorPrice(player, service.priceCobbleDollars()),
                     remaining)), false);
@@ -323,7 +323,7 @@ public final class RunsCommand {
         TowerWalletStore store = TowerWalletStore.get(source.getServer());
         store.credit(player.getUUID(), amount);
         store.checkpoint(source.getServer());
-        source.sendSuccess(() -> Component.literal("Credited " + amount + " CobbleDollars to "
+        source.sendSuccess(() -> Component.literal("Credited " + amount + " Tower Tokens to "
                 + player.getGameProfile().getName()), true);
         return amount;
     }
