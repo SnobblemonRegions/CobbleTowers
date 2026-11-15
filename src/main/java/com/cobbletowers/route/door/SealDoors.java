@@ -59,6 +59,15 @@ public final class SealDoors {
 
     public static void bootstrap() {
         SealDoorModels.bootstrap();
+        com.cobbletowers.instance.CellEvents.onWiped(SealDoors::forgetCell);
+    }
+
+    /** Forgets every door in a wiped cell: its displays went with the cell, and a later floor at the same spot must get a door of its own. */
+    static int forgetCell(int cell) {
+        var stale = DOORS.keySet().stream().filter(pos -> com.cobbletowers.instance.CellEvents.inCell(cell, pos.getX(), pos.getZ())).toList();
+        stale.forEach(SealDoors::remove);
+        if (!stale.isEmpty()) com.cobbletowers.TowerLog.info("Cell {} wiped: forgot {} seal door(s) it held", cell, stale.size());
+        return stale.size();
     }
 
     /** Whether a doorway of this size takes the door; one that does not keeps its bars. */

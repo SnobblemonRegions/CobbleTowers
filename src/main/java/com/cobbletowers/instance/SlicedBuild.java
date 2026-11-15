@@ -24,7 +24,7 @@ final class SlicedBuild {
 
     enum Status { WORKING, DONE, FAILED }
 
-    /** How tall one paste step is. Every paste call walks the whole template, so more bands cost more than they save (measured). */
+    /** How tall one paste step is. A step pastes its column's own piece (StructurePieces), so a step costs that column, not the building. */
     private static final int BAND_HEIGHT = 4096;
 
     /** Longest a build may wait on chunks that will not load. */
@@ -40,6 +40,7 @@ final class SlicedBuild {
     private final long createdAt = System.currentTimeMillis();
     private boolean needsReset;
     private int resetNext;
+    private int resetSection;
     private int pasteNext;
     private boolean markedDirty;
     private long workNanos;
@@ -91,6 +92,8 @@ final class SlicedBuild {
             }
         }
         build.needsReset = !CellCleanliness.isClean(cell);
+        CellEvents.wiped(cell);                                    // a new building goes in: what the cell held before is gone
+        StructurePieces.of(layout.structure(), template, build.origin);      // starts the cut if it is not cached: ready by the paste, usually
         return Optional.of(build);
     }
 
@@ -104,13 +107,31 @@ final class SlicedBuild {
             Status status;
             do {
                 long stepStart = System.nanoTime();
+                String what = describeNextStep();
                 status = step(level);
-                longestStep = Math.max(longestStep, System.nanoTime() - stepStart);
+                long took = System.nanoTime() - stepStart;
+                longestStep = Math.max(longestStep, took);
+                // A step over this holds the server tick visibly: say which one, so a slow building can be cut finer where it is slow.
+                if (took > SLOW_STEP_NANOS) {
+                    TowerLog.warn("Cell {} build of {}: {} took {} ms", cell, layout.structure(), what, took / 1_000_000);
+                }
             } while (status == Status.WORKING && !waited && System.nanoTime() < deadline);
             return status;
         } finally {
             workNanos += System.nanoTime() - started;
         }
+    }
+
+    private static final long SLOW_STEP_NANOS = 50_000_000L;
+
+    /** What the next step will do, for the slow-step warning. */
+    private String describeNextStep() {
+        if (needsReset && resetNext < cellChunks.size()) return "clearing chunk " + cellChunks.get(resetNext) + " section " + resetSection;
+        if (pasteNext < pasteBoxes.size()) {
+            BoundingBox box = pasteBoxes.get(pasteNext);
+            return "pasting chunk [" + (box.minX() >> 4) + ", " + (box.minZ() >> 4) + "] y " + box.minY() + ".." + box.maxY();
+        }
+        return "checking anchors";
     }
 
     /** True when the last step found a chunk not loaded yet: stop for this tick. */
@@ -121,7 +142,9 @@ final class SlicedBuild {
         if (needsReset && resetNext < cellChunks.size()) {
             LevelChunk chunk = loaded(level, cellChunks.get(resetNext));
             if (chunk == null) return waiting();
-            cleared += CellPreparer.resetChunk(level, chunk);
+            cleared += CellPreparer.resetSection(level, chunk, resetSection);    // a section a step: a whole column of a dense building was 50-86 ms
+            if (++resetSection < chunk.getSections().length) return Status.WORKING;
+            resetSection = 0;
             resetNext++;
             if (resetNext == cellChunks.size()) CellCleanliness.markClean(cell);
             return Status.WORKING;
@@ -137,7 +160,18 @@ final class SlicedBuild {
         if (pasteNext < pasteBoxes.size()) {
             BoundingBox box = pasteBoxes.get(pasteNext);
             if (loaded(level, new ChunkPos(box.minX() >> 4, box.minZ() >> 4)) == null) return waiting();
-            boolean placed = template.placeInWorld(level, origin, origin,
+            // The column's own piece when the cut is ready (it costs only that column); the whole template until then.
+            StructureTemplate source = template;
+            var pieces = StructurePieces.of(layout.structure(), template, origin);
+            if (pieces.isPresent()) {
+                source = pieces.get().get(StructurePieces.index((box.minX() >> 4) - (origin.getX() >> 4),
+                        (box.minZ() >> 4) - (origin.getZ() >> 4)));
+                if (source == null) {                                      // nothing stored in this column
+                    pasteNext++;
+                    return Status.WORKING;
+                }
+            }
+            boolean placed = source.placeInWorld(level, origin, origin,
                     new StructurePlaceSettings().setIgnoreEntities(true).setBoundingBox(box), level.getRandom(),
                     CellPreparer.PLACE_FLAGS);
             // Before the next tick: the fall checks this band just scheduled fire two ticks later.

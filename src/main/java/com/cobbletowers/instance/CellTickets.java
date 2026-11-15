@@ -24,10 +24,11 @@ public final class CellTickets {
             TicketType.create("cobbletowers_cell", Comparator.comparingLong(ChunkPos::toLong));
 
     /**
-     * Chunks either side of the arena centre: 3 gives a 7x7 area, enough for the 51-block arena, and within the
-     * ticking threshold.
+     * Chunks either side of the arena centre: 5 gives an 11x11 area (176 blocks, 80 north or west of the centre to 95
+     * south or east), which holds the 150 x 160 Tideforge cathedral (P59) and stays inside a cell's 256-block interior.
+     * Was 3 (7x7) for Neutral's 66 x 126 acts; every cell now holds 121 chunks, almost all of them empty void.
      */
-    public static final int RADIUS_CHUNKS = 3;
+    public static final int RADIUS_CHUNKS = 5;
 
     // The normal run/warm-pool hold and each recovery hold are independent claims on one physical ticket.
     private static final Map<Integer, Set<Object>> HELD = new LinkedHashMap<>();
