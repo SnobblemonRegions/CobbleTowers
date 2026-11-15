@@ -100,6 +100,7 @@ public final class LaneStairs {
         int moved = 0;
         for (int ordinal = 0; ordinal < fighters.size(); ordinal++) {
             ServerPlayer player = fighters.get(ordinal);
+            com.cobbletowers.encounter.ArrivalGuard.release(player.getUUID());   // a climb, not a fall: see ArrivalGuard.release
             player.teleportTo(level, at.getX() + 0.5, at.getY(), at.getZ() + 0.5 + spread(ordinal), arrival.yaw(), 0.0f);
             player.playNotifySound(SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.4f, 0.6f);
             moved++;

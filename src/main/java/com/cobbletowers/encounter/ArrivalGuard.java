@@ -25,7 +25,7 @@ import java.util.UUID;
  * is sent, moving to a nearby standing place when the exact one is not solid, and for a few seconds after arriving a player who has dropped well below the
  * arrival point is put back on it. Ids and positions only, server thread only.
  */
-final class ArrivalGuard {
+public final class ArrivalGuard {
 
     /** How long after arriving a player is watched, in ticks (15 seconds; catch-up bursts are run inside this). */
     private static final int WATCH_TICKS = 300;
@@ -70,6 +70,15 @@ final class ArrivalGuard {
         return level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)
                 && level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
                 && level.getBlockState(feet.above()).getCollisionShape(level, feet.above()).isEmpty();
+    }
+
+    /**
+     * Stops watching a player who is being moved on purpose (the lane stair up to the next floor). Without this a party that climbed within the
+     * watch window was "put back" on the floor it had just left: the next building's floor stands lower than the last floor of the one before,
+     * which read as a fall, and the old building was being cleared under them (rig 2, 15 Nov: a floor won in seconds, the stair taken at once).
+     */
+    public static void release(UUID playerId) {
+        WATCHED.remove(playerId);
     }
 
     /** Starts watching a player who has just been placed at {@code spot}. */
