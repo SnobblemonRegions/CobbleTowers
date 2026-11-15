@@ -110,7 +110,7 @@ def held(solid: np.ndarray, x: int, z: int, lo: int, hi: int) -> bool:
     return False
 
 
-def shorts(grid: np.ndarray, air: np.ndarray, solid: np.ndarray, limit: int) -> list[str]:
+def shorts(grid: np.ndarray, air: np.ndarray, solid: np.ndarray, limit: int, designed: set = frozenset()) -> list[str]:
     """Free-standing vertical runs whose ends stop 1..3 short of a solid surface."""
     sx, sy, sz = grid.shape
     # beyond the box is not open air: a stop room's chamber walls, or a building's own trimmed-away solid
@@ -127,8 +127,8 @@ def shorts(grid: np.ndarray, air: np.ndarray, solid: np.ndarray, limit: int) -> 
             while y < sy and col[y]:
                 y += 1
             y1 = y - 1                                # a run y0..y1 of free-standing blocks in this column
-            if y1 - y0 < 2:
-                continue
+            if y1 - y0 < 2 or any((int(x), yy, int(z)) in designed for yy in range(y0, y1 + 1)):
+                continue                              # too short to read as a column, or a piece meant to hang free
             for end, step in ((y0, -1), (y1, 1)):
                 nxt = end + step
                 if not (0 <= nxt < sy) or not air[x, nxt, z]:
@@ -191,7 +191,7 @@ def scan(path: Path, limit: int) -> list[str]:
     for label, mask in (("dent", dents(air, solid) & looked_at), ("pinhole", pinholes(air, solid) & looked_at)):
         if mask.any():
             problems.append(f"{label}: {int(mask.sum())} cell(s), first at {first(mask, limit)}")
-    problems += [f"short: {s}" for s in shorts(grid, air, solid, limit)]
+    problems += [f"short: {s}" for s in shorts(grid, air, solid, limit, sc.meant_to_float(path))]
     if path.stem.startswith("tideforge_hall"):
         problems += cathedral_surfaces(grid, names, int(path.stem.removeprefix("tideforge_hall")), limit)
     return problems

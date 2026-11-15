@@ -91,8 +91,19 @@ def falling_problems(stem: str, blocks: dict) -> list[str]:
     return problems
 
 
+def meant_to_float(path: Path) -> set[tuple[int, int, int]]:
+    """One block of each piece the generator hangs free on purpose (Duskvale's broken roof and snapped piers), from the <stem>.floating.json
+    it writes beside its structures in validation/schematics/<theme>/. A piece holding one of them is not reported as floating."""
+    import json
+    sidecar = ROOT / "validation" / "schematics" / path.stem.split("_")[0] / f"{path.stem}.floating.json"
+    if not sidecar.exists():
+        return set()
+    return {tuple(p) for p in json.loads(sidecar.read_text())}
+
+
 def check(path: Path, room: bool) -> list[str]:
     size, blocks = load(path)
+    designed = meant_to_float(path)
     problems = []
     foreign = {}
     for pos, name in blocks.items():
@@ -116,6 +127,7 @@ def check(path: Path, room: bool) -> list[str]:
         # every floor of an act is its own shell (stacked 24 apart, the solid between them trimmed away, joined only by the stair's teleport),
         # so a big piece is a floor; a small one touching nothing is a stray
         floating = [c for c in comps if len(c) < BUILDING]
+    floating = [c for c in floating if not designed.intersection(c)]
     for c in floating:
         names = sorted({blocks[p] for p in c})
         problems.append(f"{path.stem}: {len(c)} floating block(s) at {min(c)}: {', '.join(n.removeprefix('minecraft:') for n in names)[:160]}")

@@ -48,4 +48,24 @@ TIDEFORGE = {
     "rail": "minecraft:prismarine_wall",              # gallery rails
 }
 
-THEMES = {"neutral": NEUTRAL, "tideforge": TIDEFORGE}
+# Duskvale (doctrine: Disruption; Darkrai, Umbreon, Obstagoon, Marshadow, Dusknoir): a shattered cathedral under a night sky. Deepslate in
+# its worked forms, calcite for the pale trim, tuff runners, amethyst and the lavender of pearlescent froglight for the moonlight. Nothing
+# from the Hollow's Eve palette (stray_check.FOREIGN: no blackstone, obsidian, purple_*, soul_*).
+DUSKVALE = {
+    "wall": "minecraft:deepslate_bricks",             # main walls
+    "wall_low": "minecraft:polished_deepslate",       # plinth, the bottom two rows of every wall
+    "pier": "minecraft:polished_deepslate",           # wall piers and statues in the stop rooms
+    "trim": "minecraft:calcite",                      # capitals, door frames, cornices
+    "vault": "minecraft:deepslate_tiles",             # ceiling surface
+    "rib": "minecraft:chiseled_deepslate",            # ceiling ribs, gallery decks, tracery
+    "floor": "minecraft:deepslate_tiles",             # field of the floor
+    "inlay": "minecraft:polished_tuff",               # floor inlay, runners, window rims
+    "accent": "minecraft:amethyst_block",             # keystones, medallion centre
+    "hanging": "minecraft:gray_wool",                 # banners and the stand awning
+    "light": "minecraft:pearlescent_froglight",       # moonlight: coves, chandeliers, backlit glass
+    "glass": "minecraft:light_gray_stained_glass",    # lancet windows and the rose
+    "wood": "minecraft:dark_oak_planks",              # the vendor stand
+    "rail": "minecraft:polished_deepslate_wall",      # rails
+}
+
+THEMES = {"neutral": NEUTRAL, "tideforge": TIDEFORGE, "duskvale": DUSKVALE}
