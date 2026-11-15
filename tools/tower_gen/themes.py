@@ -68,4 +68,23 @@ DUSKVALE = {
     "rail": "minecraft:polished_deepslate_wall",      # rails
 }
 
-THEMES = {"neutral": NEUTRAL, "tideforge": TIDEFORGE, "duskvale": DUSKVALE}
+# Rootvale (doctrine: Growth; Celebi, Hydrapple, Leafeon, Snivy, Breloom): inside a colossal hollow tree. Heartwood and bark, moss underfoot,
+# mossy stone plinths, packed-mud runners, shroomlight and ochre froglight for the warm light. No mangrove roots (stray_check.FOREIGN).
+ROOTVALE = {
+    "wall": "minecraft:stripped_spruce_wood",         # main walls: the heartwood the halls are carved into
+    "wall_low": "minecraft:mossy_stone_bricks",       # plinth, the bottom two rows of every wall
+    "pier": "minecraft:dark_oak_wood",                # wall piers and statues in the stop rooms
+    "trim": "minecraft:stripped_oak_wood",            # capitals, door frames, cornices
+    "vault": "minecraft:dark_oak_planks",             # ceiling surface
+    "rib": "minecraft:dark_oak_wood",                 # ceiling ribs, roots, ledge undersides
+    "floor": "minecraft:moss_block",                  # field of the floor
+    "inlay": "minecraft:packed_mud",                  # floor inlay, runners
+    "accent": "minecraft:ochre_froglight",            # keystones, medallion centre
+    "hanging": "minecraft:green_wool",                # banners and the stand awning
+    "light": "minecraft:shroomlight",                 # light coves, chandeliers, backlit glass
+    "glass": "minecraft:green_stained_glass",         # the glass in front of backlit panels
+    "wood": "minecraft:oak_planks",                   # the vendor stand
+    "rail": "minecraft:mossy_cobblestone_wall",       # rails
+}
+
+THEMES = {"neutral": NEUTRAL, "tideforge": TIDEFORGE, "duskvale": DUSKVALE, "rootvale": ROOTVALE}

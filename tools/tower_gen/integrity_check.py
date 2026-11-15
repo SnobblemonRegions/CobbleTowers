@@ -63,14 +63,37 @@ def first(mask: np.ndarray, limit: int) -> list[tuple[int, int, int]]:
     return [tuple(int(v) for v in p) for p in np.argwhere(mask)[:limit]]
 
 
-def visible(air: np.ndarray, see: np.ndarray) -> np.ndarray:
-    """The air a player can look into: grown through air and see-through blocks (water, glass) from every cell sitting in open room (all six
-    neighbours open). Sealed pockets, such as what the trim leaves inside a thick pendant or under the island, are never reached."""
+def seeds_of(path: Path) -> list[tuple[int, int, int]]:
+    """Where players stand in this building, from the layout its generator wrote (validation/schematics/<theme>/<theme>.layout.json): each
+    floor's entry, opponent and spectator spots, or the prep room's entry. Empty when there is no layout (a stop room)."""
+    import json
+    theme = path.stem.split("_")[0]
+    layout_file = sc.ROOT / "validation" / "schematics" / theme / f"{theme}.layout.json"
+    if not layout_file.exists():
+        return []
+    lay = json.loads(layout_file.read_text())
+    if path.stem == f"{theme}_prep":
+        e = lay["prep"]["entry"]
+        return [(e["x"], e["y"], e["z"])]
+    return [(a["x"], a["y"] + 1, a["z"]) for floor in lay["floors"].values() if floor["structure"] == f"cobbletowers:{path.stem}"
+            for a in (floor["entry"], floor["presentation"], floor["spectator"])]
+
+
+def visible(air: np.ndarray, see: np.ndarray, seeds: list[tuple[int, int, int]] = ()) -> np.ndarray:
+    """The air a player can look into: grown through air and see-through blocks (water, glass, leaves) from where players stand when the
+    layout gives it, else from every cell sitting in open room (all six neighbours open). From the anchors, the hollows the trim leaves inside
+    thick work (a pendant, the island, a root) are never reached; from open room they could be, where they join up into large voids."""
     open_ = air | see
-    seen = open_.copy()
-    for axis in range(3):
-        for d in (1, -1):
-            seen &= shifted(open_, axis, d, False)
+    if seeds:
+        seen = np.zeros_like(open_)
+        for x, y, z in seeds:
+            if 0 <= x < seen.shape[0] and 0 <= y < seen.shape[1] and 0 <= z < seen.shape[2]:
+                seen[x, y, z] = open_[x, y, z]
+    else:
+        seen = open_.copy()
+        for axis in range(3):
+            for d in (1, -1):
+                seen &= shifted(open_, axis, d, False)
     while True:
         grown = seen.copy()
         for axis in range(3):
@@ -180,8 +203,10 @@ def cathedral_surfaces(grid: np.ndarray, names: list[str], building: int, limit:
 def scan(path: Path, limit: int) -> list[str]:
     grid, names = dense(path)
     air, solid = masks(grid, names)
-    see = np.array([n.startswith(WET) or "glass" in n for n in names])[grid]
-    looked_at = visible(air, see)
+    # what a player sees past: water, glass and leaves, and bars, rails and fences (so the flood reaches the atrium past gate A's bars and the
+    # chambers past their doors)
+    see = np.array([n.startswith(WET) or any(k in n for k in ("glass", "leaves", "iron_bars", "_pane", "_wall", "fence")) for n in names])[grid]
+    looked_at = visible(air, see, seeds_of(path))
     problems = []
     size, blocks = sc.load(path)
     room = path.stem.startswith("room_")
