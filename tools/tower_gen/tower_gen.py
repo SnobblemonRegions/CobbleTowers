@@ -413,6 +413,7 @@ def build_act(theme: dict[str, str], act: int) -> Grid:
     g.grid[:] = g.id("wall")
     for floor in range(PER_ACT * (act - 1) + 1, PER_ACT * act + 1):
         build_floor(g, floor)
+    connect(g.grid, g.palette, g.id)
     return g
 
 
@@ -492,6 +493,7 @@ def build_prep(theme: dict[str, str]) -> Grid:
     chandelier(g, int(cx), icz, f, 8)
     for x, z in ((int(cx) - 10, icz - 7), (int(cx) + 10, icz - 7), (int(cx) - 10, icz + 7), (int(cx) + 10, icz + 7)):
         chandelier(g, x, z, f, 7)
+    connect(g.grid, g.palette, g.id)
     return g
 
 
@@ -549,6 +551,84 @@ def layout(floor: int, theme_name: str) -> dict:
 
 
 # ---- trimming ------------------------------------------------------------------------------------------------------------------
+
+# ---- connecting shapes ---------------------------------------------------------------------------------------------------------
+# A wall, iron bars, a pane or a fence joins its neighbours through block-state properties the game sets when a neighbour changes. The
+# server pastes with UPDATE_KNOWN_SHAPE (no neighbour updates: CellPreparer.PLACE_FLAGS), so a structure must carry the joined states itself:
+# stored bare, every rail and every gate's bars stood as loose posts (rig 2, 14 Nov).
+
+PARTIAL = ("slab", "stairs", "_wall", "fence", "bars", "pane", "lantern", "chain", "carpet", "door", "torch", "flower_pot", "cauldron",
+           "water", "end_rod", "candle", "cluster", "button", "ladder", "sign", "banner", "trapdoor", "pressure_plate", "rail")
+
+
+def _base(name: str) -> str:
+    return name.split("[")[0].removeprefix("minecraft:")
+
+
+def _full(name: str) -> bool:
+    """A full, solid cube a wall, bars or a fence join onto."""
+    base = _base(name)
+    return base != "air" and not any(k in base for k in PARTIAL)
+
+
+def _kind(name: str) -> str | None:
+    base = _base(name)
+    if base.endswith("_wall"):
+        return "wall"
+    if base == "iron_bars" or base.endswith("_pane"):
+        return "bars"
+    if base.endswith("_fence"):
+        return "fence"
+    return None
+
+
+def connect(grid: np.ndarray, palette: list[str], intern, edge_solid: bool = False) -> int:
+    """Gives every wall, bars, pane and fence in the grid the connections its neighbours call for. `intern(name)` returns the palette index of
+    a block name, adding it when new. `edge_solid`: whether what lies past the edge of the grid is solid (a stop room's chamber wall).
+    Returns how many blocks it set."""
+    kinds = {i: _kind(n) for i, n in enumerate(palette) if _kind(n)}
+    if not kinds:
+        return 0
+    sx, sy, sz = grid.shape
+    names = list(palette)
+
+    def at(x: int, y: int, z: int) -> str | None:
+        if 0 <= x < sx and 0 <= y < sy and 0 <= z < sz:
+            return names[int(grid[x, y, z])] if int(grid[x, y, z]) < len(names) else palette[int(grid[x, y, z])]
+        return None
+
+    def joins(kind: str, other: str | None, neighbour_side_full: bool) -> bool:
+        if other is None:
+            return edge_solid
+        if _full(other):
+            return True
+        ok = _kind(other)
+        if kind == "fence":
+            return ok == "fence" or _base(other).endswith("fence_gate")
+        return ok in ("wall", "bars") or _base(other).endswith("fence_gate")
+
+    set_count = 0
+    mask = np.isin(grid, list(kinds))
+    for x, y, z in np.argwhere(mask):
+        x, y, z = int(x), int(y), int(z)
+        name = palette[int(grid[x, y, z])]
+        kind = kinds[int(grid[x, y, z])]
+        base = name.split("[")[0]
+        sides = {d: joins(kind, at(x + dx, y, z + dz), False) for d, (dx, dz) in
+                 {"north": (0, -1), "south": (0, 1), "east": (1, 0), "west": (-1, 0)}.items()}
+        above = at(x, y + 1, z)
+        if kind == "wall":
+            straight = (sides["north"] and sides["south"] and not sides["east"] and not sides["west"]) or                        (sides["east"] and sides["west"] and not sides["north"] and not sides["south"])
+            height = "tall" if above is not None and _full(above) else "low"
+            props = {d: (height if sides[d] else "none") for d in sides}
+            props["up"] = "false" if straight and not (above is not None and _kind(above) == "wall") else "true"
+        else:
+            props = {d: ("true" if sides[d] else "false") for d in sides}
+        props["waterlogged"] = "false"
+        grid[x, y, z] = intern(base + "[" + ",".join(f"{k}={v}" for k, v in sorted(props.items())) + "]")
+        set_count += 1
+    return set_count
+
 
 def see_through(name: str) -> bool:
     base = name.split("[")[0].removeprefix("minecraft:")
@@ -609,7 +689,7 @@ class Walker:
         self.g = g
         n = len(g.palette)
         self.pass_ = np.array([g.palette[i] in PASSABLE_NAMES for i in range(n)])
-        self.tall = np.array([g.palette[i] == g.theme["rail"] or "_wall" in g.palette[i] for i in range(n)])
+        self.tall = np.array([g.palette[i].split("[")[0] == g.theme["rail"] or "_wall" in g.palette[i] for i in range(n)])
         self.wet = np.array([g.palette[i].startswith("minecraft:water") for i in range(n)])     # nobody stands on water
 
     def passable(self, x: int, y: int, z: int) -> bool:
@@ -684,7 +764,7 @@ def validate(acts: dict[int, Grid], theme_name: str) -> list[str]:
                 problems.append(f"floor {floor}: RoomDresser's box behind door {i} is not empty air ({int(np.count_nonzero(room_))} blocks)")
 
         for rail_x in (GALLERY_W[1], GALLERY_E[0]):
-            gaps = [z for z in range(HALL_Z[0], HALL_Z[1] + 1) if w.g.name(rail_x, f + 6, z) != w.g.theme["rail"]]
+            gaps = [z for z in range(HALL_Z[0], HALL_Z[1] + 1) if w.g.name(rail_x, f + 6, z).split("[")[0] != w.g.theme["rail"]]
             if gaps:
                 problems.append(f"floor {floor}: the gallery rail at x {rail_x} has gaps (z {gaps[:4]}): a spectator could drop into the arena")
         entry, pres, spec = _cell(lay["entry"]), _cell(lay["presentation"]), _cell(lay["spectator"])

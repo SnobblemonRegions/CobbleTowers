@@ -184,6 +184,7 @@ public final class SealDoors {
         for (BlockPos pos : BlockPos.betweenClosed(min, door.open().maxIn(origin))) {
             if (level.isLoaded(pos)) level.setBlock(pos, BARS, Block.UPDATE_ALL);
         }
+        com.cobbletowers.route.Joins.settle(level, min, door.open().maxIn(origin));
     }
 
     /** The run is over: its displays go (the blocks go with the cell). */

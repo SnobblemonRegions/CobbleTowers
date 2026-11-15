@@ -237,6 +237,7 @@ public final class TowerDoors {
             level.setBlock(pos, state, Block.UPDATE_ALL);
             changed++;
         }
+        if (changed > 0) Joins.settle(level, box.minIn(origin), box.maxIn(origin));
         return changed;
     }
 }

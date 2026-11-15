@@ -278,6 +278,8 @@ ROOMS = {"battle": battle, "rest": rest, "shrine": shrine, "gambler": gambler, "
 def build(kind: str, theme: dict[str, str]) -> Room:
     r = Room(theme)
     ROOMS[kind](r)
+    from tower_gen import connect                          # joined up as pasted (no neighbour updates); past the box is the chamber's wall
+    connect(r.grid, r.palette, r.bid, edge_solid=True)
     return r
 
 

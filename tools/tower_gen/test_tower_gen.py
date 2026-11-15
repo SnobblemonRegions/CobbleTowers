@@ -55,7 +55,7 @@ class TowerGenTest(unittest.TestCase):
                 for x in range(b["min"][0], b["max"][0] + 1):
                     for y in range(b["min"][1], b["max"][1] + 1):
                         for z in range(b["min"][2], b["max"][2] + 1):
-                            self.assertEqual(tg.BARS, g.name(x, y, z), (floor, name, x, y, z))
+                            self.assertEqual(tg.BARS, g.name(x, y, z).split("[")[0], (floor, name, x, y, z))   # joined bars carry their connections
 
     def test_floor_five_lands_in_act_two_and_floor_ten_has_no_stairs(self):
         five = tg.layout(5, THEME)
