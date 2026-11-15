@@ -11,8 +11,8 @@ Checks, on each building (a missing position is air):
   pinhole    an air cell boxed in on all four sides within one plane (a floor, a wall, a glass sheet) with the sheet carrying on past it
   short      a free-standing vertical run (a pillar, post, chain, pendant or waterfall: air on two opposite sides at every height) whose bottom
              or top stops one to three blocks short of a solid surface, so it neither touches it nor is clearly free
-For the Tideforge halls (cathedral.py) it also checks, floor by floor, the surfaces that must be whole: the vault glass, the aquarium glass
-walls, the island and bridge floors, the gallery decks and the pool bed.
+For the Tideforge halls (cathedral.py) it also checks, floor by floor, the surfaces that must be whole (cathedral.surfaces): the dome glass,
+the dais, the causeway decks and the pool bed.
 """
 from __future__ import annotations
 
@@ -174,29 +174,11 @@ def cathedral_surfaces(grid: np.ndarray, names: list[str], building: int, limit:
     problems = []
     air = grid == 0
     for floor in C.BUILDINGS[building - 1]:
-        f = C.feet(floor)
-        spring, rise = C.CROWN if floor in C.CROWNS else C.HALL
-        x0, x1 = C.HALL_X
-        z0, z1 = C.HALL_Z
-        checks = {}
-        vault = []
-        for x in range(x0, x1 + 1):
-            top = f + spring + C.ellipse(x, x0 - 1, x1 + 1, rise)
-            vault.append(air[x, top + 1, z0:z1 + 1])
-        checks["vault glass"] = np.array(vault)
-        for gx, *_ in C.AQUARIA:
-            checks[f"aquarium wall x {gx}"] = air[gx, f - C.POOL:f + spring - 1, z0:z1 + 1]
-        bed = air[x0:x1 + 1, f - C.POOL - 1, z0:z1 + 1].copy()
-        ix, iz = (C.ISLAND_X[0] + 2 - x0, C.ISLAND_X[1] - 2 - x0), (C.ISLAND_Z[0] + 2 - z0, C.ISLAND_Z[1] - 2 - z0)
-        bed[ix[0]:ix[1] + 1, iz[0]:iz[1] + 1] = False         # under the island's core, trimmed away: nobody can see it
-        checks["pool bed"] = bed
-        checks["island floor"] = air[C.ISLAND_X[0]:C.ISLAND_X[1] + 1, f - 1, C.ISLAND_Z[0]:C.ISLAND_Z[1] + 1]
-        checks["bridges"] = air[C.MID - C.BRIDGE_HALF:C.MID + C.BRIDGE_HALF + 1, f - 1, z0:z1 + 1]
-        for xa, xb, _ in C.GALLERIES:
-            checks[f"gallery deck x {xa}..{xb}"] = air[xa:xb + 1, f + C.GALLERY_UP, z0:z1 + 1]
-        for label, holes in checks.items():
+        for label, cells in C.surfaces(floor, grid.shape).items():
+            holes = air[cells[:, 0], cells[:, 1], cells[:, 2]]
             if holes.any():
-                problems.append(f"floor {floor}: {int(holes.sum())} missing block(s) in the {label}")
+                first = tuple(int(v) for v in cells[np.argmax(holes)])
+                problems.append(f"floor {floor}: {int(holes.sum())} missing block(s) in the {label}, first at {first}")
     return problems
 
 

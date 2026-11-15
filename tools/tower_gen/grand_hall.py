@@ -12,7 +12,7 @@ A themed tower is a `Spec`: its theme, how its ten floors are grouped into build
 Leaving the top floor of a building is the lane stair into the next building (WalkRules.climbsAcross); the next building is built in its
 own cell while the party walks. `main` builds, validates (the walk, the shells, the held window, the spec's own checks), writes and installs.
 
-    tools/tower_gen/cathedral.py    Tideforge, the sunken cathedral
+    tools/tower_gen/cathedral.py    Tideforge, the sea temple
     tools/tower_gen/duskvale.py     Duskvale, the shattered cathedral
 """
 from __future__ import annotations
