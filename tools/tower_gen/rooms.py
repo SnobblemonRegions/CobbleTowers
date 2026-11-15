@@ -93,6 +93,7 @@ def ribs(r: Room, zs=(3, 7, 11), lamps=(1, 5, 9, 13), drop: int = 2) -> None:
         r.both(0, 0, 1, 6, z, z, "pier")
         r.both(0, 0, 7, 7, z, z, "trim")
         r.both(1, 1, 7, 8, z, z, "rib")
+        r.both(0, 0, 8, 8, z, z, "rib")                    # the arch's shoulder meets the wall: without it a notch showed at the crown
         r.fill(2, 8, 8, 8, z, z, "rib")
         r.set(5, 8, z, "accent")
     for z in lamps:
@@ -160,6 +161,7 @@ def shrine(r: Room) -> None:
             r.set(inner, 3, z + 1, CANDLE_W)
         for x, side in ((0, 0), (10, 10)):                     # a tall backlit window behind each altar
             r.fill(side, side, 2, 6, z - 1, z + 1, "glass")
+            r.fill(side, side, 1, 1, z - 1, z + 1, "trim")     # a sill: the glass stood on air, a slot along the floor under it
     r.fill(4, 6, 1, 1, 7, 7, "minecraft:red_carpet")
 
 
@@ -205,6 +207,7 @@ def forge(r: Room) -> None:
     r.set(8, 2, 6, "minecraft:shroomlight")
     r.fill(8, 9, 3, 3, 4, 8, "trim")
     r.fill(9, 9, 4, 8, 5, 7, "wall_low")
+    r.fill(10, 10, 8, 8, 4, 6, "wall_low")                  # the flue meets the wall under the ceiling, shoulder to shoulder: pockets showed
     r.set(8, 1, 10, "minecraft:lava_cauldron")
     r.set(9, 1, 11, "minecraft:lava_cauldron")
     r.set(8, 1, 2, "minecraft:lava_cauldron")

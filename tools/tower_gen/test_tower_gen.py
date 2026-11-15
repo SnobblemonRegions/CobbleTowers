@@ -6,6 +6,8 @@ import copy
 import re
 import sys
 import unittest
+
+import numpy as np
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -69,14 +71,15 @@ class TowerGenTest(unittest.TestCase):
         self.assertTrue(w.standable(lay["exit"]["x"], lay["exit"]["y"], lay["exit"]["z"] + 2))
 
     def test_every_building_fits_the_chunks_a_cell_holds(self):
-        """The first rig run of a 118-row act lost its north rows (the lane stairs): a cell only pastes and clears its 7 x 7 held chunks."""
+        """The first rig run of a 118-row act lost its north rows (the lane stairs): a cell only pastes and clears its held chunks (11 x 11)."""
         java = (ROOT / "src/main/java/com/cobbletowers/instance/CellTickets.java").read_text()
         radius = int(re.search(r"RADIUS_CHUNKS = (\d+);", java).group(1))
         self.assertEqual((-16 * radius, 16 * radius + 15), (tg.HELD_LOW, tg.HELD_HIGH))
         for a in (1, 2):
             self.assertEqual([], tg.held_window_problems(tg.padded(self.acts[a]).grid, f"act{a}"))
         self.assertEqual([], tg.held_window_problems(self.prep.grid, "prep"))
-        self.assertTrue(tg.held_window_problems(self.acts[1].grid, "act1"), "without its padding the act reaches past the north edge")
+        too_long = np.pad(self.acts[1].grid, ((0, 0), (0, 0), (0, 90)))           # 90 empty rows south push the north rows out of the window
+        self.assertTrue(tg.held_window_problems(too_long, "act1"), "a building longer than the held window is caught")
 
     def test_the_padding_moves_every_anchor_with_the_blocks(self):
         lay = tg.layout(2, THEME)

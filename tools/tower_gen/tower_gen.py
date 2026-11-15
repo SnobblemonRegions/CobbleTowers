@@ -20,7 +20,7 @@ Coordinates are building-local: x east, y up, z south. The party walks NORTH (-z
 
 Floors stack at a 24-block pitch; the top floor of each act is the crown (a taller hall). Floor 10 has no stairs: it is left by teleport.
 
-A cell only holds (loads, pastes and clears) the 7 x 7 chunks round its centre: 48 blocks north or west of it to 63 south or east, and a
+A cell only holds (loads, pastes and clears) the 11 x 11 chunks round its centre: 80 blocks north or west of it to 95 south or east, and a
 structure is pasted centred (CellTickets.pasteOrigin). So a building must store nothing outside that window: the act is padded with empty rows
 on its north side (PAD_Z) so its 110 rows land inside, and `held_window_problems` checks every stored block. The first rig run of the 118-row
 plan lost its north rows (the lane stairs) to this.
@@ -88,8 +88,8 @@ CHAMBER_H = 8                           # RoomDresser.ROOM_HEIGHT
 HALL_SPRING, HALL_RISE = 11, 8
 CROWN_SPRING, CROWN_RISE = 14, 12
 
-# The chunks a cell holds, relative to its centre (a chunk boundary): CellTickets.RADIUS_CHUNKS = 3 either side of the centre chunk.
-HELD_LOW, HELD_HIGH = -48, 63
+# The chunks a cell holds, relative to its centre (a chunk boundary): CellTickets.RADIUS_CHUNKS = 5 either side of the centre chunk.
+HELD_LOW, HELD_HIGH = -80, 95
 PAD_Z = 16                              # empty rows added north of each act, so its 110 rows sit inside the held window (14..18 would do)
 
 AIR = "minecraft:air"
@@ -179,9 +179,20 @@ def vault(g: Grid, x0: int, x1: int, z0: int, z1: int, f: int, spring: int, rise
 
 
 def column(g: Grid, x: int, z: int, f: int) -> None:
-    """A column from the floor to whatever is over it (a vault rib or the vault itself), with a trim capital where it meets it."""
+    """A column from the floor to whatever is over it (a vault rib or the vault itself), with a trim capital where it meets it.
+    A theme may give `column` (a fluid such as water) instead: the core is that fluid and every air block beside it becomes `glass`, so the
+    fluid has nowhere to flow. The floor under it and the capital over it are solid, and walls, rails and decks already beside it hold too."""
     top = ceiling_above(g, x, f, z)
-    g.box("pier", x, f, z, x, top - 1, z)
+    core = g.theme.get("column", "pier")
+    if core != "pier":
+        # each pane of the casing runs up to whatever is over it, beside the capital too: stopped at the core's height it left a gap under a
+        # curved ceiling and the column read as unfinished
+        for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):     # a square shaft: corners too, no nooks
+            cx, cz = x + dx, z + dz
+            for y in range(f, ceiling_above(g, cx, f, cz) + 1):
+                if g.grid[cx, y, cz] == 0:
+                    g.at("glass", cx, y, cz)
+    g.box(core, x, f, z, x, top - 1, z)
     g.at("trim", x, top, z)
 
 
@@ -278,7 +289,9 @@ def vendor_stand(g: Grid, x: int, z: int, f: int, facing: str) -> None:
     put("trim", 1, 1, 6, 7, 0, 0)
     put("trim", 5, 5, 6, 7, 0, 0)
     put("accent", 2, 4, 6, 7, 0, 0)
-    put("minecraft:chain[axis=y]", 3, 3, 8, 9, 0, 0)
+    # the board hangs from the ceiling: the chain runs all the way up to it (two links stopped a block short and hung in the air)
+    top = ceiling_above(g, x + 3, f + 8, zv(0))
+    put("minecraft:chain[axis=y]", 3, 3, 8, top - f, 0, 0)
 
 
 # ---- one floor ----------------------------------------------------------------------------------------------------------------
@@ -419,16 +432,27 @@ def build_prep(theme: dict[str, str]) -> Grid:
     x0, x1, z0, z1 = PREP_ROOM
     room(g, x0, x1, z0, z1, f, 12)
     cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+
+    def dome(x: int, z: int) -> int:
+        r = math.hypot((x - cx) / ((x1 - x0) / 2 + 1), (z - cz) / ((z1 - z0) / 2 + 1))
+        return f + 12 + int(round(6 * math.sqrt(max(0.0, 1 - min(r, 1) ** 2))))
+
     for x in range(x0, x1 + 1):
         for z in range(z0, z1 + 1):
-            r = math.hypot((x - cx) / ((x1 - x0) / 2 + 1), (z - cz) / ((z1 - z0) / 2 + 1))
-            top = f + 12 + int(round(6 * math.sqrt(max(0.0, 1 - min(r, 1) ** 2))))
+            # rounding leaves the odd cell one higher than all four round it: a one-block pocket in the dome, so it is brought down to them
+            top = min(dome(x, z), max(dome(x + dx, z + dz) for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1))))
+            r = math.hypot((x - cx) / ((x1 - x0) / 2 + 1), (z - cz) / ((z1 - z0) / 2 + 1))          # for the ring rib below
             g.air(x, f, z, x, top, z)
             g.at("vault", x, top + 1, z)
             ang = math.atan2(z - cz, x - cx)
             off = abs((ang + math.pi / 8) % (math.pi / 4) - math.pi / 8) * math.hypot(x - cx, z - cz)
             if off < 0.75 or abs(r - 0.55) < 0.03:
                 g.at("rib", x, top, z)
+    for x in range(x0, x1 + 1):                 # a cell under the dome walled in on all four sides (beside a rib) is a pocket: close it
+        for z in range(z0, z1 + 1):
+            y = ceiling_above(g, x, f, z)
+            if all(g.grid[x + dx, y, z + dz] != 0 for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                g.at("vault", x, y, z)
     for x in (x0 - 1, x1 + 1):
         g.box("trim", x, f + 11, z0, x, f + 11, z1)
         for z in range(z0 + 2, z1, 4):
@@ -528,6 +552,8 @@ def layout(floor: int, theme_name: str) -> dict:
 
 def see_through(name: str) -> bool:
     base = name.split("[")[0].removeprefix("minecraft:")
+    if base == "sea_lantern":                 # a full light block, not a lantern
+        return False
     return any(k in base for k in SEE_THROUGH)
 
 
@@ -584,6 +610,7 @@ class Walker:
         n = len(g.palette)
         self.pass_ = np.array([g.palette[i] in PASSABLE_NAMES for i in range(n)])
         self.tall = np.array([g.palette[i] == g.theme["rail"] or "_wall" in g.palette[i] for i in range(n)])
+        self.wet = np.array([g.palette[i].startswith("minecraft:water") for i in range(n)])     # nobody stands on water
 
     def passable(self, x: int, y: int, z: int) -> bool:
         sx, sy, sz = self.g.grid.shape
@@ -591,7 +618,7 @@ class Walker:
 
     def standable(self, x: int, y: int, z: int) -> bool:
         return self.passable(x, y, z) and self.passable(x, y + 1, z) and y >= 1 and not self.passable(x, y - 1, z) \
-            and not self.tall[self.g.grid[x, y - 1, z]]
+            and not self.tall[self.g.grid[x, y - 1, z]] and not self.wet[self.g.grid[x, y - 1, z]]
 
     def reach(self, start: tuple[int, int, int], opened: list[dict]) -> set[tuple[int, int, int]]:
         """Flood fill on foot: four-way steps of one block up or down to two blocks down, with headroom. Boxes in {opened} are carved first."""

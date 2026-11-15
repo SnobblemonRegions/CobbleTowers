@@ -28,6 +28,7 @@ import hollow_tower as H  # noqa: E402
 
 JAR_GLOBS = ["~/.gradle/caches/fabric-loom/1.21.1/minecraft-merged.jar", "~/AppData/Roaming/.minecraft/versions/1.21.1/1.21.1.jar"]
 FULL = [(0, 0, 0, 1, 1, 1)]
+WATER_GLOW = np.array([0.006, 0.024, 0.045], dtype=np.float32)
 EMIT = {"jack_o_lantern": 15, "shroomlight": 15, "glowstone": 15, "sea_lantern": 15, "lantern": 15, "soul_lantern": 10, "torch": 14, "soul_torch": 10,
         "end_rod": 14, "ochre_froglight": 15, "verdant_froglight": 15, "pearlescent_froglight": 15, "lava": 15, "fire": 15, "soul_fire": 10,
         "crying_obsidian": 10, "amethyst_cluster": 5, "magma_block": 3, "candle": 3, "redstone_lamp": 15, "campfire": 15, "soul_campfire": 10}
@@ -75,7 +76,8 @@ class Textures:
             if base.endswith(cut):
                 base = base[: -len(cut)]
                 break
-        for cand in (base, base + "s", base + "_planks", base + "_block", base.replace("_brick", "_bricks"), base + "_bricks"):
+        for cand in (base, base + "s", base + "_planks", base + "_block", base.replace("_brick", "_bricks"), base + "_bricks",
+                     base.replace("_wood", "_log")):                  # *_wood is a log with bark on all six faces
             if cand in self.names:
                 return cand
         return base
@@ -122,8 +124,10 @@ class Textures:
             return [s, s, t, t, s, s]
         if base == "bone_block":
             return [get("bone_block_side")] * 2 + [get("bone_block_top")] * 2 + [get("bone_block_side")] * 2
-        if base.endswith("_log") or base.endswith("_wood") or base == "basalt" or base == "polished_basalt":
-            s, t = get(base if base.endswith("_log") is False else base, base + "_side"), get(base + "_top", base)
+        if base.endswith("_wood"):                                    # bark (the log's side) on every face
+            return [get(base[:-5] + "_log", base)] * 6
+        if base.endswith("_log") or base == "basalt" or base == "polished_basalt":
+            s, t = get(base, base + "_side"), get(base + "_top", base)
             return [s, s, t, t, s, s]
         if base in ("grass_block",):
             return [get("grass_block_side")] * 2 + [get("grass_block_top"), get("dirt")] + [get("grass_block_side")] * 2
@@ -192,11 +196,18 @@ class Scene:
         self.emit = np.zeros(n, dtype=np.uint8)
         self.opaque = np.zeros(n, dtype=bool)
         self.tint = np.ones((n, 3), dtype=np.float32)
+        self.water = np.zeros(n, dtype=bool)
         for i, block in enumerate(palette):
             base = bname(block)
             boxes = shape_of(block)
             self.boxes.append(boxes)
             if base == "air":
+                continue
+            if base == "water":                       # a blue filter per block crossed: shallow water reads pale, a deep pool dark blue
+                self.faces[i, ..., :3], self.faces[i, ..., 3] = (60, 110, 200), 255
+                self.kind[i] = 3
+                self.tint[i] = (0.90, 0.95, 0.98)
+                self.water[i] = True
                 continue
             self.faces[i] = np.stack(self.tex.faces(block))
             if "stained_glass" in base or base == "glass":
@@ -283,6 +294,7 @@ class Scene:
         color = np.zeros((N, 3), dtype=np.float32)
         hit_any = np.zeros(N, dtype=bool)
         filt = np.ones((N, 3), dtype=np.float32)
+        glow = np.zeros((N, 3), dtype=np.float32)          # light scattered back by the water a ray crosses, so water is seen, not only seen through
         active = np.arange(N)
         t_enter = np.zeros(N)
         axis_in = np.full(N, 1, dtype=np.int64)
@@ -350,6 +362,11 @@ class Scene:
                 tr = self.kind[b] == 3
                 # translucent glass: tint the ray and carry on
                 if tr.any():
+                    wat = tr & self.water[b]
+                    if wat.any():
+                        wv = vox[ra[wat]]
+                        lv = self.light[wv[:, 0], wv[:, 1], wv[:, 2]].astype(np.float32)[:, None] / 15.0
+                        glow[ra[wat]] += filt[ra[wat]] * WATER_GLOW * (0.15 + lv)
                     filt[ra[tr]] *= self.tint[b[tr]]
                 stop = solid & ~tr
                 if stop.any():
@@ -385,7 +402,7 @@ class Scene:
         if self.sky:
             miss = ~hit_any
             color[miss] = self.night_sky(d[miss]) * filt[miss]
-        img = np.clip(color * exposure, 0, 1)
+        img = np.clip((color + glow) * exposure, 0, 1)
         return Image.fromarray((img.reshape(h, w, 3) * 255).astype(np.uint8))
 
 

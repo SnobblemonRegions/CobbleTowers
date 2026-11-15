@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Pictures of what tower_gen.py generates (trimmed, as it will be pasted), with the Halloween tower's eye-level ray caster.
 
-    py -3.14 -I tools/tower_gen/preview.py <out_dir> [shot ...]
+    py -3.14 -I tools/tower_gen/preview.py <out_dir> [shot ...] [--theme neutral]
 
 No entities: the vendor, pedestals, holograms and route-map icons are not drawn.
 """
@@ -49,11 +49,14 @@ def scene(kind: str, acts, prep) -> V.Scene:
 
 
 def main() -> int:
-    out = Path(sys.argv[1] if len(sys.argv) > 1 else "gen_out")
+    args = sys.argv[1:]
+    theme = args.pop(args.index("--theme") + 1) if "--theme" in args else "neutral"
+    args = [a for a in args if a != "--theme"]
+    out = Path(args[0] if args else "gen_out")
     out.mkdir(parents=True, exist_ok=True)
-    acts, prep, _ = tg.build_all("neutral")
+    acts, prep, _ = tg.build_all(theme)
     scenes = {}
-    for name in sys.argv[2:] or list(SHOTS):
+    for name in args[1:] or list(SHOTS):
         kind, x, y, z, yaw, pitch, fov = SHOTS[name]
         if kind not in scenes:
             scenes[kind] = scene(kind, acts, prep)

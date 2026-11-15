@@ -94,10 +94,10 @@ def read_structure(name: str):
     return tuple(root["size"]), occupied, supporting
 
 
-# A cell holds (loads, pastes and clears) the 7 x 7 chunks round its centre, a chunk boundary: CellTickets.RADIUS_CHUNKS = 3, so 48 blocks
-# north or west of the centre to 63 south or east. A structure is pasted centred (CellTickets.pasteOrigin: centre - size / 2). A stored block
+# A cell holds (loads, pastes and clears) the 11 x 11 chunks round its centre, a chunk boundary: CellTickets.RADIUS_CHUNKS = 5, so 80
+# blocks north or west of the centre to 95 south or east. A structure is pasted centred (CellTickets.pasteOrigin: centre - size / 2). A stored block
 # outside that window is never pasted by the sliced build and never cleared (the first P59 rig run lost Neutral's lane stairs to this).
-HELD_LOW, HELD_HIGH = -48, 63
+HELD_LOW, HELD_HIGH = -80, 95
 # Known to overflow, with the reason it is tolerated. Anything else that overflows fails the build.
 HELD_EXEMPT = {"battle_tower_halloween": "archived event tower (P59); its outer edges were never pasted in play"}
 held_checked: set = set()
