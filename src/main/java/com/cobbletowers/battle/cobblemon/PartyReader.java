@@ -48,7 +48,8 @@ public final class PartyReader {
     private static com.cobbletowers.network.TowerHallStatePayload.Mon card(Pokemon pokemon) {
         com.cobblemon.mod.common.pokemon.Species species = pokemon.getSpecies();
         List<String> types = new ArrayList<>();
-        for (com.cobblemon.mod.common.api.types.ElementalType type : species.getTypes()) types.add(type.getName());
+        // The form's types, not the base species': Hisuian Zoroark is Normal/Ghost, Alolan Marowak Fire/Ghost.
+            for (com.cobblemon.mod.common.api.types.ElementalType type : pokemon.getForm().getTypes()) types.add(type.getName());
         return new com.cobbletowers.network.TowerHallStatePayload.Mon(pokemon.getDisplayName(false).getString(),
                 com.cobbletowers.menu.HallExtras.spriteName(species.getResourceIdentifier().getPath()), pokemon.getLevel(), pokemon.isFainted(),
                 com.cobbletowers.menu.HallExtras.hpPercent(pokemon.getCurrentHealth(), pokemon.getMaxHealth()), types);
@@ -60,7 +61,8 @@ public final class PartyReader {
         for (Pokemon pokemon : Cobblemon.INSTANCE.getStorage().getParty(player)) {
             com.cobblemon.mod.common.pokemon.Species species = pokemon.getSpecies();
             List<String> types = new ArrayList<>();
-            for (com.cobblemon.mod.common.api.types.ElementalType type : species.getTypes()) types.add(type.getName());
+            // The form's types, not the base species': Hisuian Zoroark is Normal/Ghost, Alolan Marowak Fire/Ghost.
+            for (com.cobblemon.mod.common.api.types.ElementalType type : pokemon.getForm().getTypes()) types.add(type.getName());
             // Labels are Cobblemon's own (legendary, mythical, ultra_beast, paradox...); fully evolved means nothing
             // further to evolve into.
             members.add(new PartyMember(pokemon.getUuid(), pokemon.getLevel(), pokemon.isFainted(), species.getName(),
