@@ -47,7 +47,9 @@ export function modeLine(extras) {
 }
 
 /** The tower the Climb button starts with: the run's tower, else the first. */
-export const defaultPick = (hall) => hall.towers.find((t) => t.id === hall.extras?.runTower)?.id || hall.towers[0]?.id || '';
+/** The tower the Hall opens on: the one a hub host or portal sent the player to, else the run's, else the first. */
+export const defaultPick = (hall) => hall.towers.find((t) => t.id === hall.extras?.focusTower)?.id
+  || hall.towers.find((t) => t.id === hall.extras?.runTower)?.id || hall.towers[0]?.id || '';
 
 /** The tower name without its trailing " Tower". */
 export const shortName = (name) => String(name).replace(/ Tower$/, '');
