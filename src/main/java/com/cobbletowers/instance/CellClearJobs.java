@@ -28,6 +28,7 @@ public final class CellClearJobs {
         final List<ChunkPos> chunks = new ArrayList<>();
         final long createdAt = System.currentTimeMillis();
         int next;
+        int section;                      // the next 16-high section of chunks[next] to clear
         int cleared;
         long workNanos;
 
@@ -105,8 +106,11 @@ public final class CellClearJobs {
                     waiting = true;
                     break;
                 }
-                job.cleared += CellPreparer.resetChunk(level, chunk);
-                job.next++;
+                job.cleared += CellPreparer.resetSection(level, chunk, job.section);   // a section a step, as in SlicedBuild
+                if (++job.section >= chunk.getSections().length) {
+                    job.section = 0;
+                    job.next++;
+                }
             } while (System.nanoTime() < deadline);
         } catch (RuntimeException ex) {
             // Always the first job that runs: one that throws would repeat every tick and hold up every other job and
@@ -120,6 +124,7 @@ public final class CellClearJobs {
         if (job.next >= job.chunks.size()) {
             JOBS.remove(cell);
             CellCleanliness.markClean(cell);
+            CellEvents.wiped(cell);
             TowerMetrics.recordCleanup(server, job.workNanos / 1_000_000);
             if (job.cleared > 0) TowerLog.info("Cell {} cleared in slices, {} block(s)", cell, job.cleared);
         } else if (waiting && System.currentTimeMillis() - job.createdAt > LOAD_TIMEOUT_MILLIS) {

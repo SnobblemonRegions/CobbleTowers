@@ -9,6 +9,7 @@ import com.cobbletowers.halloween.door.TrickDoors;
 import com.cobbletowers.instance.CellPreparer;
 import com.cobbletowers.instance.TowerDimension;
 import com.cobbletowers.persistence.PersistedRun;
+import com.cobbletowers.route.door.SealDoors;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
@@ -82,6 +83,11 @@ public final class TowerDoors {
             TowerLog.info("Run {}: trick-or-treat door {} of floor {} lit and opened", run.runId(), lane, run.floorIndex());
             return changed;
         }
+        if (SealDoors.isSeal(door.get(), at.origin)) {   // the Split Seal door: its seam and seal light and its leaves swing in (P59)
+            if (!SealDoors.isOpen(door.get(), at.origin) && SealDoors.choose(at.level, door.get(), at.origin)) changed++;
+            TowerLog.info("Run {}: seal door {} of floor {} lit and opened", run.runId(), lane, run.floorIndex());
+            return changed;
+        }
         changed += paint(at.level, door.get().open(), at.origin, Blocks.AIR.defaultBlockState(), null);
         if (changed > 0) {
             BlockPos centre = door.get().open().minIn(at.origin).offset(2, 2, 1);
@@ -104,6 +110,10 @@ public final class TowerDoors {
             for (FloorDoor door : at.layout.doors()) {
                 if (TrickDoors.isTrick(door, at.origin)) {
                     if (TrickDoors.isOpen(door, at.origin)) return 0;
+                    continue;
+                }
+                if (SealDoors.isSeal(door, at.origin)) {
+                    if (SealDoors.isOpen(door, at.origin)) return 0;
                     continue;
                 }
                 FloorBox box = door.open();
@@ -131,6 +141,10 @@ public final class TowerDoors {
                 if (TrickDoors.isOpen(door, at.origin)) return lane;
                 continue;
             }
+            if (SealDoors.isSeal(door, at.origin)) {
+                if (SealDoors.isOpen(door, at.origin)) return lane;
+                continue;
+            }
             FloorBox box = door.open();
             BlockPos centre = box.minIn(at.origin).offset((box.maxX() - box.minX()) / 2, (box.maxY() - box.minY()) / 2, 0);
             if (at.level.isLoaded(centre) && at.level.getBlockState(centre).isAir()) return lane;
@@ -154,6 +168,11 @@ public final class TowerDoors {
                 else TowerLog.warn("Run {}: a trick-or-treat door of floor {} was left open because a player stands in it", run.runId(), run.floorIndex());
                 continue;
             }
+            if (SealDoors.isSeal(door, at.origin)) {
+                if (SealDoors.reset(at.level, door, at.origin)) changed++;
+                else TowerLog.warn("Run {}: a seal door of floor {} was left open because a player stands in it", run.runId(), run.floorIndex());
+                continue;
+            }
             BlockPos min = door.open().minIn(at.origin);
             BlockPos max = door.open().maxIn(at.origin);
             if (!at.level.getEntitiesOfClass(ServerPlayer.class, new AABB(min.getX(), min.getY(), min.getZ(), max.getX() + 1, max.getY() + 1, max.getZ() + 1)).isEmpty()) {
@@ -175,7 +194,9 @@ public final class TowerDoors {
         if (at == null) return false;
         List<FloorDoor> doors = at.layout.doors();
         FloorDoor door = doors.get(lane >= 0 && lane < doors.size() ? lane : doors.size() / 2);
-        return TrickDoors.isTrick(door, at.origin) || TrickDoors.install(at.level, run.runId(), door, at.origin, true);
+        if (TrickDoors.isTrick(door, at.origin)) return true;
+        SealDoors.remove(door, at.origin);
+        return TrickDoors.install(at.level, run.runId(), door, at.origin, true);
     }
 
     /** Where the chamber behind a door keeps its vault: on the dais by the east wall, the mimic fighting in the aisle in front of it. */
@@ -216,6 +237,7 @@ public final class TowerDoors {
             level.setBlock(pos, state, Block.UPDATE_ALL);
             changed++;
         }
+        if (changed > 0) Joins.settle(level, box.minIn(origin), box.maxIn(origin));
         return changed;
     }
 }

@@ -34,6 +34,8 @@ public final class TowerNetworking {
         PayloadTypeRegistry.playS2C().register(TowerHallStatePayload.TYPE, TowerHallStatePayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(TrackStatePayload.TYPE, TrackStatePayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(SpectatorPanelPayload.TYPE, SpectatorPanelPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(RelicRevealPayload.TYPE, RelicRevealPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(RelicShelfPayload.TYPE, RelicShelfPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(HauntedRareTrayPayload.TYPE, HauntedRareTrayPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(RewardRevealPayload.TYPE, RewardRevealPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(VendorCatalogPayload.TYPE, VendorCatalogPayload.STREAM_CODEC);
@@ -203,6 +205,8 @@ public final class TowerNetworking {
         ParticipantService.runOf(buyer.getUUID())
                 .ifPresent(current -> sendVendorCatalog(server, buyer, current, message));
         if (result == VendorPurchaseService.Result.SUCCESS) {
+            // The Gilded Merchant bows to the sale in the world, as the counter screen shows it (P59).
+            com.cobbletowers.vendor.VendorNpc.bowFor(server, run.get());
             // The party's health or status may have changed (a heal): the intermission screen behind the vendor shows it, so it is sent again,
             // to the buyer and to the teammate who got the service.
             IntermissionService.refresh(server, buyer);
@@ -224,7 +228,11 @@ public final class TowerNetworking {
     public static void sendVendorCatalog(MinecraftServer server, ServerPlayer player, PersistedRun run, String message) {
         TowerContent content = TowerDefinitionRegistry.content();
         long balance = TowerWalletStore.get(server).balanceOf(player.getUUID());
+        // Only what is sold where the vendor is open now: the preparation room's stand sells run supplies only (P59).
+        com.cobbletowers.definition.VendorPlace place = com.cobbletowers.vendor.VendorNpc.openPlace(run)
+                .orElse(com.cobbletowers.definition.VendorPlace.ATRIUM);
         List<VendorCatalogPayload.Entry> entries = content.vendorCatalog().stream()
+                .filter(service -> service.soldAt(place))
                 .map(service -> catalogEntry(service, run, player))
                 .toList();
         // Everyone still in the run, the caller first: the picker defaults to "yourself".
@@ -237,7 +245,9 @@ public final class TowerNetworking {
             if (participant.playerId().equals(player.getUUID())) team.add(0, entry);
             else team.add(entry);
         }
-        sendVendorCatalog(player, new VendorCatalogPayload(balance, entries, team, message));
+        VendorCatalogPayload.Shop shop = com.cobbletowers.vendor.ShopView.build(server, player, run, content, place, balance,
+                team.stream().map(VendorCatalogPayload.Teammate::id).toList());
+        sendVendorCatalog(player, new VendorCatalogPayload(balance, entries, team, message, shop));
     }
 
     private static VendorCatalogPayload.Entry catalogEntry(VendorServiceDefinition service, PersistedRun run,

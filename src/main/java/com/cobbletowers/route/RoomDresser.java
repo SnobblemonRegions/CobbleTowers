@@ -9,6 +9,8 @@ import com.cobbletowers.halloween.door.TrickDoors;
 import com.cobbletowers.instance.TowerDimension;
 import com.cobbletowers.persistence.PersistedDraft;
 import com.cobbletowers.persistence.PersistedRun;
+import com.cobbletowers.route.door.SealDoorModels;
+import com.cobbletowers.route.door.SealDoors;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -52,6 +54,11 @@ public final class RoomDresser {
     /** The structure that dresses a stop of {@code kind} (a RouteGraph.Kind name): {@code room_<kind>}, a plain battle's gauntlet for anything unknown. */
     public static ResourceLocation templateOf(String kind) {
         return CobbleTowers.id("room_" + RouteGraph.Kind.parse(kind).name().toLowerCase(Locale.ROOT));
+    }
+
+    /** A tower's own room for a stop (P59): {@code room_<tower path>_<kind>}, built in its palette by tools/tower_gen/rooms.py. */
+    public static ResourceLocation towerTemplateOf(ResourceLocation tower, String kind) {
+        return CobbleTowers.id("room_" + tower.getPath() + "_" + RouteGraph.Kind.parse(kind).name().toLowerCase(Locale.ROOT));
     }
 
     /**
@@ -133,22 +140,30 @@ public final class RoomDresser {
         for (int door = 0; door < wanted.size(); door++) {
             if (door < have.size() && have.get(door).equals(wanted.get(door))) continue;
             FloorDoor doorway = layout.doors().get(door);
-            if (!place(server, level, doorway, origin, wanted.get(door))) {
+            if (!place(server, level, doorway, origin, run.towerId(), wanted.get(door))) {
                 now.set(door, "");   // not dressed: try again next time
                 continue;
             }
-            // A Trick or Treat lane gets the Hallowbound door in a wall; any other lane has plain bars (P57).
-            if (RouteGraph.Kind.parse(wanted.get(door)) == RouteGraph.Kind.TRICK_OR_TREAT) {
+            // A Trick or Treat lane gets the Hallowbound door in a wall (P57); any other lane gets the Split Seal door in the tower's trim, showing
+            // the lane's icon (P59). A doorway too small for it keeps its bars.
+            RouteGraph.Kind kind = RouteGraph.Kind.parse(wanted.get(door));
+            if (kind == RouteGraph.Kind.TRICK_OR_TREAT) {
+                SealDoors.remove(doorway, origin);
                 if (!TrickDoors.install(level, run.runId(), doorway, origin, false)) now.set(door, "");
             } else {
                 TrickDoors.uninstall(level, doorway, origin);
+                if (!SealDoors.install(level, run.runId(), doorway, origin, SealDoorModels.trimOf(run.towerId()), SealDoorModels.stopOf(kind))) {
+                    now.set(door, "");
+                }
             }
         }
         DRESSED.put(run.runId(), now);
     }
 
-    private static boolean place(MinecraftServer server, ServerLevel level, FloorDoor door, BlockPos origin, String kind) {
-        Optional<StructureTemplate> template = server.getStructureManager().get(templateOf(kind));
+    private static boolean place(MinecraftServer server, ServerLevel level, FloorDoor door, BlockPos origin, ResourceLocation tower, String kind) {
+        // the tower's own room when it has one (the Neutral set, P59), else the shared room (the Halloween set)
+        Optional<StructureTemplate> template = server.getStructureManager().get(towerTemplateOf(tower, kind))
+                .or(() -> server.getStructureManager().get(templateOf(kind)));
         if (template.isEmpty()) {
             TowerLog.warn("No room structure {} for a {} stop", templateOf(kind), kind);
             return false;

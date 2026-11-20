@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gilded Merchant Shop</title>
+<style>
+@font-face { font-family: Outfit; src: url(art/outfit.ttf); font-weight: 400; }
+@font-face { font-family: Outfit; src: url(art/outfit_6.ttf); font-weight: 600; }
+@font-face { font-family: Outfit; src: url(art/outfit_b.ttf); font-weight: 700; }
+@font-face { font-family: Outfit; src: url(art/outfit_xb.ttf); font-weight: 800; }
+@font-face { font-family: Outfit; src: url(art/outfit_bl.ttf); font-weight: 900; }
+
+/* The bridge's tower palette (gen_ui_towers.py), plus the merchant's own gold and crimson. */
+:root {
+  --ink: #e9eefc; --mut: #93a2c9; --soft: #b3c0e0; --faint: #4d5e90; --line: #2b3b68;
+  --surf: #16213f; --surf2: #1d2a50; --track: #2a3a66; --page: #0b1022;
+  --gold: #f2c75c; --gold2: #ddab3c; --goldbg: #3a2d0f; --goldline: #6b5420;
+  --crimson: #8e1f2a; --go: #16a34a; --btn: #15803d; --warn: #d98a06; --bad: #d6264e;
+  --u: 12.8px;
+}
+* { box-sizing: border-box; }
+html { background: #070a16; }
+body { margin: 0; padding: 40px 16px 80px; font-family: Outfit, sans-serif; color: var(--ink); background: #070a16; }
+::selection { background: var(--goldbg); color: var(--gold); }
+.doc { max-width: 1280px; margin: 0 auto; }
+.doc > h1 { font-weight: 900; font-size: 34px; margin: 0 0 6px; letter-spacing: -0.01em; }
+.doc > p.lede { color: var(--soft); font-size: 17px; max-width: 70ch; margin: 0 0 40px; line-height: 1.5; }
+.shot { margin: 0 0 18px; }
+.shot h2 { font-size: 22px; font-weight: 800; margin: 56px 0 6px; }
+.shot .why { color: var(--soft); font-size: 15.5px; line-height: 1.55; max-width: 76ch; margin: 0 0 16px; }
+.notes { color: var(--mut); font-size: 14px; line-height: 1.55; margin: 14px 0 0; padding: 0 0 0 18px; max-width: 110ch; }
+.notes li { margin: 0 0 4px; }
+.notes b { color: var(--soft); font-weight: 700; }
+
+/* one 1280 x 720 game screen */
+.frame { position: relative; width: 1280px; height: 720px; overflow: hidden; border-radius: 6px;
+  background: radial-gradient(ellipse 80% 70% at 50% 60%, #1a2244 0%, #0b1022 70%); outline: 1px solid #1c2647; }
+.frame::before { content: ""; position: absolute; inset: 0; background: #060a16d6; }   /* the bridge's modal scrim */
+.frame > * { position: relative; }
+.center { position: absolute; inset: 0; display: grid; place-items: center; }
+
+/* ---------- shared pieces ---------- */
+.modal { background: var(--surf); border-radius: calc(var(--u) * 1.8); box-shadow: 0 24px 60px #00000080, 0 4px 14px #00000066; }
+.gilt { border: 2px solid var(--goldline); box-shadow: 0 24px 60px #00000080, 0 4px 14px #00000066, inset 0 0 0 1px #00000055; }
+.px { image-rendering: pixelated; }
+.coin { width: 22px; height: 22px; image-rendering: pixelated; vertical-align: -4px; }
+.btn { font: 800 19px/1 Outfit; border-radius: 14px; padding: 12px 22px; border: 2px solid var(--line); background: var(--surf2); color: var(--ink); white-space: nowrap; }
+.btn.buy { background: var(--btn); border-color: transparent; color: #fff; box-shadow: 0 0 0 4px #22c55e40; display: inline-flex; gap: 10px; align-items: center; }
+.btn.buy .coin { width: 20px; height: 20px; }
+.btn.off { background: #2a3355; color: #6f7ca3; box-shadow: none; }
+.x { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; color: var(--mut); font: 700 18px Outfit; }
+.lbl { font: 700 12.5px/1 Outfit; letter-spacing: .12em; text-transform: uppercase; color: var(--mut); }
+.gold { color: var(--gold); }
+.mut { color: var(--mut); }
+
+/* hp pips: one per Pokemon */
+.pips { display: flex; gap: 4px; }
+.pip { width: 34px; height: 8px; border-radius: 4px; background: var(--track); position: relative; overflow: hidden; }
+.pip > i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: #22c55e; }
+.pip.mid > i { background: var(--warn); }
+.pip.low > i { background: var(--bad); }
+.pip.ko { background: #3a2230; }
+.pip.ko::after { content: ""; position: absolute; left: 3px; right: 3px; top: 3px; height: 1px; background: #e8798c; }
+.pip.st { outline: 2px solid #b26cf2; outline-offset: 1px; }
+
+/* ---------- A: the counter ---------- */
+.a { width: 1060px; height: 580px; display: grid; grid-template-columns: 330px 1fr; overflow: hidden; }
+.a .niche { position: relative; background:
+    radial-gradient(circle at 22% 30%, #f2b54a33 0%, transparent 38%),
+    radial-gradient(ellipse 120% 70% at 50% 100%, #2a1520 0%, #121a35 70%);
+  border-right: 2px solid var(--goldline); overflow: hidden; }
+.a .niche img { position: absolute; left: -24px; bottom: 96px; width: 380px; }
+.a .niche .say { position: absolute; left: 0; right: 0; bottom: 0; padding: 16px 22px 20px; background: linear-gradient(transparent, #0d1328 30%); }
+.a .niche .who { font: 800 20px/1.1 Outfit; color: var(--gold); margin: 0 0 6px; }
+.a .niche .line { font: 600 15px/1.45 Outfit; color: var(--soft); }
+.a .main { padding: 24px 28px 22px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.a .top { display: flex; align-items: center; gap: 14px; }
+.a .bal { font: 800 30px/1 Outfit; display: flex; gap: 10px; align-items: center; }
+.a .bal .coin { width: 30px; height: 30px; }
+.a .bal small { font: 600 14px Outfit; color: var(--mut); margin-left: 4px; }
+.a .grow { flex: 1; }
+.ledger { display: flex; flex-direction: column; gap: 8px; }
+.row { display: grid; grid-template-columns: 56px 1fr auto; gap: 16px; align-items: center; padding: 10px 16px 10px 10px; border-radius: 14px; background: var(--surf2); border: 2px solid transparent; }
+.row .tile { width: 56px; height: 56px; border-radius: 12px; background: #0f1731; display: grid; place-items: center; }
+.row .tile img { width: 40px; height: 40px; image-rendering: pixelated; }
+.row b { font: 800 18px/1.15 Outfit; display: block; }
+.row .eff { font: 400 14px/1.35 Outfit; color: var(--mut); }
+.row .price { font: 800 20px/1 Outfit; color: var(--gold); display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
+.row .stock { font: 600 12.5px/1 Outfit; color: var(--mut); text-align: right; margin-top: 6px; }
+.row.sel { border-color: var(--gold2); background: linear-gradient(90deg, #3a2d0f 0%, var(--surf2) 55%); }
+.row.short .price { color: #b8a06a; }
+.row.short .stock { color: #e0a24a; }
+.row.away { opacity: .55; }
+.row.away .tile img { filter: grayscale(1) brightness(.7); }
+.row.away .price { color: var(--mut); font-size: 15px; font-weight: 700; }
+.give { display: flex; gap: 10px; align-items: stretch; }
+.mate { flex: 1; border-radius: 14px; padding: 11px 14px; background: var(--surf2); border: 2px solid transparent; display: flex; flex-direction: column; gap: 8px; }
+.mate .nm { font: 700 15.5px/1 Outfit; display: flex; justify-content: space-between; gap: 8px; }
+.mate .nm span { font-weight: 600; font-size: 13px; color: var(--mut); }
+.mate.sel { border-color: var(--gold2); }
+.mate.fine { opacity: .6; }
+.foot { margin-top: auto; display: flex; gap: 16px; align-items: center; padding-top: 14px; border-top: 2px solid var(--line); }
+.foot .sum { flex: 1; font: 600 15px/1.45 Outfit; color: var(--soft); min-width: 0; }
+.foot .sum b { color: var(--ink); font-weight: 800; }
+
+/* ---------- B: the scale ---------- */
+.b { width: 1100px; height: 590px; display: grid; grid-template-columns: 1fr 300px; overflow: hidden; }
+.b .stage { position: relative; padding: 24px 28px; display: flex; flex-direction: column;
+  background: radial-gradient(ellipse 60% 55% at 50% 42%, #2b2242 0%, var(--surf) 72%); }
+.b .stage .hdr { display: flex; align-items: baseline; gap: 14px; }
+.b .stage .hdr h3 { margin: 0; font: 800 24px/1 Outfit; color: var(--gold); }
+.b .stage .hdr span { font: 600 15px Outfit; color: var(--soft); }
+.b .scale { position: relative; height: 300px; margin-top: 8px; }
+.b .scale img.m { position: absolute; left: 50%; top: -18px; width: 250px; transform: translateX(-50%); }
+.b .shelf { margin-top: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.slot { border-radius: 14px; background: var(--surf2); border: 2px solid transparent; padding: 12px; display: grid; grid-template-columns: 48px 1fr; gap: 4px 12px; align-items: center; }
+.slot img:not(.coin) { width: 48px; height: 48px; grid-row: span 2; image-rendering: pixelated; }
+.slot b { font: 800 16.5px/1.1 Outfit; }
+.slot .p { font: 800 16px/1 Outfit; color: var(--gold); display: flex; gap: 6px; align-items: center; }
+.slot .p small { color: var(--mut); font-weight: 600; font-size: 12.5px; margin-left: auto; }
+.slot.sel { border-color: var(--gold2); background: linear-gradient(180deg, #3a2d0f, var(--surf2)); }
+.slot.short .p { color: #b8a06a; }
+.b .side { border-left: 2px solid var(--line); padding: 22px 20px; display: flex; flex-direction: column; gap: 12px; background: #131c37; }
+.b .side .mate { flex: 0 0 auto; }
+.b .side .bal { font: 800 26px/1 Outfit; display: flex; align-items: center; gap: 10px; }
+.b .side .bal .coin { width: 26px; height: 26px; }
+.b .side .push { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+.b .side .push .btn { justify-content: center; }
+.pan { position: absolute; width: 150px; text-align: center; }
+.pan .dish { height: 16px; border-radius: 0 0 80px 80px; background: linear-gradient(#e2b44b, #9a7322); box-shadow: 0 6px 12px #00000066; }
+.pan .load { display: flex; justify-content: center; align-items: flex-end; gap: 4px; height: 52px; }
+.pan .load img { width: 40px; image-rendering: pixelated; }
+.pan .cap { font: 700 14px/1.3 Outfit; color: var(--soft); margin-top: 8px; }
+.pan .cap b { color: var(--gold); font-weight: 800; }
+
+/* ---------- C: who needs it ---------- */
+.c { width: 1080px; height: 590px; padding: 22px 26px; display: flex; flex-direction: column; gap: 16px; }
+.c .hd { display: flex; align-items: center; gap: 16px; }
+.c .hd .face { width: 76px; height: 76px; border-radius: 16px; overflow: hidden; border: 2px solid var(--goldline);
+  background: radial-gradient(circle at 30% 30%, #f2b54a40, #121a35 70%); position: relative; }
+.c .hd .face img { position: absolute; width: 150px; left: -40px; top: -12px; }
+.c .hd .t { flex: 1; }
+.c .hd .t b { font: 800 20px/1.1 Outfit; color: var(--gold); display: block; }
+.c .hd .t span { font: 600 15px/1.4 Outfit; color: var(--soft); }
+.c .hd .bal { font: 800 26px/1 Outfit; display: flex; align-items: center; gap: 10px; }
+.c .hd .bal .coin { width: 26px; height: 26px; }
+.c .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: 1; min-height: 0; }
+.card { border-radius: 16px; background: var(--surf2); border: 2px solid transparent; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.card.sel { border-color: var(--gold2); }
+.card .nm { font: 800 18px/1 Outfit; display: flex; justify-content: space-between; align-items: center; }
+.card .nm span { font: 600 13.5px Outfit; color: var(--mut); }
+.mon { display: grid; grid-template-columns: 136px 1fr 44px; white-space: nowrap; gap: 10px; align-items: center; font: 600 14px/1 Outfit; color: var(--soft); }
+.mon .bar { height: 9px; border-radius: 5px; background: var(--track); position: relative; overflow: hidden; }
+.mon .bar i { position: absolute; inset: 0 auto 0 0; background: #22c55e; border-radius: 5px; }
+.mon .bar.mid i { background: var(--warn); } .mon .bar.low i { background: var(--bad); }
+.mon .v { text-align: right; color: var(--mut); font-variant-numeric: tabular-nums; }
+.mon.ko { color: #e8798c; } .mon.ko .v { color: #e8798c; }
+.mon .stc { display: inline-block; font: 700 11.5px/1 Outfit; letter-spacing: .06em; color: #e7d2ff; background: #5a2f86; border-radius: 6px; padding: 4px 8px; margin-left: 6px; vertical-align: 1px; }
+.offer { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 8px; border-radius: 12px; padding: 8px 12px 8px 8px; background: #0f1731; border: 2px solid var(--line); font: 700 14.5px/1 Outfit; }
+.chip img { width: 26px; height: 26px; image-rendering: pixelated; }
+.chip .p { color: var(--gold); display: inline-flex; gap: 4px; align-items: center; }
+.chip .p .coin { width: 16px; height: 16px; vertical-align: 0; }
+.chip.rec { border-color: var(--gold2); background: linear-gradient(180deg, #3a2d0f, #0f1731); }
+.chip.dim { opacity: .45; }
+.c .ft { display: flex; gap: 14px; align-items: center; border-top: 2px solid var(--line); padding-top: 14px; }
+.c .ft .sum { flex: 1; font: 600 15px/1.45 Outfit; color: var(--soft); }
+.c .ft .sum b { color: var(--ink); }
+
+/* ---------- purchase moment ---------- */
+.sweep { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: inherit; }
+.sweep::before { content: ""; position: absolute; top: -40%; bottom: -40%; width: 180px; left: 46%; transform: rotate(18deg);
+  background: linear-gradient(90deg, transparent, #f2c75c38 40%, #fff3c860 50%, #f2c75c38 60%, transparent); filter: blur(2px); }
+.spark { position: absolute; width: 8px; height: 8px; background: #ffe39a; transform: rotate(45deg); }
+.spark.s { width: 5px; height: 5px; }
+.toast { position: absolute; right: 26px; bottom: 92px; background: #0d1328; border: 2px solid var(--gold2); border-radius: 14px; padding: 12px 20px;
+  display: flex; gap: 12px; align-items: center; font: 700 16px/1.3 Outfit; box-shadow: 0 14px 30px #00000088; white-space: nowrap; }
+.sum.done { display: flex; gap: 12px; align-items: center; border: 2px solid var(--gold2); border-radius: 14px; padding: 9px 14px; background: #0d1328; color: var(--ink); }
+.sum.done img { width: 30px; height: 30px; image-rendering: pixelated; }
+.toast img { width: 32px; height: 32px; image-rendering: pixelated; }
+.toast b { color: var(--gold); }
+.minus { font: 800 18px/1 Outfit; color: #ff9b8a; margin-left: 6px; }
+.flash .row.sel { background: linear-gradient(90deg, #5a4515 0%, var(--surf2) 70%); }
+</style>
+</head>
+<body>
+<div class="doc">
+  <h1>The Gilded Merchant's shop</h1>
+  <p class="lede">Mockups for the SnobbleGUIOverhaul bridge, drawn at the 1280 × 720 page size the bridge lays out in, in the tower palette from <code>gen_ui_towers.py</code>. Data is the real fixture: 413 CobbleDollars, Cure Status 10, Full Heal 25, Mystery Bag 500 (2 left), and a party of two. The merchant is a render of his own model; in game he would be the bridge's <code>item</code> widget drawing a portrait model from the pack.</p>
+
+  <!-- ===================================================== A: floor -->
+  <section class="shot">
+    <h2>A. The counter (recommended)</h2>
+    <p class="why">He stands in a lantern-lit niche on the left and talks; the goods are a ledger on the right; who gets it is a strip of teammates showing each Pokémon's health. The decision reads top to bottom: what, for whom, how much.</p>
+    <div class="frame"><div class="center">
+      <div class="modal gilt a">
+        <div class="niche">
+          <img src="art/merchant_full.png" alt="The Gilded Merchant">
+          <div class="say"><div class="who">The Gilded Merchant</div>
+            <div class="line">“Ludicolo looks tired, and your Lucario is down. Twenty-five puts the lot right.”</div></div>
+        </div>
+        <div class="main">
+          <div class="top">
+            <div class="bal"><img class="coin" src="art/ico_coin.png" alt="">413<small>CobbleDollars</small></div>
+            <div class="grow"></div>
+            <div class="x">✕</div>
+          </div>
+          <div class="ledger">
+            <div class="row sel">
+              <div class="tile"><img src="art/max_potion.png" alt=""></div>
+              <div><b>Full Heal</b><span class="eff">Every Pokémon back to full HP, fainted ones too.</span></div>
+              <div><div class="price"><img class="coin" src="art/ico_coin.png" alt="">25</div><div class="stock">Unlimited</div></div>
+            </div>
+            <div class="row">
+              <div class="tile"><img src="art/full_heal.png" alt=""></div>
+              <div><b>Cure Status</b><span class="eff">Clears burn, poison, sleep, freeze and paralysis.</span></div>
+              <div><div class="price"><img class="coin" src="art/ico_coin.png" alt="">10</div><div class="stock">Unlimited</div></div>
+            </div>
+            <div class="row short">
+              <div class="tile"><img src="art/mystery_bag.png" alt=""></div>
+              <div><b>Mystery Bag</b><span class="eff">A sealed bag of tower loot. Two per player each run.</span></div>
+              <div><div class="price"><img class="coin" src="art/ico_coin.png" alt="">500</div><div class="stock">87 short · 2 left</div></div>
+            </div>
+          </div>
+          <div>
+            <div class="lbl" style="margin:0 0 8px">Give to</div>
+            <div class="give">
+              <div class="mate sel"><div class="nm">WebPlayer <span>you · 1 fainted</span></div>
+                <div class="pips"><div class="pip mid"><i style="width:71%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:82%"></i></div><div class="pip mid"><i style="width:55%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip ko"></div></div></div>
+              <div class="mate fine"><div class="nm">Mossling42 <span>all healthy</span></div>
+                <div class="pips"><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:94%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div></div></div>
+            </div>
+          </div>
+          <div class="foot">
+            <div class="sum"><b>Full Heal for you:</b> Arcanine, Umbreon and Ludicolo to full, Lucario back on its feet.</div>
+            <div class="btn buy">Buy <img class="coin" src="art/ico_coin.png" alt="">25</div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <ul class="notes">
+      <li><b>Bridge widgets:</b> the niche is an <code>item</code> widget (a portrait model added to <code>build.py</code>), rows are the existing <code>repeat</code> over services, the pips are six <code>bar</code> widgets per teammate, the gold edge is the selected border colour the view already sends.</li>
+      <li><b>New data:</b> each teammate's party health and status (today the shop only knows names and online), and where the shop is open (prep or floor) for his line and the greyed goods.</li>
+      <li><b>His line</b> is picked on the server from the party's state: someone fainted, low HP, a status, all healthy, can't afford anything, prep room.</li>
+    </ul>
+  </section>
+
+  <!-- ===================================================== B: floor -->
+  <section class="shot">
+    <h2>B. The scale</h2>
+    <p class="why">He stands centre stage holding his scale: your coins on one pan, the chosen item on the other. The goods are a shelf underneath, the party a column on the right. Most theatrical, but the scale needs two drawn states and the picture takes room the information could use.</p>
+    <div class="frame"><div class="center">
+      <div class="modal gilt b">
+        <div class="stage">
+          <div class="hdr"><h3>The Gilded Merchant</h3><span>“Weigh it up, traveller.”</span></div>
+          <div class="scale">
+            <img class="m" src="art/merchant_full.png" alt="">
+            <svg width="100%" height="300" viewBox="0 0 740 300" style="position:absolute;inset:0" aria-hidden="true">
+              <g transform="rotate(-6 370 120)">
+                <rect x="160" y="116" width="420" height="8" rx="3" fill="#ddab3c"/>
+                <rect x="160" y="116" width="420" height="3" rx="1.5" fill="#ffe39a"/>
+                <line x1="200" y1="124" x2="175" y2="196" stroke="#8a6a26" stroke-width="2"/><line x1="200" y1="124" x2="235" y2="196" stroke="#8a6a26" stroke-width="2"/>
+                <line x1="540" y1="124" x2="505" y2="196" stroke="#8a6a26" stroke-width="2"/><line x1="540" y1="124" x2="575" y2="196" stroke="#8a6a26" stroke-width="2"/>
+              </g>
+              <rect x="364" y="108" width="12" height="24" rx="3" fill="#ffe39a"/>
+            </svg>
+            <div class="pan" style="left:205px;top:150px"><div class="load"><img src="art/ico_coins.png" alt=""></div><div class="dish"></div><div class="cap">Your purse<br><b>413</b></div></div>
+            <div class="pan" style="left:430px;top:182px"><div class="load"><img src="art/max_potion.png" alt=""></div><div class="dish"></div><div class="cap">Full Heal<br><b>25</b></div></div>
+          </div>
+          <div class="shelf">
+            <div class="slot sel"><img src="art/max_potion.png" alt=""><b>Full Heal</b><div class="p"><img class="coin" src="art/ico_coin.png" alt="">25<small>Unlimited</small></div></div>
+            <div class="slot"><img src="art/full_heal.png" alt=""><b>Cure Status</b><div class="p"><img class="coin" src="art/ico_coin.png" alt="">10<small>Unlimited</small></div></div>
+            <div class="slot short"><img src="art/mystery_bag.png" alt=""><b>Mystery Bag</b><div class="p"><img class="coin" src="art/ico_coin.png" alt="">500<small>87 short</small></div></div>
+          </div>
+        </div>
+        <div class="side">
+          <div style="display:flex;align-items:center"><div class="bal"><img class="coin" src="art/ico_coin.png" alt="">413</div><div style="flex:1"></div><div class="x">✕</div></div>
+          <div class="lbl">Give to</div>
+          <div class="mate sel"><div class="nm">WebPlayer <span>1 fainted</span></div>
+            <div class="pips"><div class="pip mid"><i style="width:71%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:82%"></i></div><div class="pip mid"><i style="width:55%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip ko"></div></div></div>
+          <div class="mate fine"><div class="nm">Mossling42 <span>healthy</span></div>
+            <div class="pips"><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:94%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div></div></div>
+          <div class="push">
+            <div class="mut" style="font:600 14px/1.45 Outfit">Full Heal puts all six of yours to full HP, Lucario included.</div>
+            <div class="btn buy">Buy <img class="coin" src="art/ico_coin.png" alt="">25</div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <ul class="notes">
+      <li><b>Bridge widgets:</b> the beam and pans are images; the tip is a swap between a level and a tipped picture with <code>pop</code>. No new client animation kind.</li>
+      <li><b>Cost:</b> the picture is about a third of the screen; with more goods the shelf scrolls sideways.</li>
+    </ul>
+  </section>
+
+  <!-- ===================================================== C: floor -->
+  <section class="shot">
+    <h2>C. Who needs it</h2>
+    <p class="why">Built around the party: each teammate is a card with every Pokémon's health, and the goods sit on the card that needs them, with a gold mark on the one that helps most. The merchant shrinks to a face in the header. The most useful, the least of him.</p>
+    <div class="frame"><div class="center">
+      <div class="modal gilt c">
+        <div class="hd">
+          <div class="face"><img src="art/merchant_bust.png" alt=""></div>
+          <div class="t"><b>The Gilded Merchant</b><span>“Ludicolo looks tired, and your Lucario is down.”</span></div>
+          <div class="bal"><img class="coin" src="art/ico_coin.png" alt="">413</div>
+          <div class="x">✕</div>
+        </div>
+        <div class="cols">
+          <div class="card sel">
+            <div class="nm">WebPlayer <span>you</span></div>
+            <div class="mon"><span>Arcanine</span><div class="bar mid"><i style="width:71%"></i></div><span class="v">71%</span></div>
+            <div class="mon"><span>Gliscor</span><div class="bar"><i style="width:100%"></i></div><span class="v">100%</span></div>
+            <div class="mon"><span>Umbreon</span><div class="bar"><i style="width:82%"></i></div><span class="v">82%</span></div>
+            <div class="mon"><span>Ludicolo</span><div class="bar mid"><i style="width:55%"></i></div><span class="v">55%</span></div>
+            <div class="mon"><span>Mewtwo</span><div class="bar"><i style="width:100%"></i></div><span class="v">100%</span></div>
+            <div class="mon ko"><span>Lucario</span><div class="bar"><i style="width:0"></i></div><span class="v">KO</span></div>
+            <div class="offer">
+              <span class="chip rec"><img src="art/max_potion.png" alt="">Full Heal <span class="p"><img class="coin" src="art/ico_coin.png" alt="">25</span></span>
+              <span class="chip dim"><img src="art/full_heal.png" alt="">Cure Status <span class="p"><img class="coin" src="art/ico_coin.png" alt="">10</span></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="nm">Mossling42 <span>teammate</span></div>
+            <div class="mon"><span>Garchomp</span><div class="bar"><i style="width:100%"></i></div><span class="v">100%</span></div>
+            <div class="mon"><span>Togekiss</span><div class="bar"><i style="width:100%"></i></div><span class="v">100%</span></div>
+            <div class="mon"><span>Rotom</span><div class="bar"><i style="width:94%"></i></div><span class="v">94%</span></div>
+            <div class="mon"><span>Ferrothorn</span><div class="bar"><i style="width:100%"></i></div><span class="v">100%</span></div>
+            <div class="mon"><span>Volcarona<span class="stc">PSN</span></span><div class="bar"><i style="width:100%"></i></div><span class="v">100%</span></div>
+            <div class="mon"><span>Milotic</span><div class="bar"><i style="width:100%"></i></div><span class="v">100%</span></div>
+            <div class="offer">
+              <span class="chip dim"><img src="art/max_potion.png" alt="">Full Heal <span class="p"><img class="coin" src="art/ico_coin.png" alt="">25</span></span>
+              <span class="chip rec"><img src="art/full_heal.png" alt="">Cure Status <span class="p"><img class="coin" src="art/ico_coin.png" alt="">10</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="ft">
+          <div class="chip" style="opacity:.8"><img src="art/mystery_bag.png" alt="">Mystery Bag <span class="p"><img class="coin" src="art/ico_coin.png" alt="">500</span><span class="mut" style="font-weight:600">· 87 short</span></div>
+          <div class="sum"><b>Full Heal for you:</b> five to full HP, Lucario revived.</div>
+          <div class="btn buy">Buy <img class="coin" src="art/ico_coin.png" alt="">25</div>
+        </div>
+      </div>
+    </div></div>
+    <ul class="notes">
+      <li><b>Cost:</b> needs every teammate's full party (names, HP, status) in the payload, and a Mystery Bag that belongs to nobody's card. Six-player parties would not fit two cards across.</li>
+    </ul>
+  </section>
+
+  <!-- ===================================================== A: prep -->
+  <section class="shot">
+    <h2>A in the prep room</h2>
+    <p class="why">Same shop before floor 1. Everyone starts healthy, so he says so; the Mystery Bag stays on the list, greyed, with where it is sold, so nobody thinks it is gone.</p>
+    <div class="frame"><div class="center">
+      <div class="modal gilt a">
+        <div class="niche">
+          <img src="art/merchant_full.png" alt="The Gilded Merchant">
+          <div class="say"><div class="who">The Gilded Merchant</div>
+            <div class="line">“Supplies for the climb. My bags I only open upstairs.”</div></div>
+        </div>
+        <div class="main">
+          <div class="top">
+            <div class="bal"><img class="coin" src="art/ico_coin.png" alt="">413<small>CobbleDollars</small></div>
+            <div class="grow"></div>
+            <div class="x">✕</div>
+          </div>
+          <div class="ledger">
+            <div class="row sel">
+              <div class="tile"><img src="art/max_potion.png" alt=""></div>
+              <div><b>Full Heal</b><span class="eff">Every Pokémon back to full HP, fainted ones too.</span></div>
+              <div><div class="price"><img class="coin" src="art/ico_coin.png" alt="">25</div><div class="stock">Unlimited</div></div>
+            </div>
+            <div class="row">
+              <div class="tile"><img src="art/full_heal.png" alt=""></div>
+              <div><b>Cure Status</b><span class="eff">Clears burn, poison, sleep, freeze and paralysis.</span></div>
+              <div><div class="price"><img class="coin" src="art/ico_coin.png" alt="">10</div><div class="stock">Unlimited</div></div>
+            </div>
+            <div class="row away">
+              <div class="tile"><img src="art/mystery_bag.png" alt=""></div>
+              <div><b>Mystery Bag</b><span class="eff">Sold on the floors, from floor 1.</span></div>
+              <div><div class="price">Not here</div></div>
+            </div>
+          </div>
+          <div>
+            <div class="lbl" style="margin:0 0 8px">Give to</div>
+            <div class="give">
+              <div class="mate sel fine"><div class="nm">WebPlayer <span>you · all healthy</span></div>
+                <div class="pips"><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div></div></div>
+              <div class="mate fine"><div class="nm">Mossling42 <span>all healthy</span></div>
+                <div class="pips"><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div></div></div>
+            </div>
+          </div>
+          <div class="foot">
+            <div class="sum"><b>Nobody needs it yet.</b> A Full Heal now would change nothing; come back after a floor.</div>
+            <div class="btn buy off">Buy <img class="coin" src="art/ico_coin.png" alt="" style="opacity:.5">25</div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <ul class="notes">
+      <li><b>Open question for you:</b> should Buy be disabled when nobody would gain anything (as drawn), or allowed with a warning? Disabling saves players from wasting coins.</li>
+    </ul>
+  </section>
+
+  <!-- ===================================================== A: purchase -->
+  <section class="shot">
+    <h2>A, the moment a purchase lands</h2>
+    <p class="why">The one authored moment: a gold sweep crosses the shop, sparks rise from the row, he bows in the niche (and in the world), the balance ticks down and the pips fill. About a second, then back to the list.</p>
+    <div class="frame"><div class="center">
+      <div class="modal gilt a flash" style="position:relative">
+        <div class="niche">
+          <img src="art/merchant_bow.png" alt="The Gilded Merchant bowing">
+          <div class="say"><div class="who">The Gilded Merchant</div>
+            <div class="line">“A pleasure. Climb well.”</div></div>
+        </div>
+        <div class="main">
+          <div class="top">
+            <div class="bal"><img class="coin" src="art/ico_coin.png" alt="">388<span class="minus">−25</span></div>
+            <div class="grow"></div>
+            <div class="x">✕</div>
+          </div>
+          <div class="ledger">
+            <div class="row sel">
+              <div class="tile"><img src="art/max_potion.png" alt=""></div>
+              <div><b>Full Heal</b><span class="eff">Every Pokémon back to full HP, fainted ones too.</span></div>
+              <div><div class="price"><img class="coin" src="art/ico_coin.png" alt="">25</div><div class="stock">Unlimited</div></div>
+            </div>
+            <div class="row">
+              <div class="tile"><img src="art/full_heal.png" alt=""></div>
+              <div><b>Cure Status</b><span class="eff">Clears burn, poison, sleep, freeze and paralysis.</span></div>
+              <div><div class="price"><img class="coin" src="art/ico_coin.png" alt="">10</div><div class="stock">Unlimited</div></div>
+            </div>
+            <div class="row short">
+              <div class="tile"><img src="art/mystery_bag.png" alt=""></div>
+              <div><b>Mystery Bag</b><span class="eff">A sealed bag of tower loot. Two per player each run.</span></div>
+              <div><div class="price"><img class="coin" src="art/ico_coin.png" alt="">500</div><div class="stock">112 short · 2 left</div></div>
+            </div>
+          </div>
+          <div>
+            <div class="lbl" style="margin:0 0 8px">Give to</div>
+            <div class="give">
+              <div class="mate sel"><div class="nm">WebPlayer <span>you · all healthy</span></div>
+                <div class="pips"><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div></div></div>
+              <div class="mate fine"><div class="nm">Mossling42 <span>all healthy</span></div>
+                <div class="pips"><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:94%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div><div class="pip"><i style="width:100%"></i></div></div></div>
+            </div>
+          </div>
+          <div class="foot">
+            <div class="sum done"><img src="art/max_potion.png" alt=""><span><b class="gold">Full Heal</b> for you. Lucario is back on its feet and the party is at full HP.</span></div>
+            <div class="btn buy off">Buy <img class="coin" src="art/ico_coin.png" alt="" style="opacity:.5">25</div>
+          </div>
+        </div>
+        <div class="sweep"></div>
+        <i class="spark" style="left:520px;top:150px"></i><i class="spark s" style="left:560px;top:118px"></i><i class="spark" style="left:640px;top:96px"></i>
+        <i class="spark s" style="left:700px;top:132px"></i><i class="spark s" style="left:470px;top:110px"></i><i class="spark" style="left:760px;top:104px"></i>
+      </div>
+    </div></div>
+    <ul class="notes">
+      <li><b>Bridge effects:</b> the existing <code>goldsweep</code> and <code>sparks</code> replace today's generic <code>burst</code>; the view already sends a key when the balance drops, so only the effect names change. The bow in the niche is a second portrait model swapped in for the moment.</li>
+      <li><b>In the world:</b> the merchant's bow plays when the purchase succeeds, as well as on the first click.</li>
+    </ul>
+  </section>
+</div>
+</body>
+</html>

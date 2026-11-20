@@ -31,6 +31,16 @@ public final class WalkRules {
         return current.walkable() && next.isPresent() && next.get().structure().equals(current.structure());
     }
 
+    /**
+     * Whether the lane stairs of this floor climb into the next floor's building although it is another building (P59: floor 5 of a two-act tower
+     * climbs into Act II). Only between two floors of the run's own tower: a lane's arrival spot is in its own tower's next floor, so a detour to
+     * another region's building is still left by teleport.
+     * @param ownFloors whether this floor and the next are both in the run's own tower (no detour on either)
+     */
+    public static boolean climbsAcross(FloorLayout current, Optional<FloorLayout> next, boolean ownFloors) {
+        return ownFloors && current.laneStairs() && next.isPresent() && !next.get().structure().equals(current.structure());
+    }
+
     /** Whether a player at (x, y, z) has arrived at an anchor placed at (ax, ay, az). */
     public static boolean arrived(double x, double y, double z, double ax, double ay, double az) {
         double dx = x - ax;

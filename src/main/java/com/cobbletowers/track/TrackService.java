@@ -143,7 +143,7 @@ public final class TrackService {
         if (track.ranks().containsKey(level)) parts.add(track.ranks().get(level) + " rank");
         MasteryPerks.Perks now = track.perksAt(level), before = track.perksAt(level - 1);
         if (now.vendorDiscountPercent() != before.vendorDiscountPercent()) parts.add("vendor prices -" + now.vendorDiscountPercent() + "%");
-        if (now.cobbleDollarBonusPercent() != before.cobbleDollarBonusPercent()) parts.add("+" + now.cobbleDollarBonusPercent() + "% CobbleDollars");
+        if (now.cobbleDollarBonusPercent() != before.cobbleDollarBonusPercent()) parts.add("+" + now.cobbleDollarBonusPercent() + "% Tower Tokens");
         if (now.raidPointsBonusPercent() != before.raidPointsBonusPercent()) parts.add("+" + now.raidPointsBonusPercent() + "% Raid Points");
         return String.join(", ", parts);
     }

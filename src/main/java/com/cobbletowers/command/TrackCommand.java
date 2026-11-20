@@ -41,7 +41,7 @@ public final class TrackCommand {
                                             long balance = TowerWalletStore.get(context.getSource().getServer())
                                                     .balanceOf(player.getUUID());
                                             context.getSource().sendSuccess(
-                                                    () -> Component.literal("CobbleDollars: " + balance), false);
+                                                    () -> Component.literal("Tower Tokens: " + balance), false);
                                             return 1;
                                         })))
                         .then(Commands.literal("claimall")

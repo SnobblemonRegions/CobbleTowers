@@ -258,10 +258,10 @@ public final class TrialService {
             int reward = StreakRules.rewardFor(milestone);
             TowerWalletStore.get(server).credit(player, reward);
             TowerWalletStore.get(server).checkpoint(server);
-            lines.add(who + " reached a " + milestone + "-day streak: " + reward + " CobbleDollars");
+            lines.add(who + " reached a " + milestone + "-day streak: " + reward + " Tower Tokens");
             com.cobbletowers.season.SeasonProgressService.award(server, player, com.cobbletowers.season.SeasonPoints.Source.STREAK_MILESTONE,
                     milestone, false);
-            TowerLog.info("{} reached a {}-day trial streak and is paid {} CobbleDollars", who, milestone, reward);
+            TowerLog.info("{} reached a {}-day trial streak and is paid {} Tower Tokens", who, milestone, reward);
         }
         return lines;
     }

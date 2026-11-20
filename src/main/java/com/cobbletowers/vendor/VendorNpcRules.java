@@ -15,6 +15,8 @@ public final class VendorNpcRules {
 
     /** The goblin witch's name tag. */
     public static final String WITCH_NAME = "Grizelda the Goblin Merchant";
+    /** The general shop vendor (every tower but Halloween). */
+    public static final String MERCHANT_NAME = "The Gilded Merchant";
 
     /** Towers whose vendor is the goblin witch merchant instead of the cleric. */
     private static final java.util.Set<net.minecraft.resources.ResourceLocation> WITCH_TOWERS = java.util.Set.of(com.cobbletowers.CobbleTowers.id("halloween"));
@@ -71,14 +73,24 @@ public final class VendorNpcRules {
     }
 
     /**
+     * Where a run's vendor is open now (P59): the atrium stand at an intermission, the preparation room's stand while the party is in it before
+     * floor 1. Empty anywhere else (mid-fight above all: TDS #16, no free between-floor healing). One rule for the mob, the catalog and the purchase.
+     */
+    public static Optional<com.cobbletowers.definition.VendorPlace> openPlace(com.cobbletowers.api.tower.RunState state, boolean inPrep) {
+        if (state == com.cobbletowers.api.tower.RunState.INTERMISSION) return Optional.of(com.cobbletowers.definition.VendorPlace.ATRIUM);
+        if (state == com.cobbletowers.api.tower.RunState.PREPARING && inPrep) return Optional.of(com.cobbletowers.definition.VendorPlace.PREP);
+        return Optional.empty();
+    }
+
+    /**
      * Whether a player may use a vendor.
      * @param vendorRun the run it was spawned for
      * @param playerRun the player's run, if any
-     * @param intermission whether that run is at an intermission
+     * @param open whether that run's vendor is open now (an intermission, or the preparation room: {@link #openPlace})
      */
-    public static Access access(UUID vendorRun, Optional<UUID> playerRun, boolean intermission) {
+    public static Access access(UUID vendorRun, Optional<UUID> playerRun, boolean open) {
         if (playerRun.isEmpty() || !playerRun.get().equals(vendorRun)) return Access.NOT_IN_THIS_RUN;
-        return intermission ? Access.ALLOWED : Access.CLOSED;
+        return open ? Access.ALLOWED : Access.CLOSED;
     }
 
     /** The sentence shown to a player who may not use the vendor. */

@@ -58,6 +58,10 @@ class LaneArrivalTest {
                 // Facing east (yaw 270): behind is west. Facing west (yaw 90): behind is east.
                 assertTrue(LaneArrival.where(arrival, 270f, prop).getX() < arrival.getX(), kind + " east-facing");
                 assertTrue(LaneArrival.where(arrival, 90f, prop).getX() > arrival.getX(), kind + " west-facing");
+                // P59 arrivals face north: the props stand behind the party (south, in the arch it came through), never off to its side
+                BlockPos north = LaneArrival.where(arrival, 180f, prop);
+                assertTrue(north.getZ() > arrival.getZ() && Math.abs(north.getX() - arrival.getX()) <= 2, kind + " north-facing");
+                assertTrue(LaneArrival.where(arrival, 0f, prop).getZ() < arrival.getZ(), kind + " south-facing");
             }
         }
     }

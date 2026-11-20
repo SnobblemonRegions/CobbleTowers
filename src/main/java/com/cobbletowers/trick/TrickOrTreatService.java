@@ -251,12 +251,12 @@ public final class TrickOrTreatService {
         creditEach(server, run, purse);
         int candy = queueCandyCorn(server, run, active.floor());
         if (candy > 0) relicLine += " and " + candy + " Candy Corn";
-        TowerLog.info("Run {} treat on floor {}: {} CobbleDollars each{}", run.runId(), active.floor(), purse, relicLine);
+        TowerLog.info("Run {} treat on floor {}: {} Tower Tokens each{}", run.runId(), active.floor(), purse, relicLine);
         for (PersistedParticipant participant : run.participants()) {
             ServerPlayer player = server.getPlayerList().getPlayer(participant.playerId());
             if (player == null) continue;
             com.cobbletowers.economy.VendorServices.apply(VendorEffect.FULL_HEAL, player);
-            player.sendSystemMessage(Component.literal("A treat! The vault pays " + purse + " CobbleDollars" + relicLine + " and the party is healed."));
+            player.sendSystemMessage(Component.literal("A treat! The vault pays " + purse + " Tower Tokens" + relicLine + " and the party is healed."));
         }
         HauntedRare.offer(server, run, active.floor());
     }
@@ -367,7 +367,7 @@ public final class TrickOrTreatService {
         int half = IntermissionEvents.vaultPurse(fight.floor) / 2;
         creditEach(server, run, half);
         TowerLog.info("Run {} beat the mimic of floor {}: the price is returned and each player is paid {}", runId, fight.floor, half);
-        notify(server, run, "The mimic is beaten! You keep what it took, and the vault pays " + half + " CobbleDollars each.");
+        notify(server, run, "The mimic is beaten! You keep what it took, and the vault pays " + half + " Tower Tokens each.");
     }
 
     // ---- housekeeping ----------------------------------------------------------------------------

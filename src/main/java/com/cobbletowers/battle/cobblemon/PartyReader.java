@@ -54,6 +54,19 @@ public final class PartyReader {
                 com.cobbletowers.menu.HallExtras.hpPercent(pokemon.getCurrentHealth(), pokemon.getMaxHealth()), types);
     }
 
+    /** The party's health as the Gilded Merchant's counter shows it (P59): HP percent, fainted, status. Party order. */
+    public static List<com.cobbletowers.network.VendorCatalogPayload.Mon> health(ServerPlayer player) {
+        List<com.cobbletowers.network.VendorCatalogPayload.Mon> mons = new ArrayList<>();
+        for (Pokemon pokemon : Cobblemon.INSTANCE.getStorage().getParty(player)) {
+            var container = pokemon.getStatus();
+            String status = container == null ? "" : container.getStatus().getShowdownName();
+            mons.add(new com.cobbletowers.network.VendorCatalogPayload.Mon(pokemon.getDisplayName(false).getString(),
+                    pokemon.isFainted() ? 0 : com.cobbletowers.menu.HallExtras.hpPercent(pokemon.getCurrentHealth(), pokemon.getMaxHealth()),
+                    pokemon.isFainted(), status == null ? "" : status));
+        }
+        return mons;
+    }
+
     /** Party order, fainted members included: whether they matter is the ruleset's call. */
     public static List<PartyMember> members(ServerPlayer player) {
         List<PartyMember> members = new ArrayList<>();

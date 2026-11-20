@@ -87,6 +87,8 @@ function TowerRow({ t, extras, selected, onPick }) {
 export function DeskHall({ hall, busy }) {
   const extras = hall.extras;
   const [pick, setPick] = useState(() => defaultPick(hall));
+  // a hub host or portal opening the Hall again, on another tower, moves the pick there
+  useEffect(() => { if (extras?.focusTower) setPick(extras.focusTower); }, [extras?.focusTower]);
   // the guide opens by itself the first time this browser shows the Hall
   useEffect(() => { if (firstVisit()) update((s) => (s.view === 'hall' ? goTo(s, 'guide') : s)); }, []);
   const chosen = hall.towers.find((t) => t.id === pick) || hall.towers[0];

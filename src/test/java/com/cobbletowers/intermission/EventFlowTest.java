@@ -180,7 +180,7 @@ class EventFlowTest {
     // ---- refusing a rest pays ------------------------------------------------------------------------
 
     @Test
-    @DisplayName("the rest purse is at least twice the vendor's 25 CobbleDollar full heal and grows with the floor")
+    @DisplayName("the rest purse is at least twice the vendor's 25 Tower Token full heal and grows with the floor")
     void restPurse() {
         assertTrue(IntermissionEvents.restPurse(1) >= 50);
         assertTrue(IntermissionEvents.restPurse(8) > IntermissionEvents.restPurse(1));
@@ -191,7 +191,7 @@ class EventFlowTest {
     void restLabels() {
         String refuse = IntermissionEvents.labelAt(IntermissionEvents.Option.REST_PRESS_ON, 4);
         assertTrue(refuse.contains(String.valueOf(IntermissionEvents.restPurse(4))), refuse);
-        assertTrue(refuse.contains("CobbleDollars"), refuse);
+        assertTrue(refuse.contains("Tower Tokens"), refuse);
         assertEquals("Rest: fully heal the party", IntermissionEvents.labelAt(IntermissionEvents.Option.REST_HEAL, 4));
     }
 }

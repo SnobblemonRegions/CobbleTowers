@@ -68,7 +68,7 @@ public final class ClubService {
             if (goalMet) {
                 book.clubOf(player).ifPresent(club -> {
                     tell(server, club, "Your club " + club.name() + " met its weekly goal! Every member can claim "
-                            + ClubBook.WEEKLY_REWARD + " CobbleDollars on the Club page of the Hall.");
+                            + ClubBook.WEEKLY_REWARD + " Tower Tokens on the Club page of the Hall.");
                     TowerLog.info("Club {} met its weekly goal ({})", club.name(), weekKey());
                 });
             }
@@ -98,8 +98,8 @@ public final class ClubService {
                 + " regional cycle clears (" + weekKey() + "); "
                 + (book.weekClears(club, weekKey()) >= ClubBook.WEEKLY_GOAL
                         ? (club.claimed().contains(player.getUUID()) ? "you have claimed this week's reward"
-                                : "met! Claim it on the Club page: pays " + ClubBook.WEEKLY_REWARD + " CobbleDollars")
-                        : "pays " + ClubBook.WEEKLY_REWARD + " CobbleDollars to every member when met"));
+                                : "met! Claim it on the Club page: pays " + ClubBook.WEEKLY_REWARD + " Tower Tokens")
+                        : "pays " + ClubBook.WEEKLY_REWARD + " Tower Tokens to every member when met"));
         StringBuilder members = new StringBuilder("Members: ");
         for (Map.Entry<UUID, String> member : club.members().entrySet()) {
             members.append(member.getValue()).append(member.getKey().equals(club.owner()) ? " (owner)" : "")
@@ -282,7 +282,7 @@ public final class ClubService {
                     com.cobbletowers.season.SeasonPoints.Source.CLUB_CLAIM, 0, false);
             store.changed();
             store.checkpoint(server);
-            return "Weekly club reward claimed: +" + ClubBook.WEEKLY_REWARD + " CobbleDollars.";
+            return "Weekly club reward claimed: +" + ClubBook.WEEKLY_REWARD + " Tower Tokens.";
         }
         return describe(result);
     }

@@ -55,7 +55,7 @@ final class PedestalHolo {
         return card.risk() < 0 ? "EVENT" : "—";
     }
 
-    /** A room's name runs on ("Forge: every player pays 125 CobbleDollars"): the part before the colon is its title. */
+    /** A room's name runs on ("Forge: every player pays 125 Tower Tokens"): the part before the colon is its title. */
     static String titleOf(IntermissionStatePayload.Card card) {
         String raw = card.displayName();
         int colon = raw.indexOf(':');

@@ -42,17 +42,23 @@ public record TowerHallStatePayload(List<Destination> towers, List<Trial> trials
     }
 
     /** What the Frontier Desk Hall (P51) shows beyond the native snapshot. */
-    public record Extras(String runTower, List<Mon> party, List<Standing> standings, String modeName, List<String> modeProblems) {
+    /** @param focusTower the tower the Hall opens on (a hub host or portal asked for it), or empty for the usual pick */
+    public record Extras(String runTower, List<Mon> party, List<Standing> standings, String modeName, List<String> modeProblems,
+                         String focusTower) {
         public static final Extras NONE = new Extras("", List.of(), List.of());
         public Extras(String runTower, List<Mon> party, List<Standing> standings) {
-            this(runTower, party, standings, "", List.of());
+            this(runTower, party, standings, "", List.of(), "");
+        }
+        public Extras(String runTower, List<Mon> party, List<Standing> standings, String modeName, List<String> modeProblems) {
+            this(runTower, party, standings, modeName, modeProblems, "");
         }
         static final StreamCodec<RegistryFriendlyByteBuf, Extras> CODEC = StreamCodec.composite(
                 ByteBufCodecs.stringUtf8(64), Extras::runTower,
                 Mon.CODEC.apply(ByteBufCodecs.list(6)), Extras::party,
                 Standing.CODEC.apply(ByteBufCodecs.list(256)), Extras::standings,
                 ByteBufCodecs.stringUtf8(64), Extras::modeName,
-                ByteBufCodecs.stringUtf8(200).apply(ByteBufCodecs.list(12)), Extras::modeProblems, Extras::new);
+                ByteBufCodecs.stringUtf8(200).apply(ByteBufCodecs.list(12)), Extras::modeProblems,
+                ByteBufCodecs.stringUtf8(64), Extras::focusTower, Extras::new);
     }
 
     /** @param endsAt epoch millis an event tower closes (P54); 0 for a tower that never does */

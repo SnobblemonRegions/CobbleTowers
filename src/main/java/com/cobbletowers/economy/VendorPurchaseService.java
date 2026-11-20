@@ -1,7 +1,6 @@
 package com.cobbletowers.economy;
 
 import com.cobbletowers.TowerLog;
-import com.cobbletowers.api.tower.RunState;
 import com.cobbletowers.definition.TowerContent;
 import com.cobbletowers.definition.TowerDefinitionRegistry;
 import com.cobbletowers.definition.VendorServiceDefinition;
@@ -27,7 +26,9 @@ public final class VendorPurchaseService {
         /** The paying player has bought as many of it as each player may in one run. */
         LIMIT_REACHED,
         /** The effect threw after the charge; the price was given back. */
-        FAILED
+        FAILED,
+        /** Not on sale where the vendor is open now (the preparation room sells run supplies only, P59). */
+        NOT_SOLD_HERE
     }
 
     private VendorPurchaseService() {}
@@ -36,13 +37,14 @@ public final class VendorPurchaseService {
     public static String describe(Result result, String targetName, boolean self) {
         return switch (result) {
             case SUCCESS -> self ? "Bought for yourself." : "Bought for " + targetName + ".";
-            case INSUFFICIENT_FUNDS -> "Not enough CobbleDollars.";
+            case INSUFFICIENT_FUNDS -> "Not enough Tower Tokens.";
             case SOLD_OUT -> "That service is sold out for this run.";
             case LIMIT_REACHED -> "You have already bought as many of that as you can this run.";
             case TARGET_OFFLINE -> targetName + " is not online.";
             case TARGET_NOT_IN_RUN -> targetName + " is no longer in the run.";
             case NOT_INTERMISSION -> "The vendor is only open at an intermission.";
             case UNKNOWN_SERVICE -> "That service does not exist.";
+            case NOT_SOLD_HERE -> "That is not sold here: the stand before floor 1 sells run supplies only.";
             case RUN_NOT_FOUND -> "You are not in a run.";
             case VENDOR_CLOSED -> "The vendor is closed in this mode.";
             case FAILED -> "That did not work. You were not charged.";
@@ -56,12 +58,15 @@ public final class VendorPurchaseService {
         PersistedRun run = found.get();
         // A playlist can close the vendor outright (Hardcore, P32).
         if (com.cobbletowers.definition.PlaylistRegistry.vendorClosed(run)) return Result.VENDOR_CLOSED;
-        // TDS #16's "no automatic free BETWEEN-FLOOR healing": the vendor is not reachable mid-fight.
-        if (run.state() != RunState.INTERMISSION) return Result.NOT_INTERMISSION;
+        // TDS #16's "no automatic free BETWEEN-FLOOR healing": the vendor is not reachable mid-fight. It is open at an intermission, and in the
+        // preparation room before floor 1 (P59), where only what is sold there can be bought.
+        Optional<com.cobbletowers.definition.VendorPlace> place = com.cobbletowers.vendor.VendorNpc.openPlace(run);
+        if (place.isEmpty()) return Result.NOT_INTERMISSION;
 
         TowerContent content = TowerDefinitionRegistry.content();
         Optional<VendorServiceDefinition> service = content.vendorService(serviceId);
         if (service.isEmpty()) return Result.UNKNOWN_SERVICE;
+        if (!service.get().soldAt(place.get())) return Result.NOT_SOLD_HERE;
 
         boolean targetInRun = run.participants().stream()
                 .anyMatch(participant -> participant.playerId().equals(targetPlayerId) && participant.state().isInRun());

@@ -95,6 +95,7 @@ public final class TowerGates {
                 level.setBlock(pos, Blocks.IRON_BARS.defaultBlockState(), Block.UPDATE_ALL);
                 placed++;
             }
+            Joins.settle(level, min, max);
         }
         if (placed > 0) TowerLog.info("Run {}: the gates of floor {} were shut again ({} blocks)", run.runId(), run.floorIndex(), placed);
         return placed + TowerDoors.resetAll(server, run);

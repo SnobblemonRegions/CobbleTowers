@@ -60,6 +60,7 @@ public final class CobbleTowers implements ModInitializer {
                 com.cobbletowers.command.TrickDoorCommand.register(dispatcher);
                 com.cobbletowers.command.RareCommand.register(dispatcher);
                 com.cobbletowers.command.RouteCommand.register(dispatcher);
+                com.cobbletowers.command.HubCommand.register(dispatcher);
                 PlayCommand.register(dispatcher);
                 com.cobbletowers.command.MasteryCommand.registerAdmin(dispatcher);
                 com.cobbletowers.command.TrialCommand.registerAdmin(dispatcher);
@@ -131,6 +132,7 @@ public final class CobbleTowers implements ModInitializer {
         com.cobbletowers.armor.worn.WornModelService.install();
         com.cobbletowers.halloween.vault.VaultService.install();
         com.cobbletowers.halloween.door.TrickDoors.bootstrap();
+        com.cobbletowers.route.door.SealDoors.bootstrap();
         com.cobbletowers.trick.TrickOrTreatService.install();
         com.cobbletowers.season.SeasonTrimItems.register();
         com.cobbletowers.economy.TowerKeys.install();
@@ -156,6 +158,9 @@ public final class CobbleTowers implements ModInitializer {
         com.cobbletowers.instance.TowerDropGuard.install();
         com.cobbletowers.instance.FaintDropGuard.install();
         com.cobbletowers.vendor.VendorNpc.install();
+        com.cobbletowers.prep.PrepRoomService.install();
+        com.cobbletowers.hub.HubPortals.install();                  // the Tower Hub's portals and their veils (19 Nov 2026)
+        com.cobbletowers.modifier.RelicReveal.install();   // P59: the relic strip comes back for a player joining mid-run   // P59: the room the party waits in before floor 1
         com.cobbletowers.economy.MysteryBagService.install();
         com.cobbletowers.route.RouteIcons.bootstrap();
         com.cobbletowers.route.RouteMapItemService.install();

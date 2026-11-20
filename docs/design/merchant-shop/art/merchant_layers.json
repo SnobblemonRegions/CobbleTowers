@@ -1,0 +1,56 @@
+{
+ "spot": [
+  410,
+  568
+ ],
+ "layers": [
+  {
+   "name": "body",
+   "x": 122,
+   "y": 176,
+   "w": 166,
+   "h": 325,
+   "turns": false
+  },
+  {
+   "name": "purse",
+   "x": 221,
+   "y": 326,
+   "w": 36,
+   "h": 97,
+   "turns": true
+  },
+  {
+   "name": "head",
+   "x": 150,
+   "y": 118,
+   "w": 110,
+   "h": 261,
+   "turns": true
+  },
+  {
+   "name": "scale",
+   "x": 210,
+   "y": 278,
+   "w": 113,
+   "h": 145,
+   "turns": true
+  },
+  {
+   "name": "staff",
+   "x": 96,
+   "y": 82,
+   "w": 60,
+   "h": 420,
+   "turns": false
+  },
+  {
+   "name": "lantern",
+   "x": 84,
+   "y": 25,
+   "w": 39,
+   "h": 210,
+   "turns": true
+  }
+ ]
+}

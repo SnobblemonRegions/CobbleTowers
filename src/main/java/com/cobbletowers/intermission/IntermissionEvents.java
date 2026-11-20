@@ -58,8 +58,8 @@ public final class IntermissionEvents {
         GAMBLER_PASS(Room.GAMBLER, "gambler_pass", "Refuse the wager: keep your relics"),
         REST_HEAL(Room.REST, "rest_heal", "Rest: fully heal the party"),
         REST_PRESS_ON(Room.REST, "rest_press_on", "Refuse the rest: the party stays hurt"),
-        FORGE_PAY(Room.FORGE, "forge_pay", "Forge: every player pays CobbleDollars for a battle relic"),
-        FORGE_LEAVE(Room.FORGE, "forge_leave", "Refuse the forge: keep your CobbleDollars, no relic"),
+        FORGE_PAY(Room.FORGE, "forge_pay", "Forge: every player pays Tower Tokens for a battle relic"),
+        FORGE_LEAVE(Room.FORGE, "forge_leave", "Refuse the forge: keep your Tower Tokens, no relic"),
         LIBRARY_STUDY(Room.LIBRARY, "library_study", "Library: study, and take a scouting relic"),
         LIBRARY_SKIP(Room.LIBRARY, "library_skip", "Refuse to study: no relic"),
         VAULT_CRACK(Room.VAULT, "vault_crack", "Vault: crack it (even odds: a purse for everyone, or an ambush)"),
@@ -68,7 +68,7 @@ public final class IntermissionEvents {
         POOL_STAY(Room.POOL, "pool_stay", "Refuse the pool: keep your relics"),
         TRICK_OPEN(Room.TRICK_OR_TREAT, "trick_open", "Jack-o'-Lantern Vault: open it (even odds: a treat, or a mimic. Lose to the mimic and you lose a relic and 5% of the final loot)"),
         TRICK_LEAVE(Room.TRICK_OR_TREAT, "trick_leave", "Refuse the Jack-o'-Lantern Vault: leave it shut, no treat, no mimic"),
-        ECHO_FIGHT(Room.ECHO_DUEL, "echo_fight", "Echo Duel: face a champion's team (a safe exhibition, 100 CobbleDollars if you win)"),
+        ECHO_FIGHT(Room.ECHO_DUEL, "echo_fight", "Echo Duel: face a champion's team (a safe exhibition, 100 Tower Tokens if you win)"),
         ECHO_DECLINE(Room.ECHO_DUEL, "echo_decline", "Refuse the Echo Duel: no fight, no reward");
 
         private final Room room;
@@ -123,9 +123,9 @@ public final class IntermissionEvents {
     /** An option's label on a given floor: the Forge and the Vault say what they cost or pay there. */
     public static String labelAt(Option option, int floorIndex) {
         return switch (option) {
-            case FORGE_PAY -> "Forge: every player pays " + forgeCost(floorIndex) + " CobbleDollars for a battle relic";
-            case VAULT_CRACK -> "Vault: crack it (even odds: " + vaultPurse(floorIndex) + " CobbleDollars for everyone, or an ambush)";
-            case REST_PRESS_ON -> "Refuse the rest: +" + restPurse(floorIndex) + " CobbleDollars each, the party stays hurt";
+            case FORGE_PAY -> "Forge: every player pays " + forgeCost(floorIndex) + " Tower Tokens for a battle relic";
+            case VAULT_CRACK -> "Vault: crack it (even odds: " + vaultPurse(floorIndex) + " Tower Tokens for everyone, or an ambush)";
+            case REST_PRESS_ON -> "Refuse the rest: +" + restPurse(floorIndex) + " Tower Tokens each, the party stays hurt";
             default -> option.label();
         };
     }
@@ -336,7 +336,7 @@ public final class IntermissionEvents {
                 if (!everyoneCanPay(run, balance, cost)) return new Outcome(state, false, "The smith waits: someone cannot pay " + cost + ".");
                 ModifierDefinition relic = relics.get((int) Math.floorMod(seed >> 7, relics.size()));
                 return new Outcome(state.withRelic(relic.id(), floorIndex + 1), false,
-                        "Each of you pays " + cost + " CobbleDollars; the smith hands over " + relic.displayName() + ".", false, -cost);
+                        "Each of you pays " + cost + " Tower Tokens; the smith hands over " + relic.displayName() + ".", false, -cost);
             }
             case LIBRARY_STUDY -> {
                 List<ModifierDefinition> relics = libraryChoices(content, state);
@@ -347,7 +347,7 @@ public final class IntermissionEvents {
             case VAULT_CRACK -> {
                 if (Math.floorMod(seed >> 11, 2) == 0) {
                     int purse = vaultPurse(floorIndex);
-                    return new Outcome(state, false, "The vault opens: " + purse + " CobbleDollars each.", false, purse);
+                    return new Outcome(state, false, "The vault opens: " + purse + " Tower Tokens each.", false, purse);
                 }
                 List<ModifierDefinition> curses = curseChoices(content, run, floorIndex);
                 if (curses.isEmpty()) return new Outcome(state, false, "The vault is empty.");
@@ -378,7 +378,7 @@ public final class IntermissionEvents {
             }
             case REST_PRESS_ON -> {
                 int purse = restPurse(floorIndex);
-                return new Outcome(state, false, "You refuse the rest and press on hurt: +" + purse + " CobbleDollars each.", false, purse);
+                return new Outcome(state, false, "You refuse the rest and press on hurt: +" + purse + " Tower Tokens each.", false, purse);
             }
             case SHRINE_LEAVE -> {
                 return new Outcome(state, false, "You refuse the shrine's offering. Nothing changes.");
@@ -387,7 +387,7 @@ public final class IntermissionEvents {
                 return new Outcome(state, false, "You refuse the wager and keep your relics.");
             }
             case FORGE_LEAVE -> {
-                return new Outcome(state, false, "You refuse the forge and keep your CobbleDollars.");
+                return new Outcome(state, false, "You refuse the forge and keep your Tower Tokens.");
             }
             case LIBRARY_SKIP -> {
                 return new Outcome(state, false, "You refuse to study. The shelves stay closed.");

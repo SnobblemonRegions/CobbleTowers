@@ -457,7 +457,18 @@ final class LobbyLaunch {
                 return Started.FAILED;
             }
         }
+        // Taken in the same tick as the teleport into the tower (owner, 2026-11-13): into the preparation room for a tower that has one, else floor 1.
         List<Paid> paid = keyKind.map(kind -> takeKeys(server, plan, runId, kind)).orElse(List.of());
+
+        Optional<com.cobbletowers.definition.PrepRoom> prep = Optional.ofNullable(TowerDefinitionRegistry.content().towers().get(lobby.tower()))
+                .flatMap(TowerDefinition::prep);
+        if (prep.isPresent()) {
+            // P59: the party waits in the preparation room; it opens floor 1 itself. Leaving it or timing out gives nothing back, but a floor 1
+            // that then fails to open does.
+            Runnable refund = () -> keyKind.ifPresent(kind -> refundKeys(server, paid, kind));
+            if (com.cobbletowers.prep.PrepRoomService.enter(server, runId, prep.get(), refund, now)) return Started.OPENED;
+            TowerLog.warn("Run {}: the preparation room of {} could not be entered; opening floor 1 directly", runId, lobby.tower());
+        }
 
         if (!openFloor(server, runId, now)) {
             // The run is parked by openFloor; floor 1 was never played, so what was paid to start it goes back.

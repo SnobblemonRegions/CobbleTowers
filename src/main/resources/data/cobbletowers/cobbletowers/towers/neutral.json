@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 2,
+  "revision": 6,
   "display_name": "Neutral Tower",
   "ruleset": "cobbletowers:standard",
   "reward_table": "cobbletowers:neutral",
@@ -21,5 +21,58 @@
     "cobbletowers:neutral/champion_10"
   ],
   "ascension": true,
-  "boss_rush": true
+  "boss_rush": true,
+  "pedestal_votes": true,
+  "route_map": true,
+  "prep": {
+    "structure": "cobbletowers:neutral_prep",
+    "entry": {
+      "x": 6,
+      "y": 4,
+      "z": 20,
+      "yaw": 270
+    },
+    "vendor": {
+      "x": 29,
+      "y": 4,
+      "z": 33,
+      "yaw": 180
+    },
+    "dais": {
+      "min": [
+        37,
+        6,
+        17
+      ],
+      "max": [
+        42,
+        7,
+        23
+      ]
+    },
+    "door": {
+      "min": [
+        46,
+        6,
+        17
+      ],
+      "max": [
+        46,
+        15,
+        23
+      ]
+    },
+    "threshold": {
+      "min": [
+        51,
+        6,
+        17
+      ],
+      "max": [
+        52,
+        7,
+        23
+      ]
+    }
+  }
 }

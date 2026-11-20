@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Merchant Counter Shop</title>
+<style>
+@font-face { font-family: Jersey; src: url(art/jersey.ttf); }
+@font-face { font-family: Outfit; src: url(art/outfit.ttf); font-weight: 400; }
+@font-face { font-family: Outfit; src: url(art/outfit_6.ttf); font-weight: 600; }
+@font-face { font-family: Outfit; src: url(art/outfit_b.ttf); font-weight: 700; }
+@font-face { font-family: Outfit; src: url(art/outfit_xb.ttf); font-weight: 800; }
+
+/* The Gilded Merchant's own palette: near-black robes, gold trim, crimson mantle, amber lantern light. */
+:root {
+  --night: #100c14; --robe: #1c1724; --robe2: #261f30; --edge: #3a2f45;
+  --gold: #d9a93a; --gold-hi: #f6d270; --gold-lo: #8c6620;
+  --crimson: #8e1f2a; --crimson-lo: #5c121c; --amber: #ffb04a;
+  --ink: #f4ead6; --soft: #d6c6a6; --mut: #a8977a;
+  --hp: #6fcf5a; --hp-mid: #e6a23a; --hp-low: #d8434f; --track: #2e2538;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #08060b; color: var(--ink); font-family: Outfit, sans-serif; }
+body { padding: 40px 16px 80px; }
+::selection { background: var(--gold-lo); color: var(--ink); }
+.doc { max-width: 1280px; margin: 0 auto; }
+.doc > h1 { font: 400 52px/1 Jersey; margin: 0 0 10px; color: var(--gold-hi); letter-spacing: .01em; }
+.lede { color: var(--soft); font-size: 17px; line-height: 1.55; max-width: 72ch; margin: 0 0 12px; }
+h2 { font: 400 34px/1 Jersey; color: var(--gold-hi); margin: 60px 0 8px; }
+.why { color: var(--soft); font-size: 15.5px; line-height: 1.55; max-width: 76ch; margin: 0 0 16px; }
+.notes { color: var(--mut); font-size: 14.5px; line-height: 1.6; margin: 14px 0 0; padding-left: 18px; max-width: 110ch; }
+.notes b { color: var(--soft); }
+.notes code { color: var(--soft); }
+
+/* ---------- one 1280 x 720 screen ---------- */
+.frame { position: relative; width: 1280px; height: 720px; overflow: hidden; border-radius: 6px; background: var(--night); outline: 1px solid #241c2c; }
+.px { image-rendering: pixelated; }
+.wall { position: absolute; inset: 0; width: 1280px; height: 720px; }
+.merchant { position: absolute; left: 440px; top: 14px; width: 410px; }
+.counter { position: absolute; left: 0; top: 448px; width: 1280px; height: 272px; }
+.shade { position: absolute; inset: 0; background: radial-gradient(ellipse 70% 60% at 50% 40%, transparent 40%, #08060bb0 100%); pointer-events: none; }
+
+/* hanging plaques */
+.chain { position: absolute; top: 0; width: 4px; height: 22px; background: repeating-linear-gradient(#8c6620 0 4px, #4a3612 4px 6px); }
+.plaque { position: absolute; top: 20px; height: 62px; padding: 0 22px; display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(#2a2234, #1a1522); border: 3px solid var(--gold); border-radius: 4px;
+  box-shadow: inset 0 0 0 2px #00000080, 0 8px 16px #00000099; }
+.plaque .big { font: 400 38px/1 Jersey; color: var(--ink); }
+.plaque .big b { font-weight: 400; color: var(--gold-hi); }
+.plaque .sub { font: 600 13px/1.2 Outfit; color: var(--soft); letter-spacing: .04em; }
+.plaque img { width: 40px; height: 40px; image-rendering: pixelated; }
+.close { position: absolute; right: 22px; top: 26px; width: 48px; height: 48px; border: 3px solid var(--gold-lo); border-radius: 4px; background: #1a1522;
+  display: grid; place-items: center; font: 400 30px/1 Jersey; color: var(--soft); box-shadow: 0 8px 16px #00000099; }
+
+/* his line */
+.speech { position: absolute; left: 120px; top: 156px; width: 330px; padding: 16px 20px 18px; background: #f1e4c4; color: #2a1d14; border-radius: 6px;
+  border: 3px solid #2a1d14; box-shadow: 0 10px 20px #00000080; font: 600 16px/1.42 Outfit; }
+.speech .nm { font: 400 22px/1 Jersey; color: var(--crimson); display: block; margin: 0 0 6px; }
+.speech::after { content: ""; position: absolute; right: -16px; top: 46px; border: 9px solid transparent; border-left: 14px solid #2a1d14; }
+
+/* the goods on the counter */
+.tray { position: absolute; left: 340px; top: 384px; width: 600px; display: flex; justify-content: center; gap: 22px; }
+.slot { position: relative; width: 156px; display: flex; flex-direction: column; align-items: center; }
+.slot .box { width: 112px; height: 104px; display: grid; place-items: center; background: linear-gradient(#2c2336, #1b1522); border: 3px solid var(--edge); border-radius: 6px;
+  box-shadow: inset 0 -6px 0 #00000055, 0 8px 14px #00000099; }
+.slot .box img { width: 64px; height: 64px; image-rendering: pixelated; }
+.slot .tag { margin-top: -10px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 8px; background: #f1e4c4; color: #2a1d14; border: 2px solid #2a1d14;
+  border-radius: 4px; font: 400 26px/1 Jersey; box-shadow: 0 4px 8px #00000088; }
+.slot .tag img { width: 22px; height: 22px; image-rendering: pixelated; }
+.slot .note { margin-top: 8px; font: 600 13px/1.2 Outfit; color: var(--soft); text-align: center; text-shadow: 0 1px 0 #000; }
+.slot.hov .box { border-color: var(--gold-hi); transform: translateY(-8px); background: linear-gradient(#3e3018, #1f1810); box-shadow: inset 0 0 0 2px #00000066, 0 14px 20px #000000aa; }
+.slot.hov .tag { transform: translateY(-8px); }
+.slot.short .tag { background: #c9b48a; color: #5a2a24; }
+.slot.away .box img, .slot.out .box img { filter: grayscale(1) brightness(.55); }
+.slot.away .tag, .slot.out .tag { background: #8e826c; color: #2a1d14; font-size: 22px; }
+
+/* the hover card */
+.card { position: absolute; right: 38px; top: 112px; width: 360px; padding: 18px 22px 20px; background: linear-gradient(#241d2e, #17121e); border: 3px solid var(--gold); border-radius: 6px;
+  box-shadow: inset 0 0 0 2px #00000080, 0 14px 28px #000000b0; }
+.card .hd { display: flex; align-items: center; gap: 14px; margin: 0 0 12px; }
+.card .hd img { width: 48px; height: 48px; image-rendering: pixelated; }
+.card h3 { margin: 0; font: 400 34px/1 Jersey; color: var(--gold-hi); }
+.card p { margin: 0 0 14px; font: 400 16px/1.5 Outfit; color: var(--ink); }
+.card .facts { display: flex; justify-content: space-between; padding: 10px 0 0; border-top: 2px solid var(--edge); font: 600 14px/1.3 Outfit; color: var(--soft); }
+.card .facts .cost { display: inline-flex; gap: 6px; align-items: center; font: 400 26px/1 Jersey; color: var(--gold-hi); }
+.card .facts .cost img { width: 22px; height: 22px; image-rendering: pixelated; }
+.card .act { margin-top: 14px; padding: 10px 14px; border-radius: 4px; background: #1d3a1a; border: 2px solid #4b8f3a; font: 700 15px/1.35 Outfit; color: #dff3d2; }
+.card .act.no { background: #2a1a20; border-color: #7a3a40; color: #f1d0d0; }
+.card .act.off { background: #221c2a; border-color: var(--edge); color: var(--soft); }
+
+/* who it is for */
+.who { position: absolute; left: 30px; bottom: 26px; display: flex; gap: 10px; align-items: center; }
+.who .lbl { font: 400 24px/1 Jersey; color: var(--soft); margin-right: 4px; }
+.mate { display: flex; flex-direction: column; gap: 7px; padding: 9px 12px; background: #1a1522e6; border: 3px solid var(--edge); border-radius: 4px; }
+.mate .nm { font: 700 15px/1 Outfit; display: flex; gap: 10px; justify-content: space-between; }
+.mate .nm span { font-weight: 600; font-size: 12.5px; color: var(--mut); }
+.mate.sel { border-color: var(--gold); }
+.mate.fine { opacity: .7; }
+.pips { display: flex; gap: 3px; }
+.pip { width: 22px; height: 8px; background: var(--track); position: relative; }
+.pip i { position: absolute; inset: 0 auto 0 0; background: var(--hp); }
+.pip.mid i { background: var(--hp-mid); } .pip.low i { background: var(--hp-low); }
+.pip.ko { background: #4a1f2a; }
+.pip.ko::after { content: ""; position: absolute; left: 4px; right: 4px; top: 3px; height: 2px; background: #ff8a98; }
+.hint { position: absolute; right: 30px; bottom: 34px; font: 400 22px/1 Jersey; color: var(--soft); text-shadow: 0 2px 0 #000; }
+.hint b { font-weight: 400; color: var(--gold-hi); }
+
+/* the purchase moment */
+.sweep { position: absolute; inset: 0; pointer-events: none; }
+.sweep::before { content: ""; position: absolute; top: -30%; bottom: -30%; width: 200px; left: 30%; transform: rotate(18deg);
+  background: linear-gradient(90deg, transparent, #f6d27026 40%, #fff3c850 50%, #f6d27026 60%, transparent); }
+.spark { position: absolute; width: 10px; height: 10px; background: var(--gold-hi); }
+.spark.s { width: 6px; height: 6px; background: #fff3c8; }
+.drop { font: 400 30px/1 Jersey; color: #ff9b8a; margin-left: 4px; }
+.sold { position: absolute; left: 396px; top: 330px; transform: rotate(-6deg); padding: 6px 18px; background: var(--crimson); border: 3px solid var(--gold-hi);
+  font: 400 34px/1 Jersey; color: var(--ink); box-shadow: 0 8px 16px #000000aa; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <h1>The Gilded Merchant's counter</h1>
+  <p class="lede">He stands behind his counter in his own shop: shelves, a crimson banner, candlelight. The goods sit on the counter with paper price tags. Hovering one lifts it and fills the card on the right; a click buys it for whoever is picked at the bottom left. The floor and your Tower Tokens hang on plaques at the top. Drawn at the bridge's 1280 × 720 page size; the art is painted by <code>make_counter_art.py</code>.</p>
+  <p class="lede">The data is the real fixture: 413 tokens, Cure Status 10, Full Heal 25, Mystery Bag 500 (2 left), a party of two.</p>
+
+  <h2>On a floor, hovering Full Heal</h2>
+  <p class="why">Floor 4 of 10. Your Ludicolo is at 55% and Lucario has fainted, so he says so, and the card spells out what 25 tokens does.</p>
+  <div class="frame" id="floor"></div>
+  <ul class="notes">
+    <li><b>Hover is client-side:</b> each slot sets <code>hover_set</code>, and the card shows the matching item. Nothing reaches the server until the click.</li>
+    <li><b>The click</b> sends the same <code>VendorPurchase</code> as today; the server re-checks price, stock and who it is for.</li>
+  </ul>
+
+  <h2>In the prep room, hovering the Mystery Bag</h2>
+  <p class="why">Before floor 1 the bag stays on the counter, greyed, and the card says where it is sold. Everyone is healthy, so he tells you there is nothing to fix yet.</p>
+  <div class="frame" id="prep"></div>
+
+  <h2>The moment a purchase lands</h2>
+  <p class="why">He bows, a gold sweep crosses the counter, sparks rise off the slot, a SOLD stamp lands and the plaque counts down. Then back to the counter.</p>
+  <div class="frame" id="buy"></div>
+  <ul class="notes">
+    <li><b>Bridge effects:</b> <code>goldsweep</code> and <code>sparks</code> already exist; the stamp is an image with <code>pop</code>. The bow is a second portrait model, and he bows in the world too.</li>
+  </ul>
+
+  <h2>Tower Tokens</h2>
+  <ul class="notes" style="font-size:15.5px">
+    <li><b>A rename, not a new wallet.</b> The vendor's money already lives in CobbleTowers' own <code>TowerWalletStore</code>, filled by floor rewards, contracts, clubs, trials and echo duels. Only the name players see becomes Tower Tokens; ids such as <code>cobbletowers:cobble_dollar</code> stay, so balances and reward tables keep working.</li>
+    <li><b>The token</b> is a gold coin stamped with a tower, drawn at 16 × 16 for the pack.</li>
+    <li><b>Prices need a pass.</b> The vendor is the only place to spend tokens, so balances pile up: a 25-token Full Heal against 413 is not a choice. Worth retuning payouts and prices with the rename.</li>
+  </ul>
+</div>
+
+<script>
+const T = 'art/token.png';
+const GOODS = {
+  heal: { name: 'Full Heal', img: 'art/max_potion.png', price: 25, text: 'Every Pokémon back to full HP, fainted ones too.' },
+  cure: { name: 'Cure Status', img: 'art/full_heal.png', price: 10, text: 'Clears burn, poison, sleep, freeze and paralysis from the whole party.' },
+  bag:  { name: 'Mystery Bag', img: 'art/mystery_bag.png', price: 500, text: 'A sealed bag of tower loot. Two per player each run.' },
+};
+const pips = (list) => '<div class="pips">' + list.map((v) => v === 0 ? '<div class="pip ko"></div>'
+  : `<div class="pip${v < 50 ? ' low' : v < 85 ? ' mid' : ''}"><i style="width:${v}%"></i></div>`).join('') + '</div>';
+const YOU_HURT = [71, 100, 82, 55, 100, 0], FULL = [100, 100, 100, 100, 100, 100], MATE = [100, 100, 94, 100, 100, 100];
+
+function screen({ floor, sub, balance, drop, merchant, say, slots, card, you, mate, extra = '' }) {
+  return `
+  <img class="wall px" src="art/shop_wall.png" alt="">
+  <img class="merchant" src="${merchant}" alt="The Gilded Merchant">
+  <img class="counter px" src="art/shop_counter.png" alt="">
+  <div class="shade"></div>
+  <i class="chain" style="left:70px"></i><i class="chain" style="left:300px"></i>
+  <div class="plaque" style="left:40px;width:300px"><div><div class="big">${floor}</div><div class="sub">${sub}</div></div></div>
+  <i class="chain" style="left:${drop ? 900 : 940}px"></i><i class="chain" style="left:1180px"></i>
+  <div class="plaque" style="right:90px"><img src="${T}" alt=""><div><div class="big"><b>${balance}</b>${drop ? `<span class="drop">−${drop}</span>` : ''}</div><div class="sub">Tower Tokens</div></div></div>
+  <div class="close">×</div>
+  <div class="speech"><span class="nm">The Gilded Merchant</span>${say}</div>
+  <div class="tray">${slots.map((s) => {
+      const g = GOODS[s.id];
+      return `<div class="slot ${s.cls || ''}"><div class="box"><img src="${g.img}" alt=""></div>
+        <div class="tag">${s.tag ? s.tag : `<img src="${T}" alt="">${g.price}`}</div>${s.note ? `<div class="note">${s.note}</div>` : ''}</div>`; }).join('')}</div>
+  ${card}
+  <div class="who"><span class="lbl">For</span>
+    <div class="mate sel${you.fine ? ' fine' : ''}"><div class="nm">WebPlayer <span>${you.label}</span></div>${pips(you.hp)}</div>
+    <div class="mate fine"><div class="nm">Mossling42 <span>all healthy</span></div>${pips(mate)}</div></div>
+  <div class="hint">Hover to look · <b>click to buy</b></div>
+  ${extra}`;
+}
+
+const cardOf = (id, facts, act, cls = '') => {
+  const g = GOODS[id];
+  return `<div class="card"><div class="hd"><img src="${g.img}" alt=""><h3>${g.name}</h3></div><p>${g.text}</p>
+    <div class="facts"><span class="cost"><img src="${T}" alt="">${g.price}</span><span>${facts}</span></div>
+    <div class="act ${cls}">${act}</div></div>`;
+};
+
+document.getElementById('floor').innerHTML = screen({
+  floor: 'Floor <b>4</b> / 10', sub: 'NEUTRAL TOWER', balance: 413,
+  merchant: 'art/merchant_full.png',
+  say: '“Ludicolo looks tired, and your Lucario is down. Twenty-five puts the lot right.”',
+  slots: [{ id: 'heal', cls: 'hov' }, { id: 'cure' }, { id: 'bag', cls: 'short', note: '87 short · 2 left' }],
+  card: cardOf('heal', 'Unlimited', 'Click: Arcanine, Umbreon and Ludicolo to full, Lucario back on its feet.'),
+  you: { label: 'you · 1 fainted', hp: YOU_HURT }, mate: MATE,
+});
+
+document.getElementById('prep').innerHTML = screen({
+  floor: '<b>Prep room</b>', sub: 'NEUTRAL TOWER · BEFORE FLOOR 1', balance: 413,
+  merchant: 'art/merchant_full.png',
+  say: '“Supplies for the climb. My bags I only open upstairs.”',
+  slots: [{ id: 'heal' }, { id: 'cure' }, { id: 'bag', cls: 'away hov', tag: 'Upstairs' }],
+  card: cardOf('bag', 'Sold from floor 1', 'Not sold in the prep room. He opens his bags on the floors.', 'off'),
+  you: { label: 'you · all healthy', hp: FULL, fine: true }, mate: MATE,
+});
+
+document.getElementById('buy').innerHTML = screen({
+  floor: 'Floor <b>4</b> / 10', sub: 'NEUTRAL TOWER', balance: 388, drop: 25,
+  merchant: 'art/merchant_bow.png',
+  say: '“A pleasure. Climb well.”',
+  slots: [{ id: 'heal', cls: 'hov' }, { id: 'cure' }, { id: 'bag', cls: 'short', note: '112 short · 2 left' }],
+  card: cardOf('heal', 'Unlimited', 'Bought for you. Lucario is back on its feet and the party is at full HP.'),
+  you: { label: 'you · all healthy', hp: FULL }, mate: MATE,
+  extra: `<div class="sweep"></div><div class="sold">SOLD</div>
+    <i class="spark" style="left:430px;top:356px"></i><i class="spark s" style="left:470px;top:326px"></i><i class="spark" style="left:520px;top:302px"></i>
+    <i class="spark s" style="left:398px;top:336px"></i><i class="spark s" style="left:540px;top:346px"></i>`,
+});
+</script>
+</body>
+</html>
