@@ -59,6 +59,22 @@ if "water" not in tg.SEE_THROUGH:
 
 
 @dataclass
+class Boss:
+    """A boss floor's own hall (owner, 15 Nov 2026: floors 5 and 10 are fully rebuilt halls, unlike each other and every other floor). A boss
+    floor is a building of its own, so its hall may be as tall as the cell allows and it brings its own anchors and checks."""
+    hall: Callable[[Grid, int, int], None]                  # builds the hall of (g, floor, feet)
+    top: int                                                # how far above its feet its highest block may stand
+    base_feet: int                                          # its feet in its own building (room below for pools, abysses, islands)
+    entry_z: int
+    presentation_z: int
+    spectator: tuple[int, int, int]
+    rails: tuple[tuple[int, int], ...] = ()
+    checks: Callable[[Grid], list[str]] = lambda g: []
+    floating: list[tuple[int, int, int]] = field(default_factory=list)
+    open_sky: bool = False                                  # a glass roof with the sky over it: the room may look out at the top
+
+
+@dataclass
 class Spec:
     theme: str
     buildings: tuple[tuple[int, ...], ...]
@@ -75,6 +91,24 @@ class Spec:
     floating: Callable[[int], list[tuple[int, int, int]]] = lambda b: []   # one block of each piece meant to hang free, per building
     summary: str = "arrival -> hall -> gate A -> door -> chamber -> its own stair -> threshold"
     extra: dict = field(default_factory=dict)
+    boss: dict[int, Boss] = field(default_factory=dict)     # floor -> its own hall; a boss floor must be a building on its own
+
+
+def boss_of(spec: Spec, floor: int) -> Boss | None:
+    return spec.boss.get(floor)
+
+
+def anchors(spec: Spec, floor: int) -> tuple[int, int, tuple[int, int, int], tuple[tuple[int, int], ...]]:
+    """(entry z, presentation z, spectator, rails) of a floor."""
+    b = boss_of(spec, floor)
+    if b:
+        return b.entry_z, b.presentation_z, b.spectator, b.rails
+    return spec.entry_z, spec.presentation_z, spec.spectator, spec.rails
+
+
+def building_boss(spec: Spec, b: int) -> Boss | None:
+    floors = spec.buildings[b - 1]
+    return boss_of(spec, floors[0]) if len(floors) == 1 else None
 
 
 def ellipse(x: int, x0: int, x1: int, rise: int) -> int:
@@ -120,11 +154,17 @@ def building_of(spec: Spec, floor: int) -> int:
 
 
 def feet(spec: Spec, floor: int) -> int:
+    boss = boss_of(spec, floor)
+    if boss:
+        return boss.base_feet
     return spec.base_feet + spec.pitch * spec.buildings[building_of(spec, floor) - 1].index(floor)
 
 
 def height(spec: Spec, b: int) -> int:
     last = spec.buildings[b - 1][-1]
+    boss = boss_of(spec, last)
+    if boss:
+        return feet(spec, last) + boss.top
     return feet(spec, last) + spec.top(last in spec.crowns)
 
 
@@ -186,7 +226,11 @@ def north_part(g: Grid, f: int, stairs: bool) -> None:
 
 def build_floor(spec: Spec, g: Grid, floor: int) -> None:
     f = feet(spec, floor)
-    spec.hall(g, floor, f, floor in spec.crowns)
+    boss = boss_of(spec, floor)
+    if boss:
+        boss.hall(g, floor, f)
+    else:
+        spec.hall(g, floor, f, floor in spec.crowns)
     passage_and_arrival(g, f)
     north_part(g, f, floor < tg.FLOORS)
 
@@ -216,11 +260,11 @@ def layout(spec: Spec, floor: int) -> dict:
             door["stair_top"] = tg.box(c - tg.STUB_HALF, f + tg.STEPS, tg.LANDING_Z[0], c + tg.STUB_HALF, f + tg.STEPS + 1, tg.LANDING_Z[0] + 1)
             door["arrival"] = tg.anchor(LANES[lane], feet(spec, floor + 1), ARRIVAL_ANCHOR_Z, 180)
         doors.append(door)
-    sx, sy, sz = spec.spectator
+    entry_z, presentation_z, (sx, sy, sz), _ = anchors(spec, floor)
     return {
         "structure": f"cobbletowers:{spec.theme}_hall{building_of(spec, floor)}",
-        "entry": tg.anchor(MID, f, spec.entry_z, 180),
-        "presentation": tg.anchor(MID, f, spec.presentation_z, 0),
+        "entry": tg.anchor(MID, f, entry_z, 180),
+        "presentation": tg.anchor(MID, f, presentation_z, 0),
         "spectator": tg.anchor(sx, f + sy, sz, 270),
         "exit": tg.anchor(STAND[0] + 3, f, STAND[1] + 2, 0),
         "gate_a": tg.box(GATE_X[0], f, tg.GATE_Z[0], GATE_X[1], f + 5, tg.GATE_Z[1]),
@@ -246,7 +290,7 @@ def validate(spec: Spec, buildings: dict[int, Grid]) -> list[str]:
             x0, y0, z0, x1, y1, z1 = tg.dresser_box(door)
             if w.g.grid[x0:x1 + 1, y0:y1 + 1, z0:z1 + 1].any():
                 problems.append(f"floor {floor}: RoomDresser's box behind door {i} is not empty air")
-        for rail, up in spec.rails:
+        for rail, up in anchors(spec, floor)[3]:
             gaps = [z for z in range(*HALL_Z) if w.g.name(rail, f + up, z).split("[")[0] != w.g.theme["rail"]]
             if gaps:
                 problems.append(f"floor {floor}: the gallery rail at x {rail} has gaps (z {gaps[:4]})")
@@ -293,6 +337,23 @@ def validate(spec: Spec, buildings: dict[int, Grid]) -> list[str]:
     return problems
 
 
+def shell_problems(g: Grid, starts: list[tuple[int, int, int]], open_sky: bool) -> list[str]:
+    """tower_gen.shell_closed, except that a hall under a glass roof may look out through the top of its box at the sky: the box's top rows
+    are air there, so the open space reaches the top edge and nowhere else."""
+    if not open_sky:
+        return tg.shell_closed(g, starts)
+    sy = g.grid.shape[1]
+    lid = g.grid[:, sy - 1, :].copy()
+    removed = g.removed[:, sy - 1, :].copy()
+    g.grid[:, sy - 1, :] = g.id("minecraft:bedrock")                # a pretend lid, for the check only
+    g.removed[:, sy - 1, :] = False
+    try:
+        return tg.shell_closed(g, starts)
+    finally:
+        g.grid[:, sy - 1, :] = lid
+        g.removed[:, sy - 1, :] = removed
+
+
 def main(spec: Spec) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="build and validate only")
@@ -306,14 +367,16 @@ def main(spec: Spec) -> int:
     prep = tg.build_prep(theme)
     problems = validate(spec, buildings) + tg.validate_prep(prep)
     for b, g in buildings.items():
-        problems += [f"hall{b}: {p}" for p in spec.checks(g)]
+        boss = building_boss(spec, b)
+        own_checks = boss.checks if boss else spec.checks
+        problems += [f"hall{b}: {p}" for p in own_checks(g)]
         solid = int(np.count_nonzero(g.grid))
         kept = solid - tg.trim(g)
         print(f"{name}_hall{b}: {g.grid.shape[0]}x{g.grid.shape[1]}x{g.grid.shape[2]}, {solid:,} blocks before the trim, {kept:,} kept")
         starts = [s for k in spec.buildings[b - 1] for s in (tg._cell(layout(spec, k)["entry"]), tg._cell(layout(spec, k)["spectator"]))]
-        problems += [f"hall{b}: {p}" for p in tg.shell_closed(g, starts)]
+        problems += [f"hall{b}: {p}" for p in shell_problems(g, starts, boss is not None and boss.open_sky)]
         problems += tg.held_window_problems(g.grid, f"{name}_hall{b}")
-        problems += [f"hall{b} after the trim: {p}" for p in spec.checks(g)]
+        problems += [f"hall{b} after the trim: {p}" for p in own_checks(g)]
     tg.trim(prep)
     problems += [f"prep: {p}" for p in tg.shell_closed(prep, [tg._cell(tg.prep_layout()["entry"])])]
     problems += tg.held_window_problems(prep.grid, f"{name}_prep")
@@ -332,7 +395,8 @@ def main(spec: Spec) -> int:
         n = tg.write_nbt(g, out / f"{stem}.nbt")
         print(f"wrote {out / (stem + '.nbt')} ({n:,} blocks)")
     for b in buildings:
-        free = spec.floating(b)
+        boss = building_boss(spec, b)
+        free = list(boss.floating) if boss else spec.floating(b)
         sidecar = out / f"{name}_hall{b}.floating.json"
         if free:
             sidecar.write_text(json.dumps([list(p) for p in free]) + "\n")      # stray_check and integrity_check leave these pieces be

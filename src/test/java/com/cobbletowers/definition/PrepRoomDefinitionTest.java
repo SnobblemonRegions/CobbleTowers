@@ -85,7 +85,7 @@ class PrepRoomDefinitionTest {
     }
 
     @Test
-    @DisplayName("shipped: Neutral has a prep room, Act I holds floors 1-5 and Act II floors 6-10, and floor 5 climbs into Act II")
+    @DisplayName("shipped: Neutral has a prep room, Act I holds floors 1-4 and Act II floors 6-9, the boss floors 5 and 10 are halls of their own")
     void shippedNeutral() throws Exception {
         TowerDefinition neutral = TowerDefinition.fromJson(id("neutral"), shipped("/data/cobbletowers/cobbletowers/towers/neutral.json"));
         assertEquals(id("neutral_prep"), neutral.prep().orElseThrow().structure());
@@ -93,7 +93,8 @@ class PrepRoomDefinitionTest {
         for (int floor = 1; floor <= 10; floor++) {
             JsonObject root = shipped("/data/cobbletowers/cobbletowers/floors/neutral/floor_%02d.json".formatted(floor));
             FloorLayout layout = FloorLayout.fromJson(root.getAsJsonObject("layout"));
-            assertEquals(id(floor <= 5 ? "neutral_act1" : "neutral_act2"), layout.structure(), "floor " + floor);
+            String building = floor % 5 == 0 ? "neutral_boss" + floor : floor < 5 ? "neutral_act1" : "neutral_act2";
+            assertEquals(id(building), layout.structure(), "floor " + floor);
             assertEquals(3, layout.doors().size(), "floor " + floor);
             assertEquals(floor < 10, layout.laneStairs(), "floor " + floor + ": every floor but the last climbs");
         }

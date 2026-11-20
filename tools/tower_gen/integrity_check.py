@@ -174,6 +174,8 @@ def cathedral_surfaces(grid: np.ndarray, names: list[str], building: int, limit:
     problems = []
     air = grid == 0
     for floor in C.BUILDINGS[building - 1]:
+        if floor in C.SPEC.boss:
+            continue                                           # a boss hall has its own checks (boss_tideforge.py)
         for label, cells in C.surfaces(floor, grid.shape).items():
             holes = air[cells[:, 0], cells[:, 1], cells[:, 2]]
             if holes.any():
@@ -210,7 +212,7 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=8)
     args = ap.parse_args()
     t = args.theme
-    paths = sorted(sc.STRUCTURES.glob(f"{t}_act*.nbt")) + sorted(sc.STRUCTURES.glob(f"{t}_hall*.nbt")) + [sc.STRUCTURES / f"{t}_prep.nbt"]
+    paths = sorted(sc.STRUCTURES.glob(f"{t}_act*.nbt")) + sorted(sc.STRUCTURES.glob(f"{t}_hall*.nbt")) + sorted(sc.STRUCTURES.glob(f"{t}_boss*.nbt")) + [sc.STRUCTURES / f"{t}_prep.nbt"]
     paths += sorted(sc.STRUCTURES.glob(f"room_{t}_*.nbt"))
     total = 0
     for p in paths:

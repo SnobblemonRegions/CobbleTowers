@@ -186,8 +186,8 @@ def shape_of(block: str) -> list[tuple[float, float, float, float, float, float]
 
 
 class Scene:
-    def __init__(self, grid: np.ndarray, palette: list[str], sky: bool = False) -> None:
-        self.grid, self.palette, self.sky = grid, palette, sky
+    def __init__(self, grid: np.ndarray, palette: list[str], sky: bool = False, day: bool = False) -> None:
+        self.grid, self.palette, self.sky, self.day = grid, palette, sky or day, day
         self.tex = Textures()
         n = len(palette)
         self.faces = np.zeros((n, 6, 16, 16, 4), dtype=np.uint8)
@@ -202,6 +202,9 @@ class Scene:
             boxes = shape_of(block)
             self.boxes.append(boxes)
             if base == "air":
+                continue
+            if base == "light":                         # the invisible light block: drawn as air, but it lights
+                self.emit[i] = int(bprops(block).get("level", "15"))
                 continue
             if base == "water":                       # a blue filter per block crossed: shallow water reads pale, a deep pool dark blue
                 self.faces[i, ..., :3], self.faces[i, ..., 3] = (60, 110, 200), 255
@@ -228,15 +231,18 @@ class Scene:
             self.opaque[i] = base not in TRANSPARENT_LIGHT and self.kind[i] not in (3, 4) and not base.endswith(("_carpet", "_stairs", "_slab")) or base.endswith("_slab") and bprops(block).get("type") == "double"
         self.missing = self.tex.missing
         self.light = self.propagate()
-        if sky:
+        if sky or day:
             solid = self.opaque[grid]
             top = np.where(solid.any(axis=1), grid.shape[1] - 1 - np.argmax(solid[:, ::-1, :], axis=1), -1)      # highest opaque block per column
             above = np.arange(grid.shape[1])[None, :, None] > top[:, None, :]
-            self.light = np.maximum(self.light, np.where(above, 5, 0).astype(np.uint8))                        # moonlight, level 5
+            # moonlight, level 5; or noon, 15 straight down and spreading sideways from there like sky light does
+            self.light = np.maximum(self.light, np.where(above, 15 if day else 5, 0).astype(np.uint8))
+            if day:
+                self.light = self.propagate(self.light)
 
-    def propagate(self) -> np.ndarray:
+    def propagate(self, seed: np.ndarray | None = None) -> np.ndarray:
         g = self.grid
-        light = self.emit[g].astype(np.uint8)
+        light = self.emit[g].astype(np.uint8) if seed is None else seed.copy()
         opaque = self.opaque[g]
         for _ in range(15):
             nb = light.copy()
@@ -253,6 +259,14 @@ class Scene:
                 break
             light = nb
         return light
+
+    @staticmethod
+    def day_sky(d: np.ndarray) -> np.ndarray:
+        """Minecraft's noon: a blue that pales towards the horizon, the sun straight overhead."""
+        up = np.clip(d[:, 1], 0, 1)[:, None]
+        col = (1 - up) * np.array([0.72, 0.82, 1.0]) + up * np.array([0.47, 0.65, 1.0])
+        sun = (d[:, 1] > 0.985)[:, None] * np.array([0.5, 0.45, 0.25])
+        return (col + sun).astype(np.float32)
 
     @staticmethod
     def night_sky(d: np.ndarray) -> np.ndarray:
@@ -401,7 +415,7 @@ class Scene:
             axis_in[active] = ax
         if self.sky:
             miss = ~hit_any
-            color[miss] = self.night_sky(d[miss]) * filt[miss]
+            color[miss] = (self.day_sky(d[miss]) if self.day else self.night_sky(d[miss])) * filt[miss]
         img = np.clip((color + glow) * exposure, 0, 1)
         return Image.fromarray((img.reshape(h, w, 3) * 255).astype(np.uint8))
 

@@ -30,7 +30,7 @@ from grand_hall import MID  # noqa: E402
 from tower_gen import CHAIN, Grid  # noqa: E402
 
 THEME = "rootvale"
-BUILDINGS = ((1, 2), (3, 4, 5), (6, 7), (8, 9, 10))
+BUILDINGS = ((1, 2), (3, 4), (5,), (6, 7), (8, 9), (10,))     # the boss floors (5, 10) are buildings of their own: boss_rootvale.py
 CROWNS = (5, 10)
 CANOPY = 50                             # the leaves start this far above the feet (the crown's 6 higher); warm light 4 above them
 PITCH = 68
@@ -47,7 +47,7 @@ BARK = "minecraft:spruce_wood"
 HEART = "minecraft:stripped_spruce_wood"
 HEART2 = "minecraft:stripped_oak_wood"
 ROOT = "minecraft:dark_oak_wood"
-LEAF, LEAF2 = "minecraft:azalea_leaves", "minecraft:flowering_azalea_leaves"
+LEAF, LEAF2 = "minecraft:azalea_leaves[persistent=true]", "minecraft:flowering_azalea_leaves[persistent=true]"     # persistent: leaves far from a log decay
 GLOW, GLOW2, FIREFLY = "minecraft:shroomlight", "minecraft:ochre_froglight", "minecraft:verdant_froglight"
 WATER = "minecraft:water"
 PLANKS, FENCE = "minecraft:spruce_planks", "minecraft:oak_fence"
@@ -285,8 +285,10 @@ def spectator_x() -> int:
     return round(MID - TRUNK[0] + 4)
 
 
+import boss_rootvale as boss_halls  # noqa: E402  (after this module's names: it uses some of them)
+
 SPEC = gh.Spec(
-    theme=THEME, buildings=BUILDINGS, crowns=CROWNS, pitch=PITCH, base_feet=BASE_FEET,
+    theme=THEME, buildings=BUILDINGS, boss={5: boss_halls.BOSS5, 10: boss_halls.BOSS10}, crowns=CROWNS, pitch=PITCH, base_feet=BASE_FEET,
     top=lambda crown: CANOPY + (6 if crown else 0) + 8,
     hall=hall,
     entry_z=CENTRE_Z + STUMP - 5, presentation_z=CENTRE_Z - STUMP + 6,

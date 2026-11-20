@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 3,
+  "revision": 4,
   "display_name": "Duskvale Tower",
   "ruleset": "cobbletowers:duskvale",
   "reward_table": "cobbletowers:duskvale",

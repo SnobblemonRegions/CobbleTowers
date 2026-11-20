@@ -28,7 +28,7 @@ from grand_hall import HALL_X, HALL_Z, MID, PASSAGE_Z, hang, rose  # noqa: E402
 from tower_gen import Grid  # noqa: E402
 
 THEME = "duskvale"
-BUILDINGS = ((1, 2), (3, 4, 5), (6, 7), (8, 9, 10))
+BUILDINGS = ((1, 2), (3, 4), (5,), (6, 7), (8, 9), (10,))     # the boss floors (5, 10) are buildings of their own: boss_duskvale.py
 CROWNS = (5, 10)
 HALL = (24, 22)                         # spring, rise of the pointed vault above the feet
 CROWN = (28, 26)
@@ -370,8 +370,10 @@ def floating(b: int) -> list[tuple[int, int, int]]:
     return [p for floor in BUILDINGS[b - 1] for p in FLOATING.get(floor, [])]
 
 
+import boss_duskvale as boss_halls  # noqa: E402  (after this module's names: it uses some of them)
+
 SPEC = gh.Spec(
-    theme=THEME, buildings=BUILDINGS, crowns=CROWNS, pitch=PITCH, base_feet=BASE_FEET,
+    theme=THEME, buildings=BUILDINGS, boss={5: boss_halls.BOSS5, 10: boss_halls.BOSS10}, crowns=CROWNS, pitch=PITCH, base_feet=BASE_FEET,
     top=lambda crown: sum(CROWN if crown else HALL) + SKY + 3,
     hall=hall,
     entry_z=CENTRE_Z + ISLAND_R[1] - 5, presentation_z=CENTRE_Z - ISLAND_R[1] + 6,

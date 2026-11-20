@@ -1,7 +1,7 @@
 {
   "index": 9,
   "layout": {
-    "structure": "cobbletowers:rootvale_hall4",
+    "structure": "cobbletowers:rootvale_hall5",
     "entry": {
       "x": 74,
       "y": 74,
@@ -84,7 +84,7 @@
         },
         "arrival": {
           "x": 58,
-          "y": 142,
+          "y": 17,
           "z": 153,
           "yaw": 180
         }
@@ -134,7 +134,7 @@
         },
         "arrival": {
           "x": 74,
-          "y": 142,
+          "y": 17,
           "z": 153,
           "yaw": 180
         }
@@ -184,7 +184,7 @@
         },
         "arrival": {
           "x": 90,
-          "y": 142,
+          "y": 17,
           "z": 153,
           "yaw": 180
         }

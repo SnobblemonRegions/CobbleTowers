@@ -35,9 +35,10 @@ import tower_gen as tg  # noqa: E402
 from grand_hall import HALL_X, HALL_Z, MID, ellipse, hang  # noqa: E402,F401
 from tower_gen import Grid  # noqa: E402
 from themes import THEMES  # noqa: E402,F401
+from boss_kit import CORALS, spills  # noqa: E402,F401  (rootvale and the boss halls use them from here too)
 
 THEME = "tideforge"
-BUILDINGS = ((1, 2), (3, 4, 5), (6, 7), (8, 9, 10))
+BUILDINGS = ((1, 2), (3, 4), (5,), (6, 7), (8, 9), (10,))     # the boss floors (5, 10) are buildings of their own: boss_tideforge.py
 CROWNS = (5, 10)
 PITCH = 72                              # a floor runs from under its pool bed (feet - 7) to the cap over its sea (feet + 63; the crown + 71)
 BASE_FEET = 9
@@ -61,8 +62,6 @@ TUNNEL_H = 6
 WATER = "minecraft:water"
 FALLING = "minecraft:water[level=8]"
 CLEAR = "minecraft:glass"
-CORALS = ("minecraft:tube_coral_block", "minecraft:brain_coral_block", "minecraft:bubble_coral_block", "minecraft:fire_coral_block",
-          "minecraft:horn_coral_block")
 
 
 def spring_rise(crown: bool) -> tuple[int, int]:
@@ -372,25 +371,6 @@ def surfaces(floor: int, shape: tuple[int, int, int]) -> dict[str, np.ndarray]:
     return out
 
 
-def spills(g: Grid) -> list[str]:
-    """Still water may only touch water, glass or a solid block on its four sides and below, or it runs out over the floors in game. Falling
-    water (a waterfall) may have air beside it but must land on water."""
-    names = np.array(g.palette)
-    still = np.isin(g.grid, [i for i, n in enumerate(names) if n == WATER])
-    falling = np.isin(g.grid, [i for i, n in enumerate(names) if n == FALLING])
-    air = g.grid == 0
-    problems = []
-    sides = np.zeros_like(still)
-    for axis, shift in ((0, 1), (0, -1), (2, 1), (2, -1), (1, -1)):
-        sides |= np.roll(air, -shift, axis=axis) if shift > 0 else np.roll(air, 1, axis=axis)
-    bad = still & sides
-    if bad.any():
-        problems.append(f"{int(bad.sum())} still water block(s) with air beside or below, first at {tuple(int(v) for v in np.argwhere(bad)[0])}")
-    below = np.roll(g.grid, 1, axis=1)
-    landing = falling & ~np.isin(below, [i for i, n in enumerate(names) if n in (WATER, FALLING)])
-    if landing.any():
-        problems.append(f"{int(landing.sum())} falling water block(s) not over water, first at {tuple(int(v) for v in np.argwhere(landing)[0])}")
-    return problems
 
 
 def fenced(g: Grid) -> list[str]:
@@ -417,8 +397,10 @@ def checks(g: Grid) -> list[str]:
     return spills(g) + fenced(g)
 
 
+import boss_tideforge as boss_halls  # noqa: E402  (after this module's names: it uses some of them)
+
 SPEC = gh.Spec(
-    theme=THEME, buildings=BUILDINGS, crowns=CROWNS, pitch=PITCH, base_feet=BASE_FEET,
+    theme=THEME, buildings=BUILDINGS, boss={5: boss_halls.BOSS5, 10: boss_halls.BOSS10}, crowns=CROWNS, pitch=PITCH, base_feet=BASE_FEET,
     top=lambda crown: sum(spring_rise(crown)) + SEA + 3,
     hall=hall,
     entry_z=round(CENTRE_Z + ARENA) - 5, presentation_z=round(CENTRE_Z - ARENA) + 6,

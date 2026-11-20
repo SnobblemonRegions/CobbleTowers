@@ -48,21 +48,34 @@ class TowerGenTest(unittest.TestCase):
         self.assertIn("door.open().minZ() - ROOM_DEPTH", java)
 
     def test_gates_and_doors_are_bars(self):
+        bosses = tg.build_bosses(THEME, do_trim=False)[0]
         for floor in range(1, 11):
             lay = tg.layout(floor, THEME)
-            g = self.a[tg.act_of(floor)]
+            g = bosses[floor] if floor in tg.BOSS_FLOORS else self.a[tg.act_of(floor)]
             for name, b in [("gate A", lay["gate_a"])] + [(f"door {i}", d["open"]) for i, d in enumerate(lay["doors"])]:
                 for x in range(b["min"][0], b["max"][0] + 1):
                     for y in range(b["min"][1], b["max"][1] + 1):
                         for z in range(b["min"][2], b["max"][2] + 1):
                             self.assertEqual(tg.BARS, g.name(x, y, z).split("[")[0], (floor, name, x, y, z))   # joined bars carry their connections
 
-    def test_floor_five_lands_in_act_two_and_floor_ten_has_no_stairs(self):
-        five = tg.layout(5, THEME)
-        self.assertEqual("cobbletowers:neutral_act1", five["structure"])
+    def test_the_boss_floors_are_their_own_buildings_and_floor_ten_has_no_stairs(self):
+        """Owner, 15 Nov 2026: floors 5 and 10 are boss halls of their own; floor 4 climbs into boss 5, boss 5 into act 2."""
+        four, five = tg.layout(4, THEME), tg.layout(5, THEME)
+        self.assertEqual("cobbletowers:neutral_act1", four["structure"])
+        self.assertEqual("cobbletowers:neutral_boss5", five["structure"])
+        self.assertEqual(tg.boss_spec(THEME).boss[5].base_feet, four["doors"][0]["arrival"]["y"])
         self.assertEqual(tg.feet(1), five["doors"][0]["arrival"]["y"])
         self.assertEqual("cobbletowers:neutral_act2", tg.layout(6, THEME)["structure"])
+        self.assertEqual("cobbletowers:neutral_boss10", tg.layout(10, THEME)["structure"])
         self.assertTrue(all("stair_top" not in d for d in tg.layout(10, THEME)["doors"]))
+
+    def test_arrivals_move_with_the_building_they_land_in(self):
+        """An act is written PAD_Z rows padded, a boss building is not: an arrival is shifted by its target's padding, not its own floor's."""
+        four, five, six = (tg.final_layout(k, THEME) for k in (4, 5, 6))
+        self.assertEqual(tg.layout(4, THEME)["doors"][1]["arrival"]["z"], four["doors"][1]["arrival"]["z"])
+        self.assertEqual(tg.layout(5, THEME)["doors"][1]["arrival"]["z"] + tg.PAD_Z, five["doors"][1]["arrival"]["z"])
+        self.assertEqual(tg.layout(5, THEME)["entry"]["z"], five["entry"]["z"])
+        self.assertEqual(tg.layout(6, THEME)["entry"]["z"] + tg.PAD_Z, six["entry"]["z"])
 
     def test_the_rescue_spot_in_front_of_the_vendor_is_open_floor(self):
         """TowerGates.rescueFromGallery stands players at the vendor + 2.5 z."""

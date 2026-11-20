@@ -139,7 +139,7 @@ def main() -> int:
     ap.add_argument("--theme", default="neutral")
     args = ap.parse_args()
     t = args.theme
-    buildings = sorted(STRUCTURES.glob(f"{t}_act*.nbt")) + sorted(STRUCTURES.glob(f"{t}_hall*.nbt"))     # Neutral's acts, Tideforge's halls
+    buildings = sorted(STRUCTURES.glob(f"{t}_act*.nbt")) + sorted(STRUCTURES.glob(f"{t}_hall*.nbt")) + sorted(STRUCTURES.glob(f"{t}_boss*.nbt"))     # Neutral's acts, Tideforge's halls
     targets = [(p, False) for p in buildings] + [(STRUCTURES / f"{t}_prep.nbt", False)]
     targets += [(p, True) for p in sorted(STRUCTURES.glob(f"room_{t}_*.nbt"))]
     problems = []

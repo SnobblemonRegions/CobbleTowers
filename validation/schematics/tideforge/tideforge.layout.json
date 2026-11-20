@@ -657,7 +657,7 @@
           },
           "arrival": {
             "x": 58,
-            "y": 153,
+            "y": 13,
             "z": 153,
             "yaw": 180
           }
@@ -707,7 +707,7 @@
           },
           "arrival": {
             "x": 74,
-            "y": 153,
+            "y": 13,
             "z": 153,
             "yaw": 180
           }
@@ -757,7 +757,7 @@
           },
           "arrival": {
             "x": 90,
-            "y": 153,
+            "y": 13,
             "z": 153,
             "yaw": 180
           }
@@ -765,40 +765,40 @@
       ]
     },
     "5": {
-      "structure": "cobbletowers:tideforge_hall2",
+      "structure": "cobbletowers:tideforge_hall3",
       "entry": {
         "x": 74,
-        "y": 153,
-        "z": 109,
+        "y": 13,
+        "z": 108,
         "yaw": 180
       },
       "presentation": {
         "x": 74,
-        "y": 153,
-        "z": 80,
+        "y": 13,
+        "z": 81,
         "yaw": 0
       },
       "spectator": {
-        "x": 36,
-        "y": 164,
+        "x": 38,
+        "y": 26,
         "z": 94,
         "yaw": 270
       },
       "exit": {
         "x": 97,
-        "y": 153,
+        "y": 13,
         "z": 33,
         "yaw": 0
       },
       "gate_a": {
         "min": [
           71,
-          153,
+          13,
           45
         ],
         "max": [
           77,
-          158,
+          18,
           46
         ]
       },
@@ -807,42 +807,42 @@
           "open": {
             "min": [
               56,
-              153,
+              13,
               28
             ],
             "max": [
               60,
-              158,
+              18,
               29
             ]
           },
           "frame": {
             "min": [
               55,
-              159,
+              19,
               28
             ],
             "max": [
               61,
-              160,
+              20,
               29
             ]
           },
           "pedestal": {
             "x": 58,
-            "y": 153,
+            "y": 13,
             "z": 33,
             "yaw": 0
           },
           "stair_top": {
             "min": [
               56,
-              158,
+              18,
               3
             ],
             "max": [
               60,
-              159,
+              19,
               4
             ]
           },
@@ -857,42 +857,42 @@
           "open": {
             "min": [
               72,
-              153,
+              13,
               28
             ],
             "max": [
               76,
-              158,
+              18,
               29
             ]
           },
           "frame": {
             "min": [
               71,
-              159,
+              19,
               28
             ],
             "max": [
               77,
-              160,
+              20,
               29
             ]
           },
           "pedestal": {
             "x": 74,
-            "y": 153,
+            "y": 13,
             "z": 33,
             "yaw": 0
           },
           "stair_top": {
             "min": [
               72,
-              158,
+              18,
               3
             ],
             "max": [
               76,
-              159,
+              19,
               4
             ]
           },
@@ -907,42 +907,42 @@
           "open": {
             "min": [
               88,
-              153,
+              13,
               28
             ],
             "max": [
               92,
-              158,
+              18,
               29
             ]
           },
           "frame": {
             "min": [
               87,
-              159,
+              19,
               28
             ],
             "max": [
               93,
-              160,
+              20,
               29
             ]
           },
           "pedestal": {
             "x": 90,
-            "y": 153,
+            "y": 13,
             "z": 33,
             "yaw": 0
           },
           "stair_top": {
             "min": [
               88,
-              158,
+              18,
               3
             ],
             "max": [
               92,
-              159,
+              19,
               4
             ]
           },
@@ -956,7 +956,7 @@
       ]
     },
     "6": {
-      "structure": "cobbletowers:tideforge_hall3",
+      "structure": "cobbletowers:tideforge_hall4",
       "entry": {
         "x": 74,
         "y": 9,
@@ -1147,7 +1147,7 @@
       ]
     },
     "7": {
-      "structure": "cobbletowers:tideforge_hall3",
+      "structure": "cobbletowers:tideforge_hall4",
       "entry": {
         "x": 74,
         "y": 81,
@@ -1338,7 +1338,7 @@
       ]
     },
     "8": {
-      "structure": "cobbletowers:tideforge_hall4",
+      "structure": "cobbletowers:tideforge_hall5",
       "entry": {
         "x": 74,
         "y": 9,
@@ -1529,7 +1529,7 @@
       ]
     },
     "9": {
-      "structure": "cobbletowers:tideforge_hall4",
+      "structure": "cobbletowers:tideforge_hall5",
       "entry": {
         "x": 74,
         "y": 81,
@@ -1612,7 +1612,7 @@
           },
           "arrival": {
             "x": 58,
-            "y": 153,
+            "y": 29,
             "z": 153,
             "yaw": 180
           }
@@ -1662,7 +1662,7 @@
           },
           "arrival": {
             "x": 74,
-            "y": 153,
+            "y": 29,
             "z": 153,
             "yaw": 180
           }
@@ -1712,7 +1712,7 @@
           },
           "arrival": {
             "x": 90,
-            "y": 153,
+            "y": 29,
             "z": 153,
             "yaw": 180
           }
@@ -1720,40 +1720,40 @@
       ]
     },
     "10": {
-      "structure": "cobbletowers:tideforge_hall4",
+      "structure": "cobbletowers:tideforge_hall6",
       "entry": {
         "x": 74,
-        "y": 153,
-        "z": 109,
+        "y": 29,
+        "z": 106,
         "yaw": 180
       },
       "presentation": {
         "x": 74,
-        "y": 153,
-        "z": 80,
+        "y": 29,
+        "z": 84,
         "yaw": 0
       },
       "spectator": {
-        "x": 36,
-        "y": 164,
+        "x": 16,
+        "y": 44,
         "z": 94,
         "yaw": 270
       },
       "exit": {
         "x": 97,
-        "y": 153,
+        "y": 29,
         "z": 33,
         "yaw": 0
       },
       "gate_a": {
         "min": [
           71,
-          153,
+          29,
           45
         ],
         "max": [
           77,
-          158,
+          34,
           46
         ]
       },
@@ -1762,30 +1762,30 @@
           "open": {
             "min": [
               56,
-              153,
+              29,
               28
             ],
             "max": [
               60,
-              158,
+              34,
               29
             ]
           },
           "frame": {
             "min": [
               55,
-              159,
+              35,
               28
             ],
             "max": [
               61,
-              160,
+              36,
               29
             ]
           },
           "pedestal": {
             "x": 58,
-            "y": 153,
+            "y": 29,
             "z": 33,
             "yaw": 0
           }
@@ -1794,30 +1794,30 @@
           "open": {
             "min": [
               72,
-              153,
+              29,
               28
             ],
             "max": [
               76,
-              158,
+              34,
               29
             ]
           },
           "frame": {
             "min": [
               71,
-              159,
+              35,
               28
             ],
             "max": [
               77,
-              160,
+              36,
               29
             ]
           },
           "pedestal": {
             "x": 74,
-            "y": 153,
+            "y": 29,
             "z": 33,
             "yaw": 0
           }
@@ -1826,30 +1826,30 @@
           "open": {
             "min": [
               88,
-              153,
+              29,
               28
             ],
             "max": [
               92,
-              158,
+              34,
               29
             ]
           },
           "frame": {
             "min": [
               87,
-              159,
+              35,
               28
             ],
             "max": [
               93,
-              160,
+              36,
               29
             ]
           },
           "pedestal": {
             "x": 90,
-            "y": 153,
+            "y": 29,
             "z": 33,
             "yaw": 0
           }

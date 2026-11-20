@@ -162,11 +162,25 @@ def check_layouts(content: dict, problems: list[str]) -> int:
                 problems.append(f"{where} has no headroom")
             checked += 1
         check_gates(floor_id, layout, size, occupied, problems)
-        check_doors(floor_id, layout, size, occupied, supporting, problems)
+        check_doors(floor_id, layout, size, occupied, supporting, problems, landing_structure(content, floor_id, loaded))
     return checked
 
 
-def check_doors(floor_id: str, layout: dict, size, occupied: set, supporting: set, problems: list[str]) -> None:
+def landing_structure(content: dict, floor_id: str, own):
+    """The building a floor's lane stairs land in: the next floor's (P59: a tower's floors are several buildings, the stairs of a building's
+    last floor climb into the next one, so an arrival is checked against where it lands, not where it starts)."""
+    head, _, number = floor_id.rpartition("floor_")
+    if not number.isdigit():
+        return own
+    nxt = content["floors"].get(f"{head}floor_{int(number) + 1:0{len(number)}d}")
+    structure = (nxt or {}).get("layout", {}).get("structure", "")
+    namespace, _, name = structure.partition(":")
+    if namespace != "cobbletowers":
+        return own
+    return read_structure(name) or own
+
+
+def check_doors(floor_id: str, layout: dict, size, occupied: set, supporting: set, problems: list[str], landing=None) -> None:
     """Each route door is a shut gate of bars with a lintel above it and a pedestal spot in front of it; at most three, left to right."""
     doors = layout.get("doors")
     if doors is None:
@@ -199,13 +213,13 @@ def check_doors(floor_id: str, layout: dict, size, occupied: set, supporting: se
         x, y, z = pedestal.get("x", 0), pedestal.get("y", 0), pedestal.get("z", 0)
         if (x, y - 1, z) not in supporting or (x, y, z) in occupied or (x, y + 1, z) in occupied:
             problems.append(f"{where} pedestal ({x},{y},{z}) is not somewhere to stand")
-        check_lane_stair(where, door, layout, size, occupied, supporting, problems)
+        check_lane_stair(where, door, layout, size, occupied, supporting, problems, landing or (size, occupied, supporting))
     xs = [d.get("pedestal", {}).get("x", 0) for d in doors]
     if xs != sorted(xs):
         problems.append(f"{floor_id} doors are not listed left to right (west to east): pedestal x {xs}")
 
 
-def check_lane_stair(where: str, door: dict, layout: dict, size, occupied: set, supporting: set, problems: list[str]) -> None:
+def check_lane_stair(where: str, door: dict, layout: dict, size, occupied: set, supporting: set, problems: list[str], landing=None) -> None:
     """A door's own stair (P58): `stair_top` is the open landing the party stands on, `arrival` is a spot to stand on the floor above; both or neither,
     and a floor with lane stairs has no shared gate B."""
     top, arrival = door.get("stair_top"), door.get("arrival")
@@ -228,6 +242,7 @@ def check_lane_stair(where: str, door: dict, layout: dict, size, occupied: set, 
         if bad:
             problems.append(f"{where} stair_top is not an open landing: {len(bad)} of its columns are blocked or have no floor, for example {bad[0]}")
     x, y, z = arrival.get("x", 0), arrival.get("y", 0), arrival.get("z", 0)
+    size, occupied, supporting = landing or (size, occupied, supporting)          # where the stair lands: the next floor's building
     if not (0 <= x < size[0] and 0 <= y < size[1] and 0 <= z < size[2]):
         problems.append(f"{where} arrival ({x},{y},{z}) is outside the structure")
     elif (x, y - 1, z) not in supporting or (x, y, z) in occupied or (x, y + 1, z) in occupied:

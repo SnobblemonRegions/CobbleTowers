@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 7,
+  "revision": 8,
   "display_name": "Tideforge Tower",
   "ruleset": "cobbletowers:tideforge",
   "reward_table": "cobbletowers:tideforge",

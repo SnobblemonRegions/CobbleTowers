@@ -45,7 +45,9 @@ sys.path.insert(0, str(ROOT / "validation"))
 from themes import THEMES  # noqa: E402
 
 DATA_VERSION = 3955                     # 1.21.1
-FLOORS, PER_ACT = 10, 5
+FLOORS, PER_ACT = 10, 4
+ACT_FLOORS = {1: (1, 2, 3, 4), 2: (6, 7, 8, 9)}
+BOSS_FLOORS = (5, 10)                   # owner, 15 Nov 2026: the boss floors are halls of their own (boss_<theme>.py), each its own building
 PITCH = 24
 BASE_FEET = 4                           # floor 1 of an act stands at y 4 (its floor block is y 3)
 SX, SZ = 66, 110
@@ -105,11 +107,11 @@ def feet(local_floor: int) -> int:
 
 
 def act_of(floor: int) -> int:
-    return 1 if floor <= PER_ACT else 2
+    return 1 if floor < BOSS_FLOORS[0] else 2
 
 
 def local(floor: int) -> int:
-    return floor - PER_ACT * (act_of(floor) - 1)
+    return ACT_FLOORS[act_of(floor)].index(floor) + 1
 
 
 class Grid:
@@ -299,7 +301,7 @@ def vendor_stand(g: Grid, x: int, z: int, f: int, facing: str) -> None:
 def build_floor(g: Grid, floor: int) -> None:
     f = feet(local(floor))
     ground = f - 1
-    crown = local(floor) == PER_ACT
+    crown = False                       # the act's top floor is an ordinary hall now: the boss floors are their own buildings
     stairs = floor < FLOORS
     spring, rise = (CROWN_SPRING, CROWN_RISE) if crown else (HALL_SPRING, HALL_RISE)
 
@@ -411,7 +413,7 @@ def cut_stair(g: Grid, c: int, f: int) -> None:
 def build_act(theme: dict[str, str], act: int) -> Grid:
     g = Grid(theme, (SX, SY, SZ))
     g.grid[:] = g.id("wall")
-    for floor in range(PER_ACT * (act - 1) + 1, PER_ACT * act + 1):
+    for floor in ACT_FLOORS[act]:
         build_floor(g, floor)
     connect(g.grid, g.palette, g.id)
     return g
@@ -523,10 +525,44 @@ def anchor(x: int, y: int, z: int, yaw: int) -> dict:
 
 def arrival(floor: int, lane: int) -> dict:
     """Where lane {lane}'s stair lands the party on {floor}, in that floor's own building, facing north into the hall. Lane 0 is on the left."""
+    if floor in BOSS_FLOORS:
+        import grand_hall as gh
+        return anchor(gh.LANES[lane], boss_spec("neutral").boss[floor].base_feet, gh.ARRIVAL_ANCHOR_Z, 180)
     return anchor(LANES[lane], feet(local(floor)), ARRIVAL_ANCHOR_Z, 180)
 
 
+def boss_spec(theme_name: str):
+    """The boss floors as grand_hall buildings: boss_<theme>.BOSS5 and BOSS10 (floor 6 only so that a layout of floor 5 can be asked for)."""
+    import importlib
+    import grand_hall as gh
+    m = importlib.import_module(f"boss_{theme_name}")
+    return gh.Spec(theme=theme_name, buildings=((5,), (10,), (6,)), crowns=(), pitch=0, base_feet=0, top=lambda c: 0, hall=None,
+                   entry_z=0, presentation_z=0, spectator=(0, 0, 0), boss={5: m.BOSS5, 10: m.BOSS10})
+
+
+def boss_layout(floor: int, theme_name: str) -> dict:
+    import grand_hall as gh
+    lay = gh.layout(boss_spec(theme_name), floor)
+    lay["structure"] = f"cobbletowers:{theme_name}_boss{floor}"
+    for lane, door in enumerate(lay["doors"]):
+        if "arrival" in door:
+            door["arrival"] = arrival(floor + 1, lane)
+    return lay
+
+
+def final_layout(floor: int, theme_name: str) -> dict:
+    """A floor's layout as written: an act's anchors move PAD_Z south with its padding; an arrival moves with the building it lands in."""
+    lay = layout(floor, theme_name)
+    out = shift_layout(lay, 0 if floor in BOSS_FLOORS else PAD_Z)
+    for door, raw in zip(out["doors"], lay["doors"]):
+        if "arrival" in raw:
+            door["arrival"] = shift_layout(raw["arrival"], 0 if floor + 1 in BOSS_FLOORS else PAD_Z)
+    return out
+
+
 def layout(floor: int, theme_name: str) -> dict:
+    if floor in BOSS_FLOORS:
+        return boss_layout(floor, theme_name)
     f = feet(local(floor))
     doors = []
     for lane, c in enumerate(LANES):
@@ -745,13 +781,23 @@ def dresser_box(door: dict) -> tuple[int, int, int, int, int, int]:
     return centre - CHAMBER_HALF, y, back, centre + CHAMBER_HALF, y + CHAMBER_H - 1, back + (CHAMBER_Z[1] - CHAMBER_Z[0])
 
 
-def validate(acts: dict[int, Grid], theme_name: str) -> list[str]:
+def validate(acts: dict[int, Grid], theme_name: str, bosses: dict[int, Grid] | None = None) -> list[str]:
+    import grand_hall as gh
     problems: list[str] = []
-    walkers = {a: Walker(g) for a, g in acts.items()}
+    if bosses is None:
+        bosses = build_bosses(theme_name)[0]
+    bspec = boss_spec(theme_name)
+    walkers = {("act", a): Walker(g) for a, g in acts.items()} | {("boss", k): Walker(g) for k, g in bosses.items()}
+
+    def walker_of(fl: int) -> Walker:
+        return walkers[("boss", fl)] if fl in BOSS_FLOORS else walkers[("act", act_of(fl))]
+
     for floor in range(1, FLOORS + 1):
-        w = walkers[act_of(floor)]
+        w = walker_of(floor)
         lay = layout(floor, theme_name)
-        f = feet(local(floor))
+        boss = floor in BOSS_FLOORS
+        f = bspec.boss[floor].base_feet if boss else feet(local(floor))
+        lanes = gh.LANES if boss else LANES
         for name in ("entry", "presentation", "spectator", "exit"):
             if not w.standable(*_cell(lay[name])):
                 problems.append(f"floor {floor}: the {name} anchor {lay[name]} is not standable")
@@ -763,15 +809,17 @@ def validate(acts: dict[int, Grid], theme_name: str) -> list[str]:
             if room_.any():
                 problems.append(f"floor {floor}: RoomDresser's box behind door {i} is not empty air ({int(np.count_nonzero(room_))} blocks)")
 
-        for rail_x in (GALLERY_W[1], GALLERY_E[0]):
-            gaps = [z for z in range(HALL_Z[0], HALL_Z[1] + 1) if w.g.name(rail_x, f + 6, z).split("[")[0] != w.g.theme["rail"]]
+        rails = bspec.boss[floor].rails if boss else ((GALLERY_W[1], 6), (GALLERY_E[0], 6))
+        zr = gh.HALL_Z if boss else HALL_Z
+        for rail_x, up in rails:
+            gaps = [z for z in range(zr[0], zr[1] + 1) if w.g.name(rail_x, f + up, z).split("[")[0] != w.g.theme["rail"]]
             if gaps:
                 problems.append(f"floor {floor}: the gallery rail at x {rail_x} has gaps (z {gaps[:4]}): a spectator could drop into the arena")
         entry, pres, spec = _cell(lay["entry"]), _cell(lay["presentation"]), _cell(lay["spectator"])
         vendor = (lay["exit"]["x"], f, lay["exit"]["z"] + 2)            # in front of the counter: where TowerGates stands rescued players
         if not w.standable(*vendor):
             problems.append(f"floor {floor}: the spot in front of the vendor's counter {vendor} is not standable")
-        chambers = [(c, f, (CHAMBER_Z[0] + CHAMBER_Z[1]) // 2) for c in LANES]
+        chambers = [(c, f, (CHAMBER_Z[0] + CHAMBER_Z[1]) // 2) for c in lanes]
         tops = [_mid(d["stair_top"], f + STEPS) for d in lay["doors"]] if floor < FLOORS else []
         gate = lay["gate_a"]
         doors = [d["open"] for d in lay["doors"]]
@@ -808,7 +856,7 @@ def validate(acts: dict[int, Grid], theme_name: str) -> list[str]:
                 if max(ys) > f + STEPS or min(ys) < f:
                     problems.append(f"floor {floor}: the walk through door {i} leaves its floor, y {min(ys)}..{max(ys)}")
                 arrive = lay["doors"][i]["arrival"]
-                nw = walkers[act_of(floor + 1)]
+                nw = walker_of(floor + 1)
                 spot = _cell(arrive)
                 if not nw.standable(*spot):
                     problems.append(f"floor {floor}: the arrival of lane {i} {arrive} is not standable")
@@ -819,7 +867,7 @@ def validate(acts: dict[int, Grid], theme_name: str) -> list[str]:
                         problems.append(f"floor {floor}: from the arrival of lane {i} the next battle hall is not reachable")
                     if (nlay["exit"]["x"], nlay["exit"]["y"], nlay["exit"]["z"] + 2) in onward:
                         problems.append(f"floor {floor}: from the arrival of lane {i} the next vendor is reachable with gate A shut")
-            elif max(ys) > f + 3:
+            elif not boss and max(ys) > f + 3:                          # a boss hall may have stairs of its own (the throne's)
                 problems.append("floor 10 has a way up that was not designed")
     return problems
 
@@ -899,10 +947,29 @@ def build_all(theme_name: str, do_trim: bool = True) -> tuple[dict[int, Grid], G
     return acts, prep, stats
 
 
+def build_bosses(theme_name: str, do_trim: bool = True) -> tuple[dict[int, Grid], list[str]]:
+    """The boss floors' buildings, with their own checks (before and after the trim), shells and held window."""
+    import grand_hall as gh
+    spec = boss_spec(theme_name)
+    out, problems = {}, []
+    for b, floor in ((1, 5), (2, 10)):
+        boss = spec.boss[floor]
+        g = gh.build_building(spec, THEMES[theme_name], b)
+        problems += [f"boss {floor}: {p}" for p in boss.checks(g)]
+        if do_trim:
+            gh.tg.trim(g)
+            problems += [f"boss {floor} after the trim: {p}" for p in boss.checks(g)]
+            starts = [_cell(layout(floor, theme_name)[k]) for k in ("entry", "spectator")]
+            problems += [f"boss {floor}: {p}" for p in gh.shell_problems(g, starts, boss.open_sky)]
+            problems += held_window_problems(g.grid, f"{theme_name}_boss{floor}")
+        out[floor] = g
+    return out, problems
+
+
 def shells(acts: dict[int, Grid], prep: Grid, theme_name: str) -> list[str]:
     problems = []
     for a, g in acts.items():
-        floors = range(PER_ACT * (a - 1) + 1, PER_ACT * a + 1)
+        floors = ACT_FLOORS[a]
         starts = [s for k in floors for s in (_cell(layout(k, theme_name)["entry"]), _cell(layout(k, theme_name)["spectator"]))]
         problems += [f"act {a}: {p}" for p in shell_closed(g, starts)]
     problems += [f"prep: {p}" for p in shell_closed(prep, [_cell(prep_layout()["entry"])])]
@@ -918,7 +985,8 @@ def main() -> int:
     args = parser.parse_args()
 
     acts, prep, stats = build_all(args.theme)
-    problems = validate(acts, args.theme) + validate_prep(prep)
+    bosses, boss_problems = build_bosses(args.theme)
+    problems = validate(acts, args.theme, bosses) + validate_prep(prep) + boss_problems
     problems += shells(acts, prep, args.theme)
     problems += held_window_problems(padded(acts[1]).grid, f"{args.theme}_act1") + held_window_problems(padded(acts[2]).grid, f"{args.theme}_act2")
     problems += held_window_problems(prep.grid, f"{args.theme}_prep")
@@ -934,10 +1002,19 @@ def main() -> int:
         return 0
     out = args.out / args.theme
     files = {f"{args.theme}_act1": padded(acts[1]), f"{args.theme}_act2": padded(acts[2]), f"{args.theme}_prep": prep}
+    files |= {f"{args.theme}_boss{k}": g for k, g in bosses.items()}
+    spec = boss_spec(args.theme)
+    for k in bosses:
+        sidecar = out / f"{args.theme}_boss{k}.floating.json"
+        if spec.boss[k].floating:
+            sidecar.parent.mkdir(parents=True, exist_ok=True)
+            sidecar.write_text(json.dumps([list(p) for p in spec.boss[k].floating]) + "\n")
+        else:
+            sidecar.unlink(missing_ok=True)
     for stem, g in files.items():
         n = write_nbt(g, out / f"{stem}.nbt")
         print(f"wrote {out / (stem + '.nbt')} ({n:,} blocks, {g.grid.shape[0]}x{g.grid.shape[1]}x{g.grid.shape[2]})")
-    lay = {"floors": {str(k): shift_layout(layout(k, args.theme), PAD_Z) for k in range(1, FLOORS + 1)}, "prep": prep_layout()}
+    lay = {"floors": {str(k): final_layout(k, args.theme) for k in range(1, FLOORS + 1)}, "prep": prep_layout()}
     (out / f"{args.theme}.layout.json").write_text(json.dumps(lay, indent=2) + "\n")
     print(f"wrote {out / (args.theme + '.layout.json')}")
     if args.install:

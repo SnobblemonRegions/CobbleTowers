@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 3,
+  "revision": 4,
   "display_name": "Rootvale Tower",
   "ruleset": "cobbletowers:rootvale",
   "reward_table": "cobbletowers:rootvale",
