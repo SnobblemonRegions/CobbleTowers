@@ -45,7 +45,9 @@ public final class RentalAdmin {
     /** Probe: lifts the player's rentals as a rental run would on this floor, so a test need not play to it. */
     public static List<String> scaleTo(ServerPlayer player, int floor) {
         int raised = com.cobbletowers.rental.RentalScaling.raise(player, floor);
-        return List.of(raised + " rentals rose to level " + com.cobbletowers.rental.RentalScaling.levelFor(floor));
+        int level = com.cobbletowers.rental.LevelCapCompat.capped(com.cobbletowers.rental.RentalScaling.levelFor(floor),
+                com.cobbletowers.rental.LevelCapCompat.capFor(player));
+        return List.of(raised + " rentals rose to level " + level);
     }
 
     public static List<String> giveStray(ServerPlayer player) {
