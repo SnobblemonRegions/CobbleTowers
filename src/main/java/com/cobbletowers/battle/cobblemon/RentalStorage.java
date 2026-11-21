@@ -74,10 +74,17 @@ public final class RentalStorage {
     /** Puts these Pokemon in the first slots of an (emptied) party, in order. Returns how many landed. */
     public static int fillParty(ServerPlayer player, List<Pokemon> rentals) {
         PlayerPartyStore party = Cobblemon.INSTANCE.getStorage().getParty(player);
+        // A rental above the player's level cap (CobbleLvlCap) would sit out every battle, so it is lent at the cap.
+        int cap = com.cobbletowers.rental.LevelCapCompat.capFor(player);
         int placed = 0;
         for (int slot = 0; slot < rentals.size() && slot < 6; slot++) {
             try {
-                party.set(new PartyPosition(slot), rentals.get(slot));
+                Pokemon rental = rentals.get(slot);
+                if (rental.getLevel() > cap) {
+                    rental.setLevel(com.cobbletowers.rental.LevelCapCompat.capped(rental.getLevel(), cap));
+                    rental.heal();
+                }
+                party.set(new PartyPosition(slot), rental);
                 placed++;
             } catch (RuntimeException ex) {
                 TowerLog.error("Could not place rental {} for {}", rentals.get(slot).getUuid(), player.getUUID(), ex);
