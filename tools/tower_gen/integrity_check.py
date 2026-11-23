@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Integrity scan of the structures the game pastes: missing blocks, disconnected blocks and columns that do not reach what they stand on or
-hang from. Complements stray_check.py (foreign blocks, spills), reading the same installed .nbt files.
+hang from. Complements stray_check.py (foreign blocks, spills) and route_check.py (anchors, arrivals, walking), reading the same installed .nbt files.
 
     py -3.14 -I tools/tower_gen/integrity_check.py [--theme tideforge] [--limit 8]
 
