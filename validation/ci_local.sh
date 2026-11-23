@@ -72,6 +72,9 @@ for build in validation/schematics/*.mcfunction; do
   "$py" validation/mcfunction_to_structure.py --check "$build" "src/main/resources/data/cobbletowers/structure/${name}.nbt"
 done
 
+step "Validate the player changelog (sources)"
+"$py" validation/validate_changelog.py
+
 step "Validate the bundled tower definitions"
 # Before the build: this reads the shipped JSON, and a dangling reference in our own content should
 # fail here rather than be skipped at runtime by the registry's malformed-file safety net.
@@ -139,6 +142,9 @@ step "Validate public API boundary (jar)"
 
 step "Validate persisted state holds no live references (jar)"
 "$py" validation/validate_persistence.py "$jar"
+
+step "Validate the player changelog (jar)"
+"$py" validation/validate_changelog.py "$jar"
 
 # Source compatibility is what the build above proves; this proves BINARY compatibility, which is what a jar built
 # against one Cobblemon needs to run on another (see check_cobblemon_binary_compat.py). Cobblemon is taken from the

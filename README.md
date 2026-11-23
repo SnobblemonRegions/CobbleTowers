@@ -67,3 +67,7 @@ The pre-push hook is the first gate; `.github/workflows/build.yml` runs the same
 GitHub for every push to main and every pull request. Run the hook anyway -- it is faster than a
 push, and its first step (no source file is hidden from git by a .gitignore pattern) is one CI
 cannot perform, because CI builds a clone where an ignored file does not exist.
+
+## Releases
+
+A version bump in build.gradle needs a matching newest entry in src/main/resources/cobbletowers/CHANGELOG.md. It ships in the jar at cobbletowers/CHANGELOG.md and is shown to players in game by Snobblemon Server, so write it for players (what they will notice, no config keys or class names) and keep to its four line kinds: the '# CobbleTowers changelog' title, '## <version> (YYYY-MM-DD)', '### New', '### Changed' or '### Fixed', and '- ' bullets. validation/validate_changelog.py enforces this. Call it the Player Changelog, not patch notes or release notes.
