@@ -78,7 +78,7 @@ public final class HubPortals {
             Long until = COOLDOWN.get(player.getUUID());
             if (until != null && now < until) continue;
             BlockPos at = player.blockPosition().subtract(origin);
-            for (HubLayout.Portal portal : layout.portals()) {
+            for (HubLayout.Portal portal : everyPortal(layout)) {
                 if (!portal.contains(at.getX(), at.getY(), at.getZ())) continue;
                 COOLDOWN.put(player.getUUID(), now + COOLDOWN_TICKS);
                 try {
@@ -91,8 +91,28 @@ public final class HubPortals {
         }
     }
 
+    /** The towers' gates and the Trials Pavilion's shrines: every opening a player can walk into. */
+    static List<HubLayout.Portal> everyPortal(HubLayout layout) {
+        List<HubLayout.Portal> all = new ArrayList<>(layout.portals());
+        for (HubLayout.Shrine shrine : layout.shrines()) all.add(shrine.portal());
+        return all;
+    }
+
     private static void walkIn(MinecraftServer server, ServerLevel level, BlockPos origin, ServerPlayer player, HubLayout.Portal portal) {
         stepBack(level, origin, player, portal);
+        // a trial shrine (owner, 20 Nov 2026): the trial its kind has today, for a party's ready members or a player alone
+        for (HubLayout.Shrine shrine : HubLayout.load().shrines()) {
+            if (shrine.portal() == portal) {
+                PartyService.trialWalkIn(server, new PartyService.Hub(level, origin, HubLayout.load()), player, shrine);
+                return;
+            }
+        }
+        // a Tower Hub party (owner, 20 Nov 2026) goes in by its leader, with whoever is gathered at the gate: no screen
+        Optional<Party> party = PartyService.partyOf(player.getUUID());
+        if (party.isPresent() && TowerRuns.forPlayer(player.getUUID()).isEmpty()) {
+            PartyService.walkIn(server, new PartyService.Hub(level, origin, HubLayout.load()), player, portal, party.get());
+            return;
+        }
         com.cobbletowers.webgui.WebGuiBridge.userAsked(player);
         Optional<TowerLobby> lobby = LobbyService.lobbyOf(player.getUUID());
         Action action = decide(TowerRuns.forPlayer(player.getUUID()).isPresent(), lobby.isPresent(),
@@ -147,7 +167,7 @@ public final class HubPortals {
 
     /** Draws any veil that is missing or went with its chunk, where that chunk is loaded now. */
     private static void keepVeils(ServerLevel level, BlockPos origin) {
-        List<HubLayout.Portal> portals = HubLayout.load().portals();
+        List<HubLayout.Portal> portals = everyPortal(HubLayout.load());
         while (VEILS.size() < portals.size()) VEILS.add(null);
         int drawn = 0;
         for (int i = 0; i < portals.size(); i++) {

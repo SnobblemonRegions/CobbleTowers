@@ -381,6 +381,118 @@ public final class LobbyService {
         };
     }
 
+    /**
+     * A Tower Hub party goes in (owner, 20 Nov 2026): its leader walked into a tower's gate with these members gathered. Makes the team
+     * those players already form (no invites to answer), at the Threat and Ascension picked on the gate's pedestals (clamped to what
+     * the server and the team allow), in the standard mode, and starts the usual countdown. Returns what to tell the leader; a refusal
+     * makes no team.
+     */
+    public static String startFromParty(MinecraftServer server, ServerPlayer leader, ResourceLocation towerId, List<UUID> team, int threat,
+                                        int ascension, Optional<ResourceLocation> playlist) {
+        if (playlist.isPresent()) {
+            Optional<PlaylistDefinition> mode = PlaylistRegistry.get(playlist.get());
+            if (mode.isEmpty()) return "The mode " + playlist.get() + " is not on this server.";
+            if (mode.get().maxPlayers() > 0 && team.size() > mode.get().maxPlayers()) {
+                return mode.get().displayName() + " allows " + mode.get().maxPlayers() + " player(s); your party is larger.";
+            }
+        }
+        TowerDefinition tower = TowerDefinitionRegistry.content().towers().get(towerId);
+        if (tower == null) return "No tower " + towerId + " is loaded.";
+        if (!tower.isOpen(System.currentTimeMillis())) return towerName(towerId) + " is not open right now.";
+        for (UUID id : team) {
+            ServerPlayer member = server.getPlayerList().getPlayer(id);
+            String who = member == null ? "A party member" : name(member);
+            if (member == null) return who + " is not online.";
+            if (inRun(id)) return who + " is already in a tower run.";
+            if (lobbyOf(id).isPresent()) return who + " is in a team from the Tower Hall; /tower leave it first.";
+        }
+        long now = System.currentTimeMillis();
+        TowerLobby lobby = new TowerLobby(leader.getUUID(), towerId);
+        for (UUID id : team) {
+            if (id.equals(leader.getUUID())) continue;
+            lobby.invite(id, now);
+            lobby.accept(id, now);
+        }
+        BY_HOST.put(leader.getUUID(), lobby);
+        if (com.cobbletowers.economy.AscensionLibScouting.threatEnabled()) {
+            lobby.setEntryThreat(Math.max(0, Math.min(com.cobbletowers.ascension.ThreatPolicy.MAX_ENTRY, threat)));
+        }
+        if (tower.ascension()) lobby.setAscension(Math.max(0, Math.min(ascension, maxAscension(server, lobby))));
+        lobby.setPlaylist(playlist);
+        lobby.confirmMode();
+        if (RentalDraftService.isRentalLobby(lobby)) {
+            // a Rental Draft: everyone drafts first (the one screen that stays); the leader's next walk-in starts the run
+            broadcast(server, lobby, "Rental Draft: draft your team from the packs, then ready up. Your leader walks in again to go.");
+            RentalDraftService.promptAll(server, lobby);
+            return "Drafting.";
+        }
+        lobby.beginCountdown(now, COUNTDOWN_MILLIS);
+        broadcast(server, lobby, "Going into " + towerName(towerId) + " in " + COUNTDOWN_MILLIS / 1000 + " seconds"
+                + (lobby.entryThreat() > 0 ? " at Threat " + roman(lobby.entryThreat()) : "")
+                + (lobby.ascension() > 0 ? ", Ascension " + lobby.ascension() : "") + ". /tower leave drops out.");
+        return "Starting.";
+    }
+
+    /**
+     * A Tower Hub party (or a player alone) walks into a trial shrine (owner, 20 Nov 2026): today's trial of that kind, with these players,
+     * from its first floor, in the trial's own mode; the usual countdown. Returns what to tell the leader.
+     */
+    public static String startTrialFromParty(MinecraftServer server, ServerPlayer leader, com.cobbletowers.definition.TrialPoolDefinition.Kind kind,
+                                             List<UUID> team) {
+        Optional<com.cobbletowers.trial.TrialSchedule.Instance> found = com.cobbletowers.trial.TrialService.current(kind);
+        if (found.isEmpty()) return "There is no " + kind.name().toLowerCase(java.util.Locale.ROOT) + " trial on this server.";
+        com.cobbletowers.trial.TrialSchedule.Instance trial = found.get();
+        ResourceLocation towerId = trial.entry().tower();
+        if (!TowerDefinitionRegistry.content().towers().containsKey(towerId)) return "Today's trial uses " + towerId + ", which is not loaded.";
+        PlaylistDefinition playlist = trial.entry().playlist().flatMap(PlaylistRegistry::get).orElse(null);
+        if (playlist != null && playlist.maxPlayers() > 0 && team.size() > playlist.maxPlayers()) {
+            return trial.title() + " is " + playlist.displayName() + ": " + playlist.maxPlayers() + " player(s) at most.";
+        }
+        for (UUID id : team) {
+            ServerPlayer member = server.getPlayerList().getPlayer(id);
+            String who = member == null ? "A party member" : name(member);
+            if (member == null) return who + " is not online.";
+            if (inRun(id)) return who + " is already in a tower run.";
+            if (lobbyOf(id).isPresent()) return who + " is in a team from the Tower Hall; /tower leave it first.";
+        }
+        long now = System.currentTimeMillis();
+        TowerLobby lobby = new TowerLobby(leader.getUUID(), towerId);
+        for (UUID id : team) {
+            if (id.equals(leader.getUUID())) continue;
+            lobby.invite(id, now);
+            lobby.accept(id, now);
+        }
+        BY_HOST.put(leader.getUUID(), lobby);
+        lobby.setPlaylist(trial.entry().playlist());
+        lobby.setTrial(Optional.of(trial));
+        lobby.confirmMode();
+        boolean scored = com.cobbletowers.trial.TrialService.wouldBeScored(server, new ArrayList<>(team), trial.id());
+        if (RentalDraftService.isRentalLobby(lobby)) {
+            broadcast(server, lobby, trial.title() + " is a Rental Draft: draft your team, ready up, then walk in again.");
+            RentalDraftService.promptAll(server, lobby);
+            return "Drafting.";
+        }
+        lobby.beginCountdown(now, COUNTDOWN_MILLIS);
+        broadcast(server, lobby, "Going into " + trial.title() + " (" + trial.floors() + " floors) in " + COUNTDOWN_MILLIS / 1000 + " seconds: "
+                + (scored ? "your scored attempt." : "practice, it will not post (an attempt has been used).") + " /tower leave drops out.");
+        return "Starting.";
+    }
+
+    /** The deepest Ascension these players may all start this tower at: the lowest record among them. */
+    public static int maxAscension(MinecraftServer server, ResourceLocation towerId, List<UUID> team) {
+        TowerDefinition tower = TowerDefinitionRegistry.content().towers().get(towerId);
+        if (tower == null || !tower.ascension() || team.isEmpty()) return 0;
+        com.cobbletowers.persistence.TowerAscensionStore records = com.cobbletowers.persistence.TowerAscensionStore.get(server);
+        int deepest = Integer.MAX_VALUE;
+        for (UUID id : team) deepest = Math.min(deepest, records.recordOf(id, towerId));
+        return deepest == Integer.MAX_VALUE ? 0 : deepest;
+    }
+
+    /** "III" for Threat 3; the lobby's numerals, for the hub's pedestals. */
+    public static String threatNumeral(int band) {
+        return roman(band);
+    }
+
     /** The host confirms; the countdown runs and {@link #tick} launches the run when it ends. */
     public static String start(MinecraftServer server, ServerPlayer host) {
         TowerLobby lobby = BY_HOST.get(host.getUUID());

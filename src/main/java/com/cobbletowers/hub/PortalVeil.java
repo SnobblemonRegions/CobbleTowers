@@ -65,6 +65,8 @@ final class PortalVeil extends ElementHolder {
             case "tideforge" -> Blocks.LIGHT_BLUE_STAINED_GLASS;
             case "duskvale" -> Blocks.MAGENTA_STAINED_GLASS;
             case "rootvale" -> Blocks.LIME_STAINED_GLASS;
+            case "trial_daily" -> Blocks.ORANGE_STAINED_GLASS;
+            case "trial_weekly" -> Blocks.PURPLE_STAINED_GLASS;
             default -> Blocks.WHITE_STAINED_GLASS;
         };
     }
