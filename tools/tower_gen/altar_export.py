@@ -210,8 +210,9 @@ def main() -> int:
         data["textures"]["i"] = f"cobbletowers:item/altar/icon_{mode}"
         write(MODELS / "common" / f"tile_{mode}.json", data)
     lit = []
-    for lo, hi in (((6.5, -2.5, -2.5), (9.5, -0.5, 18.5)), ((6.5, 16.5, -2.5), (9.5, 18.5, 18.5)), ((6.5, -0.5, -2.5), (9.5, 16.5, -0.5)),
-                   ((6.5, -0.5, 16.5), (9.5, 16.5, 18.5))):
+    # just outside the tile's own frame (which spans -1.5..17.5), never overlapping it: overlapping faces a hair apart flicker (owner, 24 Nov 2026)
+    for lo, hi in (((7, -3, -3), (10, -1.5, 19)), ((7, 17.5, -3), (10, 19, 19)), ((7, -1.5, -3), (10, 17.5, -1.5)),
+                   ((7, -1.5, 17.5), (10, 17.5, 19))):
         lit += element(lo, hi, "ready_on", atlas, (0, 0, 0), "lit")
     write(MODELS / "common" / "tile_lit.json", model(lit, tex))
     layout["tiles"] = {"modes": list(MI.MODES), "x": round((-MB.BOARD_X + 0.5) / 16, 4), "proud": round(2 / 16, 4), "y": round(25 / 16, 4),

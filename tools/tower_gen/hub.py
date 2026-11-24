@@ -1206,8 +1206,11 @@ def altar_spot(g: Grid, tower: str, out: tuple[int, int]) -> None:
                 bx, bz = gate_spot(out, side * a, ALTAR_D + d)
                 g.air(bx, G, bz, bx, G + 5, bz)
                 if a in (7, 8) and abs(d) <= 4:
-                    g.box("minecraft:barrier", bx, G, bz, bx, G + 3, bz)
                     g.at(role(tower, "floor"), bx, G - 1, bz)
+                # the barriers stand in the column just behind the board's face (owner, 24 Nov 2026): the face (7.44 out) hides their
+                # outline, so looking over the board shows none, and a click still lands (it passes through the drawn board)
+                if a == 8 and abs(d) <= 4:
+                    g.box("minecraft:barrier", bx, G, bz, bx, G + 3, bz)
 
 
 def party_fixtures(g: Grid) -> None:

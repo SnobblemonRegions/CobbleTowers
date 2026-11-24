@@ -116,6 +116,7 @@ public final class PartyService {
         AltarModels.bootstrap();                            // the altar's models are requested before Polymer builds the pack
         TrophyModels.bootstrap();                           // and the Records Hall trophy cases' too
         SeasonChestModels.bootstrap();                      // and its Season Chest's
+        DraftModels.bootstrap();                            // and the Rental Draft's cards at the gates
         UseEntityCallback.EVENT.register(PartyService::onUseEntity);
         UseBlockCallback.EVENT.register(PartyService::onUseBlock);
         ServerTickEvents.END_SERVER_TICK.register(server -> {
@@ -158,6 +159,7 @@ public final class PartyService {
         PLATES.values().forEach(TrialPlate::destroy);
         PLATES.clear();
         RecordsHall.clear();
+        GateDrafts.clear();
     }
 
     // ---- gestures ------------------------------------------------------------------------------------------------------------------
@@ -223,7 +225,11 @@ public final class PartyService {
                 case FIRST -> clickVote(actor, portal, false);
                 case BEST -> clickVote(actor, portal, true);
                 case TILE -> clickMode(actor, portal, AltarModels.layout().tiles().modes().get(part.tile()));
-                case RULES -> bar(actor, "The rules of the mode your party chose: pick one on the board across the path.");
+                case RULES -> {
+                    if (!GateDrafts.click(actor, portal.tower(), hit.getLocation())) {
+                        bar(actor, "The rules of the mode your party chose: pick one on the board across the path.");
+                    }
+                }
             }
             return InteractionResult.SUCCESS;
         }
@@ -250,7 +256,7 @@ public final class PartyService {
     private static Optional<Party> holder(ServerPlayer actor, HubLayout.Portal portal) {
         Optional<Party> party = BOOK.partyOf(actor.getUUID());
         if (party.isEmpty()) {
-            bar(actor, "Make a party first: the altar sets your party's Threat and Ascension.");
+            bar(actor, "Step up to this gate first: its altar sets the Threat and Ascension for whoever stands at it.");
             return Optional.empty();
         }
         Hold hold = HOLDS.get(portal.tower());
@@ -301,7 +307,12 @@ public final class PartyService {
         bar(actor, "Mode: " + GateAltar.MODE_NAMES.getOrDefault(mode, mode) + (playlist.map(p -> ". " + p.description()).orElse(".")));
     }
 
-    static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(String mode) {
+        /** Whether a party's mode is a Rental Draft (its playlist lends the team). */
+    static boolean rental(String mode) {
+        return playlistOf(mode).map(com.cobbletowers.definition.PlaylistDefinition::rental).orElse(false);
+    }
+
+static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(String mode) {
         if (mode.equals("standard")) return Optional.empty();
         return com.cobbletowers.definition.PlaylistRegistry.get(com.cobbletowers.CobbleTowers.id(mode));
     }
@@ -390,7 +401,18 @@ public final class PartyService {
         }
         int ascension = pick(server, hub, portal, party).best() ? LobbyService.maxAscension(server, portal.tower(), team) : 0;
         Optional<ResourceLocation> playlist = playlistOf(party.mode()).map(com.cobbletowers.definition.PlaylistDefinition::id);
-        String said = LobbyService.startFromParty(server, player, portal.tower(), team, party.threat(), ascension, playlist);
+        // Rental Draft (owner, 23 Nov 2026): everyone going in drafts on the gate's board first; a finished draft is their ready
+        Map<UUID, com.cobbletowers.rental.RentalDraft> drafted = new java.util.HashMap<>();
+        if (rental(party.mode())) {
+            List<String> waiting = GateDrafts.waiting(server, team, portal.tower());
+            if (!waiting.isEmpty()) {
+                bar(player, "Still drafting: " + String.join(", ", waiting) + ". Stand on the altar's ring to draft on the board.");
+                return;
+            }
+            for (UUID id : team) GateDrafts.finished(id, portal.tower()).ifPresent(d -> drafted.put(id, d));
+        }
+        String said = LobbyService.startFromParty(server, player, portal.tower(), team, party.threat(), ascension, playlist, drafted);
+        // the gate drafts stay until the party is gone: a start that fails (a missing Rental Key) must not cost anyone their team
         if ("Drafting.".equals(said)) {
             bar(player, "Rental Draft: everyone drafts their team on the screen, readies up, then walk in again.");
             return;
@@ -627,11 +649,17 @@ public final class PartyService {
     private static void gates(MinecraftServer server, Hub hub, long now) {
         HubLayout.Ring ring = hub.layout().ring();
         boolean threatOn = AscensionLibScouting.threatEnabled();
+        GateDrafts.begin();
         for (HubLayout.Portal portal : hub.layout().portals()) {
             Map<Party, Integer> near = new LinkedHashMap<>();
+            Hold held = HOLDS.get(portal.tower());
+            boolean free = held == null || PartyBook.dissolved(held.party()) || !BOOK.parties().contains(held.party());
             for (ServerPlayer player : hub.level().players()) {
+                if (!near(hub, portal, player)) continue;
                 Optional<Party> party = BOOK.partyOf(player.getUUID());
-                if (party.isPresent() && near(hub, portal, player)) near.merge(party.get(), 1, Integer::sum);
+                // a player alone at a free gate is a party of one (owner, 23 Nov 2026): the altar and the walk-in work for them too
+                if (party.isEmpty() && free && !inRun(player.getUUID()) && near.isEmpty()) party = Optional.of(BOOK.solo(player.getUUID()));
+                if (party.isPresent()) near.merge(party.get(), 1, Integer::sum);
             }
             Hold hold = HOLDS.get(portal.tower());
             if (hold != null && (PartyBook.dissolved(hold.party()) || !BOOK.parties().contains(hold.party()))) hold = null;
@@ -647,7 +675,19 @@ public final class PartyService {
             HubLayout.Gate gate = portal.gate().get();
             Party party = hold == null ? null : hold.party();
             altar(server, hub, portal, gate, party, threatOn);
+            if (party != null && rental(party.mode())) {
+                GateDrafts.gate(server, hub, portal, gate, party, id -> ready(id, portal), id -> {
+                    ServerPlayer m = server.getPlayerList().getPlayer(id);
+                    return m != null && near(hub, portal, m);
+                }, p -> { });
+            }
         }
+        // a party of one holding no gate ends: its player left the gate, or a bigger party took it (one that grew by an invite is a party
+        // like any other; a party that drops to one member is already ended by PartyBook.leave)
+        for (Party solo : List.copyOf(BOOK.parties())) {
+            if (solo.size() == 1 && HOLDS.values().stream().noneMatch(h -> h.party() == solo)) BOOK.leave(solo.leader());
+        }
+        GateDrafts.end();
         VOTES.keySet().removeIf(p -> PartyBook.dissolved(p) || !BOOK.parties().contains(p));
         for (Map.Entry<Party, Map<UUID, Boolean>> e : VOTES.entrySet()) e.getValue().keySet().retainAll(e.getKey().members());
     }
@@ -713,7 +753,7 @@ public final class PartyService {
                 String what = playlistOf(mode).map(com.cobbletowers.definition.PlaylistDefinition::description).orElse("No house rules.");
                 yield (leads ? "Right-click: " + name + ". " : name + ": ") + what;
             }
-            case RULES -> "The rules of your party's mode";
+            case RULES -> GateDrafts.drafting(p.getUUID()) ? "" : "The rules of your party's mode";
             case THREAT -> !ours ? "The Threat runes: a party at this gate sets them"
                     : party.get().leader().equals(p.getUUID()) ? "Right-click the altar: raise the Threat (after VI it goes back to none)"
                     : "Your leader sets the Threat";

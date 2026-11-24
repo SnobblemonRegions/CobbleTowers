@@ -91,4 +91,37 @@ class PartyBookTest {
         assertEquals(3, book.partyOf(a).orElseThrow().size());
         assertEquals(2, book.partyOf(d).orElseThrow().size());
     }
+
+    @Test
+    @DisplayName("a player alone at a gate is a party of one (23 Nov 2026), which an invite grows into a real party")
+    void solo() {
+        Party one = book.solo(a);
+        assertEquals(List.of(a), one.members());
+        assertEquals(a, one.leader());
+        assertTrue(book.solo(a) == one, "asking again gives the same party");
+        assertEquals(Click.INVITED, book.click(a, b, 0).click());
+        assertEquals(Click.JOINED, book.click(b, a, 1).click());
+        assertTrue(book.partyOf(b).get() == one, "the invited player joins the party of one");
+        assertEquals(List.of(a, b), one.members());
+    }
+
+    @Test
+    @DisplayName("a party of one does not block invites: it can be invited, and accepting drops it")
+    void soloIsNoObstacle() {
+        Party mine = book.solo(b);
+        assertEquals(Click.INVITED, book.click(a, b, 0).click(), "inviting someone alone at a gate is allowed");
+        PartyBook.Result back = book.click(b, a, 1);
+        assertEquals(Click.JOINED, back.click());
+        assertEquals(List.of(a, b), back.party().members());
+        assertTrue(PartyBook.dissolved(mine), "b's party of one is gone");
+    }
+
+    @Test
+    @DisplayName("a party of one ends when its player leaves")
+    void soloLeaves() {
+        Party one = book.solo(a);
+        assertTrue(book.leave(a).isPresent());
+        assertTrue(PartyBook.dissolved(one));
+        assertTrue(book.partyOf(a).isEmpty());
+    }
 }

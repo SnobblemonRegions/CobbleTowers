@@ -389,6 +389,15 @@ public final class LobbyService {
      */
     public static String startFromParty(MinecraftServer server, ServerPlayer leader, ResourceLocation towerId, List<UUID> team, int threat,
                                         int ascension, Optional<ResourceLocation> playlist) {
+        return startFromParty(server, leader, towerId, team, threat, ascension, playlist, Map.of());
+    }
+
+    /**
+     * As above, with the Rental Drafts the team finished on the gate's board (owner, 23 Nov 2026): when every member has one, they are the
+     * team's drafts and their ready, and the countdown starts at once instead of opening the draft screen.
+     */
+    public static String startFromParty(MinecraftServer server, ServerPlayer leader, ResourceLocation towerId, List<UUID> team, int threat,
+                                        int ascension, Optional<ResourceLocation> playlist, Map<UUID, RentalDraft> drafted) {
         if (playlist.isPresent()) {
             Optional<PlaylistDefinition> mode = PlaylistRegistry.get(playlist.get());
             if (mode.isEmpty()) return "The mode " + playlist.get() + " is not on this server.";
@@ -420,7 +429,12 @@ public final class LobbyService {
         if (tower.ascension()) lobby.setAscension(Math.max(0, Math.min(ascension, maxAscension(server, lobby))));
         lobby.setPlaylist(playlist);
         lobby.confirmMode();
-        if (RentalDraftService.isRentalLobby(lobby)) {
+        if (RentalDraftService.isRentalLobby(lobby) && !drafted.isEmpty() && drafted.keySet().containsAll(team)) {
+            for (UUID id : team) {
+                RentalDraftService.adopt(id, drafted.get(id));
+                lobby.setReady(id, true);
+            }
+        } else if (RentalDraftService.isRentalLobby(lobby)) {
             // a Rental Draft: everyone drafts first (the one screen that stays); the leader's next walk-in starts the run
             broadcast(server, lobby, "Rental Draft: draft your team from the packs, then ready up. Your leader walks in again to go.");
             RentalDraftService.promptAll(server, lobby);

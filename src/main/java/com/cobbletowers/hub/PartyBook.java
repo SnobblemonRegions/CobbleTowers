@@ -67,6 +67,11 @@ public final class PartyBook {
         if (actor.equals(target)) return new Result(Click.SELF, null);
         Party mine = byMember.get(actor);
         Party theirs = byMember.get(target);
+        // a party of one (a player alone at a gate, see solo) never stands in the way of a real party: accepting an invite drops it
+        if (mine != null && mine.size() == 1 && mine != theirs && invited(actor, target, now)) {
+            leave(actor);
+            mine = null;
+        }
         if (mine != null && mine == theirs) {
             if (!mine.leader().equals(actor)) return new Result(Click.NOT_LEADER, mine);
             leave(target);
@@ -80,12 +85,21 @@ public final class PartyBook {
             join(party, actor);
             return new Result(Click.JOINED, party);
         }
-        if (theirs != null) return new Result(Click.THEY_ARE_IN_A_PARTY, theirs);
+        if (theirs != null && theirs.size() > 1) return new Result(Click.THEY_ARE_IN_A_PARTY, theirs);
         if (mine != null && !mine.leader().equals(actor)) return new Result(Click.NOT_LEADER, mine);
         if (mine != null && mine.full()) return new Result(Click.FULL, mine);
         boolean again = invited(target, actor, now);
         invites.computeIfAbsent(target, id -> new LinkedHashMap<>()).put(actor, now + INVITE_MILLIS);
         return new Result(again ? Click.REINVITED : Click.INVITED, mine);
+    }
+
+    /**
+     * A party of one for a player who has none (owner, 23 Nov 2026: solo play must not need a party): a player alone at a gate uses its altar
+     * and walks in like any party. Inviting someone grows it; it ends like any party when its one member leaves. Returns the player's party.
+     */
+    public Party solo(UUID player) {
+        Party party = byMember.get(player);
+        return party != null ? party : open(player);
     }
 
     /** Takes the player out of their party (the next member leads); returns the party they were in, if any. */

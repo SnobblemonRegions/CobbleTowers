@@ -1,0 +1,1 @@
+{"textures":{"t":"cobbletowers:item/draft/fx/ring","particle":"cobbletowers:item/draft/fx/ring"},"elements":[{"from":[0.0,0.0,7.995],"to":[16.0,16.0,8.005],"shade":false,"faces":{"south":{"uv":[0,0,16,16],"texture":"#t"}}}],"display":{"fixed":{"rotation":[0,0,0],"translation":[0,0,0],"scale":[1,1,1]}}}
