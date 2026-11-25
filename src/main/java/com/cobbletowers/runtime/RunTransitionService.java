@@ -173,7 +173,12 @@ public final class RunTransitionService {
             // A rental run that completed earns real cards (P33b), read from the party journal before the player is
             // given their own
             // Pokemon back. Banked above, granted here, each once.
-            if (move.next().state() == RunState.COMPLETED) {
+            boolean tutorial = com.cobbletowers.tutorial.Tutorial.isTutorial(run.towerId());
+            // The Tutorial Tower's first clear pays its starter kit, once per player; nothing else about it pays or records (25 Nov 2026).
+            if (tutorial && move.next().state() == RunState.COMPLETED) {
+                effect("pay the tutorial's starter kit", runId, () -> com.cobbletowers.tutorial.Tutorial.onCleared(server, runId, now));
+            }
+            if (move.next().state() == RunState.COMPLETED && !tutorial) {
                 try {
                     com.cobbletowers.reward.CardRewardService.onCompleted(server, runId, now);
                 } catch (RuntimeException ex) {
@@ -202,8 +207,12 @@ public final class RunTransitionService {
             // Mastery (P31): floor timing, cycle clears, run endings. Never allowed to disturb the run it is
             // watching.
             // A trial attempt is judged first: it reads the run stats that mastery drops when a run ends.
-            com.cobbletowers.trial.TrialService.onTransition(server, runId, move.from(), move.next().state(), now);
-            com.cobbletowers.mastery.MasteryService.onTransition(server, runId, move.from(), move.next().state(), now);
+            if (tutorial) effect("coach the tutorial", runId, () -> com.cobbletowers.tutorial.Tutorial.coach(server, move.next(), move.from(),
+                    move.next().state()));
+            if (!tutorial) {                                   // no trial, mastery, leaderboard, club or region credit for the tutorial
+                com.cobbletowers.trial.TrialService.onTransition(server, runId, move.from(), move.next().state(), now);
+                com.cobbletowers.mastery.MasteryService.onTransition(server, runId, move.from(), move.next().state(), now);
+            }
             // TDS #60/section 11: what a transition costs end to end, including the revival,
             // reward-bank and draft side effects above -- not only the record write.
             TowerMetrics.recordTransition(server, runId, (System.nanoTime() - started) / 1_000_000);

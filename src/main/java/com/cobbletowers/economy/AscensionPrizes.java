@@ -46,6 +46,21 @@ public final class AscensionPrizes {
         }
     }
 
+    /**
+     * Pays AscensionLib materials as vouchers (the Tutorial Tower's starter kit, 25 Nov 2026). {@code operation} is the key: asking again
+     * with it never pays twice. Answers GRANTED, DISABLED, UNAVAILABLE (no library or too old) or FAILED.
+     */
+    public static String grantVouchers(UUID operation, UUID player, Map<String, Long> materials) {
+        if (!resolve()) return "UNAVAILABLE";
+        try {
+            String result = String.valueOf(grant.invoke(null, operation, player, Map.copyOf(materials)));
+            return "GRANTED".equals(result) || "DISABLED".equals(result) ? result : "FAILED";
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ex) {
+            TowerLog.error("Paying AscensionLib materials {} to {} failed", materials, player, ex);
+            return "FAILED";
+        }
+    }
+
     private static boolean resolve() {
         if (!resolved) {
             resolved = true;

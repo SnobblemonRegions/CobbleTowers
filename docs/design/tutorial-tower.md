@@ -50,7 +50,7 @@ The tutorial is an ordinary tower run with its own data. It reuses Neutral's hal
 5. **Coach:** a listener on the run events above for runs of `cobbletowers:tutorial`.
 6. **Starter kit:**
    - **When:** the kit is granted on the first clear only, through `TutorialStore`.
-   - **What:** 3 Tower Keys and 10 Poke Balls (a placeholder; tell me the real kit).
+   - **What:** 4 Tower Keys, 2 Rental Keys and 10 Scouters (owner, 25 Nov 2026). The Scouters are AscensionLib vouchers, keyed per player so they are paid once.
 7. **Kept out of everything else:** the tutorial is skipped by every system that pays or records a run. The tower listings also skip it, so it never shows as a fifth tower.
 
 ## Threat model: Tutorial Tower
@@ -67,7 +67,14 @@ The tutorial is an ordinary tower run with its own data. It reuses Neutral's hal
 
 - **Replay farming (loot, season points, mastery, contracts, card rewards, keys, Ascension records, leaderboards):**
   - **The rule:** a tutorial run pays and records nothing.
-  - **How:** one check, `TutorialRuns.is(run)`, guards every payout and record path. The full list is audited in phase 3, and each path gets a test. This is the biggest piece of work.
+  - **How:** `Tutorial.isTutorial` guards each payout and record path:
+    - floor loot: `RewardBankService.bank`;
+    - AscensionLib Scouter and milestone pay: `FloorPayout.pay`;
+    - card rewards, trials, mastery (and through it leaderboards, clubs and regions): `RunTransitionService`;
+    - contract progress, and the season points it pays: `ContractService.onEvent`;
+    - Echo Duels: `EchoService.duelAvailable`.
+
+  Players don't see the tutorial in the tower lists either: `TowerContent.unlisted`.
 - **Starter kit claimed twice:**
   - **The rule:** the kit is granted only when `TutorialStore` flips "cleared" from false to true.
   - **Crash safety:** the flag is saved in the same tick as the grant, so a crash can't reopen it.
@@ -85,6 +92,8 @@ The tutorial is an ordinary tower run with its own data. It reuses Neutral's hal
 - A player who skips the tutorial by joining a party never sees it unless they talk to its host.
 
 ## Build phases
+
+Status (25 Nov 2026): phases 1 to 3 are built. A full run was played on rig 2: every coach line showed, the floors banked nothing, the kit was paid once, and the lent team was taken back.
 
 1. **The run itself:** the data, the fixed lent team, `TutorialStore`, the trigger and the replay command. It must play start to finish.
 2. **The coach lines.**

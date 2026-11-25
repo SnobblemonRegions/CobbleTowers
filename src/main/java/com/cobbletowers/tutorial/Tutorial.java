@@ -38,7 +38,8 @@ import net.minecraft.world.item.Items;
  */
 public final class Tutorial {
 
-    private record Config(ResourceLocation tower, ResourceLocation playlist, List<ResourceLocation> team, List<Kit> kit) {}
+    private record Config(ResourceLocation tower, ResourceLocation playlist, List<ResourceLocation> team, List<Kit> kit,
+                          Map<String, Long> materials) {}
 
     /** One stack of the starter kit. */
     public record Kit(ResourceLocation item, int count) {}
@@ -60,8 +61,12 @@ public final class Tutorial {
                 JsonObject k = e.getAsJsonObject();
                 kit.add(new Kit(ResourceLocation.parse(k.get("item").getAsString()), Math.max(1, k.get("count").getAsInt())));
             }
+            Map<String, Long> materials = new java.util.LinkedHashMap<>();       // AscensionLib materials, paid as vouchers
+            if (o.has("materials")) {
+                for (var e : o.getAsJsonObject("materials").entrySet()) materials.put(e.getKey(), Math.max(1L, e.getValue().getAsLong()));
+            }
             found = new Config(ResourceLocation.parse(o.get("tower").getAsString()), ResourceLocation.parse(o.get("playlist").getAsString()),
-                    List.copyOf(team), List.copyOf(kit));
+                    List.copyOf(team), List.copyOf(kit), Map.copyOf(materials));
         } catch (java.io.IOException | RuntimeException ex) {
             throw new IllegalStateException("Could not read the Tutorial Tower's hub/tutorial.json", ex);
         }
@@ -76,6 +81,98 @@ public final class Tutorial {
 
     public static boolean isTutorial(ResourceLocation tower) {
         return tower != null && tower.equals(config().tower());
+    }
+
+    // ---- the coach: a few lines at each step of the run (owner, 25 Nov 2026), chat and action bar, never a screen ----------------------
+
+    private static final int GOLD = 0xF2C744, INK = 0xE8EAF2;
+
+    /** The boss each floor fields and the lent Pokemon that answers it: the tutorial teaches the type matchup as it goes. */
+    private static final String[][] FLOORS = {
+            {"Emboar", "Fire", "Blastoise", "Water"},
+            {"Decidueye", "Grass and Ghost", "Charizard", "Fire"},
+            {"Quaquaval", "Water", "Venusaur", "Grass"}};
+
+    /** A tutorial run moved from one state to the next: the coach says what this step is, once, to everyone in it. */
+    public static void coach(MinecraftServer server, com.cobbletowers.persistence.PersistedRun run,
+                             com.cobbletowers.api.tower.RunState from, com.cobbletowers.api.tower.RunState to) {
+        if (!isTutorial(run.towerId()) || from == to) return;
+        List<String> lines = new ArrayList<>();
+        String bar = "";
+        int floor = run.floorIndex();
+        switch (to) {
+            case PREPARING -> {
+                lines.add("Tutorial: this is the preparation room. The stand sells supplies for the run (paid in Tower Tokens).");
+                lines.add("When you are ready, step into the gold ring by the great door, then walk through it.");
+                bar = "Step into the gold ring by the great door";
+            }
+            case ENCOUNTER_ACTIVE -> {
+                if (floor >= 1 && floor <= FLOORS.length) {
+                    String[] f = FLOORS[floor - 1];
+                    lines.add("Floor " + floor + " of " + FLOORS.length + ": each floor is one boss battle. This boss is " + f[0] + " (" + f[1] + ").");
+                    lines.add("Your " + f[2] + " (" + f[3] + ") is strong against it: send it out first. Fainted Pokemon come back between floors.");
+                    bar = "Send out " + f[2] + " against " + f[0];
+                }
+            }
+            case INTERMISSION -> {
+                lines.add("Floor cleared! Between floors your party is healed. Ahead are doors, each with a pedestal showing what lies behind it.");
+                lines.add("Walk up to a door to choose your way on. A relic pedestal gives a bonus that lasts the whole run.");
+                bar = "Pick a door: walk up to its pedestal";
+            }
+            default -> { }
+        }
+        if (lines.isEmpty()) return;
+        for (var participant : run.participants()) {
+            if (!participant.state().isInRun()) continue;
+            ServerPlayer player = server.getPlayerList().getPlayer(participant.playerId());
+            if (player == null) continue;
+            for (int i = 0; i < lines.size(); i++) player.sendSystemMessage(Component.literal(lines.get(i)).withColor(i == 0 ? GOLD : INK));
+            if (!bar.isEmpty()) player.displayClientMessage(Component.literal(bar).withColor(GOLD), true);
+        }
+    }
+
+    /** Whether a run is a Tutorial Tower run (false for a run no longer known). */
+    public static boolean isTutorialRun(UUID runId) {
+        return runId != null && TowerRuns.get(runId).map(run -> isTutorial(run.towerId())).orElse(false);
+    }
+
+    /**
+     * A tutorial run was cleared: each player in it who had not cleared it before is paid the starter kit, once. The clear is written to
+     * disk first, so a crash between the two can cost the kit but never pay it twice; the kit goes through the tower's own pending
+     * rewards, so a full inventory or a logout keeps it until it can be handed over.
+     */
+    public static void onCleared(MinecraftServer server, UUID runId, long now) {
+        var found = TowerRuns.get(runId);
+        if (found.isEmpty()) return;
+        var run = found.get();
+        TowerTutorialStore tutorial = TowerTutorialStore.get(server);
+        var pending = com.cobbletowers.persistence.TowerPendingRewardStore.get(server);
+        List<UUID> paid = new ArrayList<>();
+        for (var participant : run.participants()) {
+            if (!participant.state().isInRun()) continue;
+            if (tutorial.markCleared(participant.playerId())) paid.add(participant.playerId());
+        }
+        if (paid.isEmpty()) return;
+        tutorial.checkpoint(server);
+        for (UUID id : paid) {
+            for (Kit k : kit()) pending.add(id, new com.cobbletowers.persistence.PendingTowerReward(runId, run.floorIndex(), k.item(), k.count(), now));
+        }
+        pending.checkpoint(server);
+        // the AscensionLib materials (Scouters) as vouchers, keyed by player so they are paid once whatever happens
+        if (!config().materials().isEmpty()) {
+            for (UUID id : paid) {
+                UUID operation = UUID.nameUUIDFromBytes(("cobbletowers:tutorial_kit:" + id).getBytes(StandardCharsets.UTF_8));
+                String result = com.cobbletowers.economy.AscensionPrizes.grantVouchers(operation, id, config().materials());
+                if (!"GRANTED".equals(result)) TowerLog.warn("The tutorial kit's materials {} for {} were not paid: {}", config().materials(), id, result);
+            }
+        }
+        for (UUID id : paid) {
+            ServerPlayer player = server.getPlayerList().getPlayer(id);
+            if (player == null) continue;
+            player.sendSystemMessage(Component.literal("Tutorial cleared! Your starter kit is yours. Every tower's host at its gate explains "
+                    + "how to go in.").withColor(0xF2C744));
+            com.cobbletowers.reward.RewardDelivery.deliver(server, player);
+        }
     }
 
     /** Whether a playlist is the tutorial's own (never offered as a mode for another tower). */

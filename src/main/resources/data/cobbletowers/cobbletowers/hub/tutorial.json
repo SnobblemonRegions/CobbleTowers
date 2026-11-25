@@ -9,11 +9,14 @@
   "kit": [
     {
       "item": "cobbletowers:tower_key",
-      "count": 3
+      "count": 4
     },
     {
-      "item": "cobblemon:poke_ball",
-      "count": 10
+      "item": "cobbletowers:rental_key",
+      "count": 2
     }
-  ]
+  ],
+  "materials": {
+    "scouter": 10
+  }
 }

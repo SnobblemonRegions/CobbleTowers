@@ -28,6 +28,7 @@ final class FloorPayout {
         Optional<PersistedRun> found = TowerRuns.get(binding.runId());
         if (found.isEmpty()) return;
         PersistedRun run = found.get();
+        if (com.cobbletowers.tutorial.Tutorial.isTutorial(run.towerId())) return;          // the replayable tutorial pays nothing (25 Nov 2026)
         TowerContent content = TowerDefinitionRegistry.content();
         String outcome = result.outcome().name();
         List<UUID> members = run.participants().stream()
