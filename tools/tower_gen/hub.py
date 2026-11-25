@@ -1188,7 +1188,7 @@ def ring_cells() -> list[tuple[int, int, int]]:
 
 
 def altar_spot(g: Grid, tower: str, out: tuple[int, int]) -> None:
-    """Where the Gate Altar stands (the mod draws it): a 3 x 3 trim plinth under it, invisible barriers two high so nobody walks through it,
+    """Where the Gate Altar stands (the mod draws it): a 3 x 3 trim plinth under it, one barrier in its middle (the mod keeps players off the rest),
     and a ring in the tower's inlay round it, the ready ring."""
     x, z = gate_spot(out, 0, ALTAR_D)
     for dx in range(-4, 5):
@@ -1198,7 +1198,9 @@ def altar_spot(g: Grid, tower: str, out: tuple[int, int]) -> None:
                 g.at(role(tower, "inlay"), x + dx, G - 1, z + dz)
     g.air(x - 2, G, z - 2, x + 2, G + 4, z + 2)
     g.box(role(tower, "trim"), x - 1, G - 1, z - 1, x + 1, G - 1, z + 1)
-    g.box("minecraft:barrier", x - 1, G, z - 1, x + 1, G + 1, z + 1)
+    # one barrier in the altar's middle column, which the model closes in on every side so its outline never shows; the mod nudges anyone
+    # off the rest of the altar (owner, 25 Nov 2026: the 3 x 3 x 2 barriers' outline showed over the lowered altar)
+    g.at("minecraft:barrier", x, G, z)
     # the twin mode boards either side (drawn by the mod): clear their ground (the hedge and benches pass behind), barriers under them
     for side in (-1, 1):
         for a in range(6, 10):

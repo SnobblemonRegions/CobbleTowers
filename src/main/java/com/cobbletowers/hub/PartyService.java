@@ -258,25 +258,33 @@ public final class PartyService {
             if (altar == null) continue;
             GateAltar.Hit part = altar.hitAt(hit.getLocation());
             if (part == null) continue;
-            // one click per 5 ticks per player (audit, 25 Nov 2026: a modified game could spam the altar's chime and burst for everyone)
-            int tick = actor.server.getTickCount();
-            Integer last = ALTAR_CLICKED.get(actor.getUUID());
-            if (last != null && tick - last < ALTAR_CLICK_TICKS) return InteractionResult.SUCCESS;
-            ALTAR_CLICKED.put(actor.getUUID(), tick);
-            switch (part.part()) {
-                case THREAT -> clickThreat(actor, portal);
-                case FIRST -> clickVote(actor, portal, false);
-                case BEST -> clickVote(actor, portal, true);
-                case TILE -> clickMode(actor, portal, AltarModels.layout().tiles().modes().get(part.tile()));
-                case RULES -> {
-                    if (!GateDrafts.click(actor, portal.tower(), hit.getLocation())) {
-                        bar(actor, "The rules of the mode your party chose: pick one on the board across the path.");
-                    }
-                }
-            }
+            clickPart(actor, portal, part, hit.getLocation());
             return InteractionResult.SUCCESS;
         }
         return InteractionResult.PASS;
+    }
+
+    /**
+     * A click on part of a gate's altar or boards, at {@code at} (world): from the boards' barrier collision, or from the altar's own
+     * invisible click shapes (owner, 25 Nov 2026: the altar has no barriers, whose outline showed over it).
+     */
+    static void clickPart(ServerPlayer actor, HubLayout.Portal portal, GateAltar.Hit part, Vec3 at) {
+        // one click per 5 ticks per player (audit, 25 Nov 2026: a modified game could spam the altar's chime and burst for everyone)
+        int tick = actor.server.getTickCount();
+        Integer last = ALTAR_CLICKED.get(actor.getUUID());
+        if (last != null && tick - last < ALTAR_CLICK_TICKS) return;
+        ALTAR_CLICKED.put(actor.getUUID(), tick);
+        switch (part.part()) {
+            case THREAT -> clickThreat(actor, portal);
+            case FIRST -> clickVote(actor, portal, false);
+            case BEST -> clickVote(actor, portal, true);
+            case TILE -> clickMode(actor, portal, AltarModels.layout().tiles().modes().get(part.tile()));
+            case RULES -> {
+                if (!GateDrafts.click(actor, portal.tower(), at)) {
+                    bar(actor, "The rules of the mode your party chose: pick one on the board across the path.");
+                }
+            }
+        }
     }
 
     private static void leave(MinecraftServer server, UUID id, String toThem, String toRest) {
@@ -872,6 +880,11 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
             if (altar != null) altar.destroy();
             altar = new GateAltar(hub.level(), new Vec3(at.getX() + 0.5, at.getY(), at.getZ() + 0.5), spot.yaw(), portal.tower().getPath());
             altar.hint((p, part) -> hintFor(p, portal, part));
+            GateAltar drawn = altar;
+            altar.onClick((p, where) -> {
+                GateAltar.Hit part = drawn.hitAt(where);
+                if (part != null) clickPart(p, portal, part, where);
+            });
             ALTARS.put(portal.tower(), altar);
         }
         TowerDefinition tower = TowerDefinitionRegistry.content().towers().get(portal.tower());

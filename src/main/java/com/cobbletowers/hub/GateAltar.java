@@ -3,8 +3,10 @@ package com.cobbletowers.hub;
 import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
 import eu.pb4.polymer.virtualentity.api.ElementHolder;
 import eu.pb4.polymer.virtualentity.api.attachment.ChunkAttachment;
+import eu.pb4.polymer.virtualentity.api.elements.InteractionElement;
 import eu.pb4.polymer.virtualentity.api.elements.ItemDisplayElement;
 import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
+import eu.pb4.polymer.virtualentity.api.elements.VirtualElement;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -69,6 +71,7 @@ final class GateAltar extends ElementHolder {
     private final Vec3 focusAt, firstAt, bestAt;
     private final Map<UUID, Hit> gazing = new HashMap<>();
     private BiFunction<ServerPlayer, Hit, String> hint = (p, part) -> "";
+    private java.util.function.BiConsumer<ServerPlayer, Vec3> onClick = (p, at) -> { };
     private Shown shown;
     private int age;
 
@@ -142,6 +145,19 @@ final class GateAltar extends ElementHolder {
         rulesBody = flat(new Vec3(-t.x() - 0.16, 1.45, 0), -90, 0.55f, Component.empty());
         rulesFoot = flat(new Vec3(-t.x() - 0.16, 0.95, 0), -90, 0.45f, Component.empty());
         poseMotes(false);
+        // The altar's body (owner, 25 Nov 2026: the barriers' outline showed over the lowered altar): one barrier block in its middle
+        // column, which the model closes in on every side and from above so its outline never shows; anyone stepping onto the altar's
+        // edge is nudged back off (see onTick); and one invisible click box over it all, whose clicks say where they landed.
+        InteractionElement click = new InteractionElement(new VirtualElement.InteractionHandler() {
+            @Override
+            public void interactAt(ServerPlayer player, net.minecraft.world.InteractionHand hand, Vec3 at) {
+                // the game sends an interact-at and an interact for one click: the first, with its spot, is the click
+                if (hand == net.minecraft.world.InteractionHand.MAIN_HAND) onClick.accept(player, base.add(at));
+            }
+        });
+        click.setSize(3.0f, 1.45f);
+        click.setOffset(Vec3.ZERO);
+        addElement(click);
         ChunkAttachment.ofTicking(this, level, base);
     }
 
@@ -215,6 +231,11 @@ final class GateAltar extends ElementHolder {
 
     void hint(BiFunction<ServerPlayer, Hit, String> what) {
         hint = what;
+    }
+
+    /** What a click on the altar's body does, given where it landed (world). */
+    void onClick(java.util.function.BiConsumer<ServerPlayer, Vec3> what) {
+        onClick = what;
     }
 
     /** Brings the altar in step; only what changed is sent. A pick that has just settled bursts on its crystal. */
@@ -380,9 +401,26 @@ final class GateAltar extends ElementHolder {
         return PolymerResourcePackUtils.hasMainPack(handler.getPlayer()) && super.startWatching(handler);
     }
 
+    /** How far out from the altar's middle its footprint reaches (its base is three blocks across), plus a player's half width. */
+    private static final double FOOT = 1.5 + 0.3;
+
+    /** Anyone standing on the altar's footprint (not its middle, which is a barrier) is pushed gently back out the way they came in. */
+    private void keepOff() {
+        for (ServerGamePacketListenerImpl c : getWatchingPlayers()) {
+            ServerPlayer p = c.getPlayer();
+            if (p.isSpectator()) continue;
+            double dx = p.getX() - base.x, dz = p.getZ() - base.z, dy = p.getY() - base.y;
+            if (Math.abs(dx) >= FOOT || Math.abs(dz) >= FOOT || dy < -0.5 || dy > 2.2) continue;
+            double len = Math.max(0.001, Math.sqrt(dx * dx + dz * dz));
+            p.setDeltaMovement(dx / len * 0.32, Math.max(0, p.getDeltaMovement().y), dz / len * 0.32);
+            p.hurtMarked = true;                            // sends the push to the player's game
+        }
+    }
+
     @Override
     protected void onTick() {
         age++;
+        keepOff();
         if (age % 40 == 0) {                                // the focus turns a quarter and bobs, smoothly
             float spin = (age / 40) * 90f;
             double bob = (age / 40) % 2 == 0 ? 0.06 : -0.02;
