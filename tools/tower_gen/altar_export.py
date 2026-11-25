@@ -160,7 +160,10 @@ def main() -> int:
             write(MODELS / tower / f"{name}.json", model(els, tex))
         layout[tower] = {"focus": [round(v / 16, 4) for v in pivot]}
         # the mode boards: the left (the tiles' frame and plaques) and the right (the rules panel), each cut into chunks
-        left = [e for e in MB.board(-1, None) if not e[2].startswith(("icon_", "frame_lit"))]
+        # the tiles are their own displays with their own frames, so the board keeps none of its own: the two frames' faces met on one
+        # plane and fought (owner, 24 Nov 2026: z-fighting on the mode board)
+        left = [e for e in MB.board(-1, None) if not e[2].startswith(("icon_", "frame_lit"))
+                and not (e[2] == "base2" and e[0][1] >= 15 and e[1][1] <= 35)]
         right = MB.board(1, None)
         layout[tower]["board_left"] = chunked(left, atlas, tex, MODELS / tower, "board_left", (-144, 0, -80))
         layout[tower]["board_right"] = chunked(right, atlas, tex, MODELS / tower, "board_right", (96, 0, -80))

@@ -115,7 +115,24 @@ def build(tower: str) -> Altar:
         for y0, y1, h in ((18, 24, 3), (24, 29, 2.3), (29, 32, 1.4), (32, 34, 0.6)):
             a.box(x - h, y0, -h, x + h, y1, h, tag, tag)
     focus(a, tower)
+    lower(a, DROP)
     return a
+
+
+DROP = 8                                                    # how much shorter the core is, in 1/16 block
+
+
+def lower(a: Altar, drop: float) -> None:
+    """The altar half a block lower (owner, 24 Nov 2026: its table stood at eye height, so the Threat runes were seen edge-on): the core
+    is cut shorter and all above it comes down with it; the base, its steps and the ready strips stay on the ground."""
+    cut = 14
+    for i, e in enumerate(a.elements):
+        (x0, y0, z0), (x1, y1, z1) = e.lo, e.hi
+        if y0 >= cut:
+            y0, y1 = y0 - drop, y1 - drop
+        elif y1 > cut and y1 - drop > y0:                   # a part running up the core (the core, its buttresses, roots) is cut shorter
+            y1 = y1 - drop
+        a.elements[i] = Element((x0, y0, z0), (x1, y1, z1), e.mat, e.tag)
 
 
 def focus(a: Altar, tower: str) -> None:

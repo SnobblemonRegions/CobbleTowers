@@ -103,19 +103,21 @@ final class GateAltar extends ElementHolder {
         }
         firstAt = at.first();
         bestAt = at.best();
-        crystalFirst = item(AltarModels.common("crystal_first"), true);
-        crystalBest = item(AltarModels.common("crystal_best"), true);
+        // the vote crystals and their motes are not drawn (owner, 24 Nov 2026: they read as stray block icons); a vote is still a click on
+        // the altar's left or right, named in the action bar, and a settled pick still bursts where its crystal was
+        crystalFirst = item(ItemStack.EMPTY, true);
+        crystalBest = item(ItemStack.EMPTY, true);
         for (ItemDisplayElement c : new ItemDisplayElement[] {crystalFirst, crystalBest}) c.setInterpolationDuration(8);
         place(crystalFirst, firstAt, 0);
         place(crystalBest, bestAt, 0);
         for (int i = 0; i < MAX_MOTES; i++) {
-            motesFirst[i] = item(AltarModels.common("mote_first"), true);
-            motesBest[i] = item(AltarModels.common("mote_best"), true);
+            motesFirst[i] = item(ItemStack.EMPTY, true);
+            motesBest[i] = item(ItemStack.EMPTY, true);
             motesFirst[i].setInterpolationDuration(10);
             motesBest[i].setInterpolationDuration(10);
         }
-        title = text(3.55, 1.1f);
-        line = text(3.2, 0.8f);
+        title = text(3.05, 1.1f);                          // half a block lower with the altar (24 Nov 2026)
+        line = text(2.7, 0.8f);
         // the twin mode boards: their frames in chunks, the tiles, the chosen tile's lit frame, the names and the rules, flat on the boards
         for (AltarModels.Chunk c : at.boards().getOrDefault(tower, at.boards().get("neutral"))) {
             ItemDisplayElement e = item(AltarModels.chunk(c.model()), c.glow());
@@ -243,7 +245,9 @@ final class GateAltar extends ElementHolder {
             AltarModels.Tiles t = AltarModels.layout().tiles();
             for (int i = 0; i < tiles.length; i++) {
                 boolean chosen = i == next.mode();
-                place(tiles[i], new Vec3(t.x() + (chosen ? t.proud() : 0), t.y(), tileZ(t, i)), 180);
+                boolean wasChosen = was != null && i == was.mode();
+                if (was != null && chosen == wasChosen) continue;          // only the tiles that move glide (owner, 24 Nov 2026: a click
+                place(tiles[i], new Vec3(t.x() + (chosen ? t.proud() : 0), t.y(), tileZ(t, i)), 180);   // pulled the whole row)
                 tiles[i].startInterpolation();
             }
             if (next.mode() >= 0 && next.mode() < tiles.length) {
@@ -353,7 +357,7 @@ final class GateAltar extends ElementHolder {
         Vec3 look = p.getLookAngle();
         Part best = null;
         double bestAlong = 7.0;
-        Vec3 threatAt = new Vec3(0, 1.75, 0);
+        Vec3 threatAt = new Vec3(0, 1.25, 0);
         for (Part part : new Part[] {Part.THREAT, Part.FIRST, Part.BEST}) {          // the altar's own parts (the boards are looked at above)
             Vec3 local = switch (part) { case FIRST -> firstAt; case BEST -> bestAt; default -> threatAt; };
             Vector3f w = new Vector3f((float) local.x, (float) local.y, (float) local.z);
