@@ -116,6 +116,17 @@ public final class HubPortals {
             PartyService.walkIn(server, new PartyService.Hub(level, origin, HubLayout.load()), player, portal, party.get());
             return;
         }
+        // a player with no party and no team goes in alone, at the gate's defaults: no screen in the hub (owner, 25 Nov 2026)
+        if (party.isEmpty() && LobbyService.lobbyOf(player.getUUID()).isEmpty() && TowerRuns.forPlayer(player.getUUID()).isEmpty()) {
+            // a brand-new player's first walk-in is the Tutorial Tower instead (owner, 25 Nov 2026)
+            if (com.cobbletowers.tutorial.Tutorial.firstTimer(server, player.getUUID())) {
+                com.cobbletowers.tutorial.Tutorial.start(server, player, true)
+                        .ifPresent(why -> player.sendSystemMessage(Component.literal(why)));
+                return;
+            }
+            PartyService.walkInAlone(server, new PartyService.Hub(level, origin, HubLayout.load()), player, portal);
+            return;
+        }
         com.cobbletowers.webgui.WebGuiBridge.userAsked(player);
         Optional<TowerLobby> lobby = LobbyService.lobbyOf(player.getUUID());
         Action action = decide(TowerRuns.forPlayer(player.getUUID()).isPresent(), lobby.isPresent(),

@@ -121,13 +121,29 @@ final class GateDraft extends ElementHolder {
     private long hintDue;
     private int ledgeShown;
 
+    /**
+     * Where a board stands. A gate's rules board has collision behind it that takes the clicks; a trial shrine's board hangs over the
+     * shrine's open arch (owner, 25 Nov 2026), so it brings click boxes of its own, and its kept Pokemon stand out from the wall.
+     */
+    record Frame(boolean ownClicks, double ledgeX) {
+        static final Frame GATE = new Frame(false, LEDGE_X);
+        static final Frame SHRINE = new Frame(true, CARD_X - 0.7);
+    }
+
+    private final double ledgeX;
+
     GateDraft(ServerLevel level, Vec3 base, float yawDegrees, UUID owner, RentalDraft draft, GateDrafts.Callbacks on) {
+        this(level, base, yawDegrees, owner, draft, on, Frame.GATE);
+    }
+
+    GateDraft(ServerLevel level, Vec3 base, float yawDegrees, UUID owner, RentalDraft draft, GateDrafts.Callbacks on, Frame frame) {
         this.level = level;
         this.base = base;
         this.turn = new Quaternionf().rotateY((float) Math.toRadians(yawDegrees));
         this.owner = owner;
         this.draft = draft;
         this.on = on;
+        this.ledgeX = frame.ledgeX();
         cover = item(DraftModels.fx("cover"), false);
         put(cover, new Vec3(COVER_X, 1.6875, 0), FACE_UP, 7);                   // hides the shared rules text from this player only (a 16 x 4 model, x7)
         rays = item(DraftModels.fx("rays"), true);
@@ -177,6 +193,11 @@ final class GateDraft extends ElementHolder {
         hit.setSize(1.05f, 1.45f);                                             // the pack's own size
         hit.setOffset(world(PACK_AT.add(0, -0.72, 0)));
         addElement(hit);
+        if (frame.ownClicks()) {
+            // a click box over each card's place and the restart line, each passing the click on as a click on that spot of the board
+            for (int i = 0; i < 5; i++) clickBox(new Vec3(CARD_X, CARD_Y, cardZ(i)), 0.9f, 1.25f);
+            clickBox(new Vec3(CARD_X, 0.93, 2.85), 0.9f, 0.4f);
+        }
         for (int k = 0; k < draft.team().size(); k++) showLedge(k, false);
         if (draft.complete()) enter(Stage.DONE);
         else enter(Stage.SEALED);
@@ -487,7 +508,7 @@ final class GateDraft extends ElementHolder {
         if (k >= team.size() || k >= 6) return;
         ItemStack model = DraftModels.pokemon(level.registryAccess(), team.get(k).species());
         ledge[k].setItem(model);
-        Vec3 to = new Vec3(LEDGE_X, LEDGE_Y + LEDGE_UP, LEDGE_Z[k]);
+        Vec3 to = new Vec3(ledgeX, LEDGE_Y + LEDGE_UP, LEDGE_Z[k]);
         float spin = ledgeSpin(k);
         if (hop) {
             int from = draft.picks().get(draft.picks().size() - 1).get(k % 2);
@@ -526,6 +547,21 @@ final class GateDraft extends ElementHolder {
         put(packTop, PACK_AT.add(0, 0.66, 0), FACE_UP - 6, 1.0f);
         packTop.startInterpolation();
         particles(ParticleTypes.WAX_ON, PACK_AT.add(0, 0.7, 0), 8, 0.3, 0.05);
+    }
+
+    /** An invisible click box (seen by the owner alone) whose click is a click on the board at `spot` (the board's frame). */
+    private void clickBox(Vec3 spot, float width, float height) {
+        Vec3 at = world(spot);
+        Vec3 hitAt = base.add(at);
+        InteractionElement box = new InteractionElement(new VirtualElement.InteractionHandler() {
+            @Override
+            public void interact(ServerPlayer player, InteractionHand hand) {
+                if (hand == InteractionHand.MAIN_HAND && player.getUUID().equals(owner)) click(player, hitAt);
+            }
+        });
+        box.setSize(width, height);
+        box.setOffset(world(spot.add(-0.3, -height / 2.0, 0)));
+        addElement(box);
     }
 
     /** A right-click on the rules board's collision at `hit` (world). */
@@ -641,8 +677,8 @@ final class GateDraft extends ElementHolder {
         if (stage == Stage.CHOOSE || stage == Stage.LOCKING || stage == Stage.DONE) turns();
         for (int k = 0; k < 6; k++) {                                      // a kept Pokemon's hop: started from its card, then sent up
             if (ledgeHop[k] > 0 && --ledgeHop[k] == 0) {
-                move(ledge[k], new Vec3(LEDGE_X, LEDGE_Y + LEDGE_UP, LEDGE_Z[k]), ledgeSpin(k), LEDGE_SCALE, 12);
-                particles(ParticleTypes.END_ROD, new Vec3(LEDGE_X - 0.3, LEDGE_Y + 0.4, LEDGE_Z[k]), 6, 0.2, 0.02);
+                move(ledge[k], new Vec3(ledgeX, LEDGE_Y + LEDGE_UP, LEDGE_Z[k]), ledgeSpin(k), LEDGE_SCALE, 12);
+                particles(ParticleTypes.END_ROD, new Vec3(ledgeX - 0.3, LEDGE_Y + 0.4, LEDGE_Z[k]), 6, 0.2, 0.02);
             }
         }
         switch (stage) {

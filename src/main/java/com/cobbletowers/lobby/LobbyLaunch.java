@@ -78,7 +78,8 @@ final class LobbyLaunch {
         // The entry item (decided 2026-10-05): one key per player, checked here and again just before floor 1 opens,
         // and taken then, so a launch that fails costs nothing. The second check matters when the arena is built over
         // several seconds: a key moved away during that wait must not start the run.
-        Optional<TowerKeys.Kind> keyKind = TowerKeyPolicy.keyFor(TowerKeys.required(), lobby.trial().isPresent(), plan.rentalRun());
+        Optional<TowerKeys.Kind> keyKind = com.cobbletowers.tutorial.Tutorial.isTutorial(lobby.tower()) ? Optional.empty()     // the tutorial is free
+                : TowerKeyPolicy.keyFor(TowerKeys.required(), lobby.trial().isPresent(), plan.rentalRun());
         if (keyKind.isPresent()) plan.problems().addAll(missingKeys(server, plan, keyKind.get()));
         if (!plan.problems().isEmpty()) {
             TowerLog.info("The lobby of {} could not start {}: {}", lobby.host(), lobby.tower(),
@@ -207,10 +208,28 @@ final class LobbyLaunch {
                 plan.problems().add(LobbyService.name(player) + " is already in a tower run.");
                 continue;
             }
-            if (plan.rentalRun()) inspectRental(player, plan);
+            if (plan.rentalRun() && com.cobbletowers.tutorial.Tutorial.isTutorial(lobby.tower())) inspectTutorial(player, plan);
+            else if (plan.rentalRun()) inspectRental(player, plan);
             else inspectOwn(player, lobby, ruleset, plan);
         }
         return plan;
+    }
+
+    /** The Tutorial Tower (owner, 25 Nov 2026): the party is its fixed lent team, drawn fresh for this run. */
+    private static void inspectTutorial(ServerPlayer player, Plan plan) {
+        UUID id = player.getUUID();
+        Optional<RentalDraft.Team> team = com.cobbletowers.tutorial.Tutorial.team();
+        if (team.isEmpty()) {
+            plan.problems().add("The tutorial's lent team is not loaded on this server");
+            return;
+        }
+        if (!RentalPartyService.canMakeRoom(player)) {
+            plan.problems().add(LobbyService.name(player) + " needs free box space for their own Pokemon while they play");
+            return;
+        }
+        plan.rentalTeams().put(id, team.get());
+        plan.players().add(id);
+        plan.parties().put(id, team.get().ids());
     }
 
     /** A rental run (P33): the party is the drafted team, so the player's own Pokemon are not judged at all. */

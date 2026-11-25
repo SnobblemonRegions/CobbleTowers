@@ -1,0 +1,19 @@
+{
+  "tower": "cobbletowers:tutorial",
+  "playlist": "cobbletowers:tutorial",
+  "team": [
+    "cobbletowers:charizard",
+    "cobbletowers:blastoise",
+    "cobbletowers:venusaur"
+  ],
+  "kit": [
+    {
+      "item": "cobbletowers:tower_key",
+      "count": 3
+    },
+    {
+      "item": "cobblemon:poke_ball",
+      "count": 10
+    }
+  ]
+}

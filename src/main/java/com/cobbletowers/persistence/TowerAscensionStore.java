@@ -29,6 +29,11 @@ public final class TowerAscensionStore extends TowerStore {
         return open(server, TowerAscensionStore::new, TowerAscensionStore::load, FILE_ID);
     }
 
+    /** Whether the player has a record in any tower (the Tutorial Tower's "has played before", 25 Nov 2026). */
+    public boolean knows(UUID playerId) {
+        return records.containsKey(playerId);
+    }
+
     /** The deepest Ascension this player has reached in this tower; 0 for nobody who has not ascended. */
     public int recordOf(UUID playerId, ResourceLocation towerId) {
         return records.getOrDefault(playerId, Map.of()).getOrDefault(towerId, 0);

@@ -308,9 +308,12 @@ public final class LobbyService {
         }
         ResourceLocation id = raw.contains(":") ? ResourceLocation.tryParse(raw)
                 : CobbleTowers.id(raw.toLowerCase(java.util.Locale.ROOT));
-        java.util.Optional<PlaylistDefinition> playlist = id == null ? java.util.Optional.empty() : PlaylistRegistry.get(id);
+        // the Tutorial Tower's own playlist is only ever its own (owner, 25 Nov 2026): never a mode to pick for another tower
+        java.util.Optional<PlaylistDefinition> playlist = id == null || com.cobbletowers.tutorial.Tutorial.isTutorialPlaylist(id)
+                ? java.util.Optional.empty() : PlaylistRegistry.get(id);
         if (playlist.isEmpty()) return "No mode called " + raw + ". Try: standard, "
-                + PlaylistRegistry.all().stream().map(p -> p.id().getPath()).collect(java.util.stream.Collectors.joining(", ")) + ".";
+                + PlaylistRegistry.all().stream().filter(p -> !com.cobbletowers.tutorial.Tutorial.isTutorialPlaylist(p.id()))
+                .map(p -> p.id().getPath()).collect(java.util.stream.Collectors.joining(", ")) + ".";
         if (playlist.get().maxPlayers() > 0 && lobby.team().size() + lobby.pending().size() > playlist.get().maxPlayers()) {
             return playlist.get().displayName() + " allows " + playlist.get().maxPlayers() + " player(s); the team is larger.";
         }
@@ -434,8 +437,9 @@ public final class LobbyService {
                 RentalDraftService.adopt(id, drafted.get(id));
                 lobby.setReady(id, true);
             }
-        } else if (RentalDraftService.isRentalLobby(lobby)) {
+        } else if (RentalDraftService.isRentalLobby(lobby) && !com.cobbletowers.tutorial.Tutorial.isTutorial(towerId)) {
             // a Rental Draft: everyone drafts first (the one screen that stays); the leader's next walk-in starts the run
+            // (the Tutorial Tower lends a fixed team: nothing to draft)
             broadcast(server, lobby, "Rental Draft: draft your team from the packs, then ready up. Your leader walks in again to go.");
             RentalDraftService.promptAll(server, lobby);
             return "Drafting.";
@@ -453,6 +457,15 @@ public final class LobbyService {
      */
     public static String startTrialFromParty(MinecraftServer server, ServerPlayer leader, com.cobbletowers.definition.TrialPoolDefinition.Kind kind,
                                              List<UUID> team) {
+        return startTrialFromParty(server, leader, kind, team, Map.of());
+    }
+
+    /**
+     * As above, with the Rental Drafts the team finished on the shrine's board (owner, 25 Nov 2026): when every member has one, they are the
+     * team's drafts and their ready, and the countdown starts at once instead of opening the draft screen.
+     */
+    public static String startTrialFromParty(MinecraftServer server, ServerPlayer leader, com.cobbletowers.definition.TrialPoolDefinition.Kind kind,
+                                             List<UUID> team, Map<UUID, RentalDraft> drafted) {
         Optional<com.cobbletowers.trial.TrialSchedule.Instance> found = com.cobbletowers.trial.TrialService.current(kind);
         if (found.isEmpty()) return "There is no " + kind.name().toLowerCase(java.util.Locale.ROOT) + " trial on this server.";
         com.cobbletowers.trial.TrialSchedule.Instance trial = found.get();
@@ -481,7 +494,12 @@ public final class LobbyService {
         lobby.setTrial(Optional.of(trial));
         lobby.confirmMode();
         boolean scored = com.cobbletowers.trial.TrialService.wouldBeScored(server, new ArrayList<>(team), trial.id());
-        if (RentalDraftService.isRentalLobby(lobby)) {
+        if (RentalDraftService.isRentalLobby(lobby) && !drafted.isEmpty() && drafted.keySet().containsAll(team)) {
+            for (UUID id : team) {
+                RentalDraftService.adopt(id, drafted.get(id));
+                lobby.setReady(id, true);
+            }
+        } else if (RentalDraftService.isRentalLobby(lobby)) {
             broadcast(server, lobby, trial.title() + " is a Rental Draft: draft your team, ready up, then walk in again.");
             RentalDraftService.promptAll(server, lobby);
             return "Drafting.";
@@ -790,6 +808,7 @@ public final class LobbyService {
             List<String> modeIds = new ArrayList<>();
             List<String> modeNames = new ArrayList<>();
             for (PlaylistDefinition playlist : PlaylistRegistry.all()) {
+                if (com.cobbletowers.tutorial.Tutorial.isTutorialPlaylist(playlist.id())) continue;
                 modeIds.add(playlist.id().getPath());
                 modeNames.add(playlist.displayName());
             }

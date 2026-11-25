@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "display_name": "Tutorial",
+  "description": "A short first tower on a lent team: Charizard, Blastoise and Venusaur. Your own Pokemon stay safe in your boxes.",
+  "party": {},
+  "rental": true,
+  "max_players": 1
+}

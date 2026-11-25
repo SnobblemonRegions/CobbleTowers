@@ -95,6 +95,56 @@ final class GateDrafts {
         }
     }
 
+    /** The key a shrine's drafts are kept under: its kind and the trial's seed, so a new day's trial deals new packs. */
+    static ResourceLocation shrineKey(String kind, long seed) {
+        return ResourceLocation.fromNamespaceAndPath("cobbletowers", "trial_" + kind + "_" + Long.toHexString(seed));
+    }
+
+    /**
+     * A trial shrine whose trial is a Rental Draft (owner, 25 Nov 2026): each player ready at it drafts on a board hung over the shrine's
+     * arch, from the trial's own packs (its shared seed, no God Pack, as the trial's draft screen dealt them).
+     * @param drafters the players ready at this shrine
+     * @param onRing whether a player stands on the shrine's ring now: stepping on it brings their board up
+     * @param near whether a player is still at the shrine: their board stays up while they are, so they can walk up to it to click
+     */
+    static void shrine(MinecraftServer server, PartyService.Hub hub, HubLayout.Shrine shrine, ResourceLocation key, long seed,
+                       List<UUID> drafters, java.util.function.Predicate<UUID> onRing, java.util.function.Predicate<UUID> near) {
+        if (RentalSetRegistry.all().isEmpty()) return;
+        // the board stands just out from the shrine's wall, facing into the pavilion: the plate's cell is the wall's front course, and
+        // the set-back spot is further in along the shrine's facing
+        HubLayout.Cell plate = shrine.plate();
+        HubLayout.Spot back = shrine.portal().back();
+        double fx = Math.signum(back.x() - plate.x()), fz = Math.signum(back.z() - plate.z());
+        if (Math.abs(back.x() - plate.x()) < Math.abs(back.z() - plate.z())) fx = 0;
+        else fz = 0;
+        Vec3 face = new Vec3(hub.origin().getX() + plate.x() + 0.5 + fx * 0.7, hub.origin().getY() + back.y(),
+                hub.origin().getZ() + plate.z() + 0.5 + fz * 0.7);
+        Vec3 base = face.add(fx * GateDraft.CARD_X, 0, fz * GateDraft.CARD_X);
+        float yaw = (float) Math.toDegrees(Math.atan2(fz, -fx));                // the board's frame turned so its +x runs back to the wall
+        long now = System.currentTimeMillis();
+        for (UUID id : drafters) {
+            SEEN.add(id);
+            SEEN_AT.put(id, now);
+            Entry entry = DRAFTS.get(id);
+            if (entry == null || !entry.tower().equals(key)) {
+                entry = new Entry(key, new RentalDraft(RentalDraw.draw(RentalSetRegistry.all(), seed, false)));
+                DRAFTS.put(id, entry);
+                GateDraft old = VIEWS.remove(id);
+                if (old != null) old.destroy();
+            }
+            ServerPlayer member = server.getPlayerList().getPlayer(id);
+            GateDraft view = VIEWS.get(id);
+            boolean show = member != null && member.level() == hub.level() && (onRing.test(id) || (view != null && near.test(id)));
+            if (show && (view == null || view.getAttachment() == null)) {
+                if (view != null) view.destroy();
+                VIEWS.put(id, new GateDraft(hub.level(), base, yaw, id, entry.draft(), p -> { }, GateDraft.Frame.SHRINE));
+            } else if (!show && view != null) {
+                view.destroy();
+                VIEWS.remove(id);
+            }
+        }
+    }
+
     /**
      * Ends the pass: a player whose party no longer holds a gate in Rental Draft loses their board at once and their draft after
      * {@link #KEEP_MILLIS}.

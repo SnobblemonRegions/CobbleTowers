@@ -298,11 +298,20 @@ public final class PartyService {
     /** The party holding this gate, if the player is in it; otherwise says why the altar does nothing. */
     private static Optional<Party> holder(ServerPlayer actor, HubLayout.Portal portal) {
         Optional<Party> party = BOOK.partyOf(actor.getUUID());
-        if (party.isEmpty()) {
-            bar(actor, "Step up to this gate first: its altar sets the Threat and Ascension for whoever stands at it.");
-            return Optional.empty();
-        }
         Hold hold = HOLDS.get(portal.tower());
+        boolean free = hold == null || PartyBook.dissolved(hold.party()) || !BOOK.parties().contains(hold.party());
+        if (party.isEmpty()) {
+            // a player alone who clicks a free gate's altar or boards takes the gate as a party of one, as stepping on its ring does
+            // (owner, 25 Nov 2026): a click is a deliberate act, so it claims nothing for anyone just passing by
+            if (!free || inRun(actor.getUUID())) {
+                bar(actor, "Another party is at this gate: wait for them to go in.");
+                return Optional.empty();
+            }
+            long now = System.currentTimeMillis();
+            Party solo = BOOK.solo(actor.getUUID());
+            HOLDS.put(portal.tower(), new Hold(solo, now, now));
+            return Optional.of(solo);
+        }
         if (hold == null || hold.party() != party.get()) {
             bar(actor, hold == null ? "Bring your party to this gate first." : "Another party is at this gate.");
             return Optional.empty();
@@ -476,8 +485,46 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
         }
     }
 
+    /**
+     * A tower host's line on the player's party, when it holds that tower's gate (owner, 25 Nov 2026): the mode, the Threat, the start and
+     * who is ready, as the altar shows them.
+     */
+    public static Optional<String> gateStatus(MinecraftServer server, UUID player, ResourceLocation tower) {
+        Optional<Party> party = BOOK.partyOf(player);
+        Hold hold = HOLDS.get(tower);
+        if (party.isEmpty() || hold == null || hold.party() != party.get()) return Optional.empty();
+        Party p = party.get();
+        int ready = 0;
+        for (UUID id : p.members()) if (tower.equals(READY.get(id))) ready++;
+        StringBuilder line = new StringBuilder("Your party: ").append(GateAltar.MODE_NAMES.getOrDefault(p.mode(), p.mode()));
+        if (AscensionLibScouting.threatEnabled()) line.append("  ·  ").append(p.threat() == 0 ? "no Threat" : "Threat " + LobbyService.threatNumeral(p.threat()));
+        long best = VOTES.getOrDefault(p, Map.of()).values().stream().filter(Boolean::booleanValue).count();
+        long first = VOTES.getOrDefault(p, Map.of()).size() - best;
+        if (best + first > 0) line.append("  ·  ").append(best > first ? "voting Best" : "voting First floor");
+        line.append("  ·  ").append(ready).append(" of ").append(p.size()).append(" ready");
+        return Optional.of(line.toString());
+    }
+
+    /**
+     * A player with no party and no team walked into a gate's portal (owner, 25 Nov 2026: no screen in the hub): they go in alone, as a
+     * party of one with its defaults (Standard, no Threat, the first floor), unless another party holds the gate.
+     */
+    static void walkInAlone(MinecraftServer server, Hub hub, ServerPlayer player, HubLayout.Portal portal) {
+        Hold hold = HOLDS.get(portal.tower());
+        if (hold != null && !PartyBook.dissolved(hold.party()) && BOOK.parties().contains(hold.party())) {
+            bar(player, "Another party is at this gate: wait for them to go in.");
+            return;
+        }
+        long now = System.currentTimeMillis();
+        Party solo = BOOK.solo(player.getUUID());
+        HOLDS.put(portal.tower(), new Hold(solo, now, now));
+        READY.put(player.getUUID(), portal.tower());
+        walkIn(server, hub, player, portal, solo);
+    }
+
     /** Ready: standing on the gate's altar ring (a hub built before the altar: near the spot in front of the portal). */
     private static boolean gathered(Hub hub, HubLayout.Portal portal, ServerPlayer player) {
+        if (onPad(hub, player)) return false;                // the pad's south arm lies on Duskvale's ring: the pad readies nobody
         if (portal.gate().isPresent()) {
             return portal.gate().get().ready(player.getX() - hub.origin().getX(), player.getY() - hub.origin().getY(), player.getZ() - hub.origin().getZ());
         }
@@ -548,12 +595,33 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
                 PLATES.put(shrine.kind(), plate);
             }
             if (server.getTickCount() % 20 == 0) plate.refresh(kindOf(shrine));
+            shrineDraft(server, hub, shrine);
         }
         TRIAL_READY.entrySet().removeIf(e -> {
             ServerPlayer p = server.getPlayerList().getPlayer(e.getKey());
             if (p == null || p.level() != hub.level()) return true;
             return hub.layout().shrines().stream().filter(s -> s.kind().equals(e.getValue())).noneMatch(s -> nearShrine(hub, s, p));
         });
+    }
+
+    /** Today's trial at this shrine, when it is a Rental Draft: everyone ready at it drafts on the shrine's board (owner, 25 Nov 2026). */
+    private static void shrineDraft(MinecraftServer server, Hub hub, HubLayout.Shrine shrine) {
+        Optional<com.cobbletowers.trial.TrialSchedule.Instance> trial = com.cobbletowers.trial.TrialService.current(kindOf(shrine));
+        if (trial.isEmpty() || !trialRental(trial.get())) return;
+        List<UUID> drafters = new ArrayList<>();
+        for (Map.Entry<UUID, String> e : TRIAL_READY.entrySet()) if (e.getValue().equals(shrine.kind())) drafters.add(e.getKey());
+        GateDrafts.shrine(server, hub, shrine, GateDrafts.shrineKey(shrine.kind(), trial.get().seed()), trial.get().seed(), drafters, id -> {
+            ServerPlayer p = server.getPlayerList().getPlayer(id);
+            return p != null && onRing(hub, shrine, p);
+        }, id -> {
+            ServerPlayer p = server.getPlayerList().getPlayer(id);
+            return p != null && nearShrine(hub, shrine, p);
+        });
+    }
+
+    private static boolean trialRental(com.cobbletowers.trial.TrialSchedule.Instance trial) {
+        return trial.entry().playlist().flatMap(com.cobbletowers.definition.PlaylistRegistry::get)
+                .map(com.cobbletowers.definition.PlaylistDefinition::rental).orElse(false);
     }
 
     /** A walk into a shrine: a party's leader takes its ready members in; a player with no party goes alone; a member is told to wait. */
@@ -585,13 +653,30 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
             player.sendSystemMessage(Component.literal(LobbyService.start(server, player)));
             return;
         }
-        String said = LobbyService.startTrialFromParty(server, player, kindOf(shrine), team);
+        // a Rental Draft trial (owner, 25 Nov 2026): everyone going in drafts on the shrine's board first; a finished draft is their ready
+        Map<UUID, com.cobbletowers.rental.RentalDraft> drafted = new HashMap<>();
+        Optional<com.cobbletowers.trial.TrialSchedule.Instance> trial = com.cobbletowers.trial.TrialService.current(kindOf(shrine));
+        if (trial.isPresent() && trialRental(trial.get())) {
+            ResourceLocation key = GateDrafts.shrineKey(shrine.kind(), trial.get().seed());
+            if (!shrine.kind().equals(TRIAL_READY.get(player.getUUID()))) {
+                bar(player, "Step on the shrine's ring first: this trial is a Rental Draft, drafted on the board over the arch.");
+                return;
+            }
+            List<String> waiting = GateDrafts.waiting(server, team, key);
+            if (!waiting.isEmpty()) {
+                bar(player, "Still drafting: " + String.join(", ", waiting) + ". Stand on the shrine's ring to draft on the board.");
+                return;
+            }
+            for (UUID id : team) GateDrafts.finished(id, key).ifPresent(d -> drafted.put(id, d));
+        }
+        String said = LobbyService.startTrialFromParty(server, player, kindOf(shrine), team, drafted);
         if ("Drafting.".equals(said)) return;
         if (!"Starting.".equals(said)) player.sendSystemMessage(Component.literal(said).withStyle(ChatFormatting.RED));
     }
 
     /** At the gate: near its altar, or in the portal's mouth. */
     private static boolean near(Hub hub, HubLayout.Portal portal, ServerPlayer player) {
+        if (onPad(hub, player)) return false;
         if (portal.gate().isEmpty()) return gathered(hub, portal, player);
         HubLayout.Gate gate = portal.gate().get();
         BlockPos rel = hub.rel(player.blockPosition());
@@ -602,6 +687,17 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
         return rel.getX() >= gate.gatherMin().x() - ex && rel.getX() <= gate.gatherMax().x() + ex
                 && rel.getZ() >= gate.gatherMin().z() - ez && rel.getZ() <= gate.gatherMax().z() + ez
                 && rel.getY() >= gate.gatherMin().y() - 1 && rel.getY() <= gate.gatherMax().y() + 1;
+    }
+
+    /**
+     * On the warp pad, rim and all. The pad is at no gate (owner's test, 25 Nov 2026): it stands a few steps from Duskvale's altar, so
+     * everyone who arrived counted as at that gate, and a party there held it.
+     */
+    private static boolean onPad(Hub hub, ServerPlayer player) {
+        HubLayout.Spot pad = hub.layout().pad();
+        double r = hub.layout().ring().present() ? hub.layout().ring().r() + 0.5 : 5.8;
+        double dx = player.getX() - (hub.origin().getX() + pad.x() + 0.5), dz = player.getZ() - (hub.origin().getZ() + pad.z() + 0.5);
+        return dx * dx + dz * dz <= r * r;
     }
 
     // ---- the tick ------------------------------------------------------------------------------------------------------------------
@@ -630,9 +726,11 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
         pad(server, hub, now);
         away(server, hub, now);
         keepReady(server, hub);
+        GateDrafts.begin();                                 // one pass over every draft board: the shrines' and the gates'
         shrines(server, hub);
         RecordsHall.tick(server, hub);
         gates(server, hub, now);
+        GateDrafts.end();
         hud(server, hub);
     }
 
@@ -697,10 +795,10 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
     private static void gates(MinecraftServer server, Hub hub, long now) {
         HubLayout.Ring ring = hub.layout().ring();
         boolean threatOn = AscensionLibScouting.threatEnabled();
-        GateDrafts.begin();
         for (HubLayout.Portal portal : hub.layout().portals()) {
             Map<Party, Integer> near = new LinkedHashMap<>();
             java.util.Set<Party> onRing = new java.util.HashSet<>();
+            Hold current = HOLDS.get(portal.tower());
             for (ServerPlayer player : hub.level().players()) {
                 if (!near(hub, portal, player)) continue;
                 Optional<Party> party = BOOK.partyOf(player.getUUID());
@@ -709,6 +807,9 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
                 // Only on the ring (audit, 25 Nov 2026): walking past a gate claims nothing.
                 if (party.isEmpty() && stepped && !inRun(player.getUUID())) party = Optional.of(BOOK.solo(player.getUUID()));
                 if (party.isEmpty()) continue;
+                // a party of one takes a gate only by stepping on its ring or clicking its altar, never by walking near it: it ends when it
+                // leaves its own gate instead of moving on to the next one it passes (owner's test, 25 Nov 2026)
+                if (party.get().size() == 1 && !stepped && (current == null || current.party() != party.get())) continue;
                 near.merge(party.get(), 1, Integer::sum);
                 if (stepped) onRing.add(party.get());
             }
@@ -757,7 +858,6 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
         for (Party solo : List.copyOf(BOOK.parties())) {
             if (solo.size() == 1 && HOLDS.values().stream().noneMatch(h -> h.party() == solo)) BOOK.leave(solo.leader());
         }
-        GateDrafts.end();
         VOTES.keySet().removeIf(p -> PartyBook.dissolved(p) || !BOOK.parties().contains(p));
         for (Map.Entry<Party, Map<UUID, Boolean>> e : VOTES.entrySet()) e.getValue().keySet().retainAll(e.getKey().members());
     }

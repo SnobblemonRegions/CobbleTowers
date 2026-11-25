@@ -36,6 +36,11 @@ public final class TowerSeasonProgressStore extends TowerStore {
         return open(server, TowerSeasonProgressStore::new, TowerSeasonProgressStore::load, FILE_ID);
     }
 
+    /** Whether the player has a tally in any season (the Tutorial Tower's "has played before", 25 Nov 2026). */
+    public boolean knows(UUID player) {
+        return progress.containsKey(player);
+    }
+
     /** The player's tally for {@code season}; empty if they have none, or only one from another season. */
     public Progress of(UUID player, int season) {
         Entry entry = progress.get(player);

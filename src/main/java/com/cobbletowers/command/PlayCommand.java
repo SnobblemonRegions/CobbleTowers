@@ -54,6 +54,15 @@ public final class PlayCommand {
                             return 0;
                         }))
                         // The Tower Keeper NPC runs this one (operator level, so the dialog's server source passes).
+                        // The Tutorial Tower's host in the hub runs this one (owner, 25 Nov 2026): the tutorial again, for that player
+                        .then(Commands.literal("tutorial")
+                                .requires(source -> source.hasPermission(2))
+                                .then(Commands.argument("player", EntityArgument.player()).executes(context -> {
+                                    ServerPlayer target = EntityArgument.getPlayer(context, "player");
+                                    com.cobbletowers.tutorial.Tutorial.start(context.getSource().getServer(), target, false)
+                                            .ifPresent(why -> target.sendSystemMessage(Component.literal(why)));
+                                    return 1;
+                                })))
                         .then(Commands.literal("keeper")
                                 // operator level only (audit, 25 Nov 2026): a player could name anyone and open the Hall over their screen
                                 .requires(source -> source.hasPermission(2))
@@ -191,10 +200,47 @@ public final class PlayCommand {
             showHall(server, player);
             return 1;
         }
-        tellNoScreen(player);
-        com.cobbletowers.webgui.WebGuiBridge.userAsked(player);
-        com.cobbletowers.menu.TowerHallService.open(server, player, "", ResourceLocationArgument.getId(context, "tower"));
+        // the host answers in a few lines of chat, no screen (owner, 25 Nov 2026: the hub keeps the Hall out of the way)
+        hostSays(server, player, ResourceLocationArgument.getId(context, "tower"));
         return 1;
+    }
+
+    /** A tower's host in the Tower Hub: whether the tower is open, the player's deepest Ascension in it, and how to go in. */
+    private static void hostSays(net.minecraft.server.MinecraftServer server, ServerPlayer player, net.minecraft.resources.ResourceLocation towerId) {
+        var tower = com.cobbletowers.definition.TowerDefinitionRegistry.content().towers().get(towerId);
+        if (tower == null) {
+            player.sendSystemMessage(Component.literal("This tower is not on the server right now."));
+            return;
+        }
+        boolean open = tower.isOpen(System.currentTimeMillis());
+        int gold = 0xF2C744, ink = 0xE8EAF2, dim = 0xA0A6B4;
+        player.sendSystemMessage(Component.literal(tower.displayName()).withColor(gold)
+                .append(Component.literal(open ? "  ·  open" : "  ·  closed right now").withColor(open ? 0x96E6A0 : 0xFF7A6E))
+                .append(Component.literal("  ·  " + tower.floorCount() + " floors").withColor(dim)));
+        // where the player stands now: their party's picks at this gate, or their team on its way in
+        Optional<TowerLobby> lobby = LobbyService.lobbyOf(player.getUUID());
+        if (lobby.isPresent()) {
+            boolean here = lobby.get().tower().equals(towerId);
+            player.sendSystemMessage(Component.literal(lobby.get().counting() ? "Your team is going in now."
+                    : here ? "Your team is set for this tower: its leader walks into the portal behind me to go."
+                    : "Your team is set for another tower: use its gate, or /tower leave to drop out.").withColor(ink));
+            return;
+        }
+        com.cobbletowers.hub.PartyService.gateStatus(server, player.getUUID(), towerId)
+                .ifPresent(line -> player.sendSystemMessage(Component.literal(line).withColor(ink)));
+        // the rundown: how anyone gets in from here (owner, 25 Nov 2026: the hosts explain the gate)
+        player.sendSystemMessage(Component.literal("How to go in:").withColor(gold));
+        player.sendSystemMessage(Component.literal(" 1. Alone: walk into the portal behind me. You go in on Standard, from the first floor.").withColor(ink));
+        player.sendSystemMessage(Component.literal(" 2. With friends: sneak + right-click a player to invite them, or stand on the warp pad together.")
+                .withColor(ink));
+        player.sendSystemMessage(Component.literal(" 3. Step on the ring round the altar to get ready. Your leader picks a mode on the board to the left "
+                + "and the Threat on the altar's runes; everyone votes First floor or Best on the altar's sides.").withColor(ink));
+        player.sendSystemMessage(Component.literal(" 4. Your leader walks into the portal: everyone ready goes in together.").withColor(ink));
+        if (tower.ascension()) {
+            int best = com.cobbletowers.persistence.TowerAscensionStore.get(server).recordOf(player.getUUID(), towerId);
+            player.sendSystemMessage(Component.literal(best > 0 ? "Your deepest here: Ascension " + best + ". Vote Best to start there."
+                    : "You have not ascended here yet: you start from the first floor.").withColor(dim));
+        }
     }
 
     private static int hall(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {

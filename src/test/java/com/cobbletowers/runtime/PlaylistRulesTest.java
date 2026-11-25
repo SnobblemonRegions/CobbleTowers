@@ -139,17 +139,21 @@ class PlaylistRulesTest {
     }
 
     @Test
-    @DisplayName("the six shipped playlists parse, carry a name and description, and Hardcore closes the vendor and forces a modifier")
+    @DisplayName("the seven shipped playlists (the six modes and the Tutorial Tower's own) parse, carry a name and description, and Hardcore closes the vendor and forces a modifier")
     void shippedFiles() throws IOException {
         List<PlaylistDefinition> all = shipped();
-        assertEquals(6, all.size());
-        assertTrue(all.stream().allMatch(p -> !p.displayName().isBlank() && !p.description().isBlank() && p.difficultyBonus() > 0));
+        assertEquals(7, all.size());
+        assertTrue(all.stream().allMatch(p -> !p.displayName().isBlank() && !p.description().isBlank()));
+        // every mode is a little harder for its bonus; the Tutorial Tower's own playlist is no mode and has none
+        assertTrue(all.stream().filter(p -> !p.id().getPath().equals("tutorial")).allMatch(p -> p.difficultyBonus() > 0));
+        assertEquals(0, shipped("tutorial").difficultyBonus());
         PlaylistDefinition hardcore = shipped("hardcore");
         assertTrue(hardcore.vendorClosed());
         assertEquals(List.of(ResourceLocation.fromNamespaceAndPath("cobbletowers", "empty_pockets")), hardcore.forcedModifiers());
         assertEquals(1, shipped("solo_gauntlet").maxPlayers());
         assertTrue(shipped("rental").rental(), "the Rental Draft playlist lends a drafted team (P33)");
-        assertTrue(all.stream().filter(PlaylistDefinition::rental).count() == 1, "and only that one does");
+        assertTrue(shipped("tutorial").rental(), "the Tutorial Tower lends its fixed team the same way (25 Nov 2026)");
+        assertTrue(all.stream().filter(PlaylistDefinition::rental).count() == 2, "and only those two do");
     }
 
     @Test
