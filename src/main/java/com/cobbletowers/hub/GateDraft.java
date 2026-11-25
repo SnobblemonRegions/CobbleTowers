@@ -105,6 +105,11 @@ final class GateDraft extends ElementHolder {
     private Stage stage = Stage.SEALED;
     private int age, stageAge;
     private final boolean[] chosen = new boolean[5];
+    /**
+     * The pack each card on the board was dealt from (audit, 25 Nov 2026): the draft moves to the next pack the moment two are kept, while
+     * the board still shows this one for its keep, so a card turning over then must not read the next pack.
+     */
+    private int boardPack;
     private int lookedAt = -1;
     // Inspect (owner, 24 Nov 2026): resting the crosshair on a card's INSPECT strip turns it over to its stats; looking away, at another card,
     // or clicking turns it back. One card at a time. A turn is the reveal's: edge-on, the side swapped, round again.
@@ -332,15 +337,19 @@ final class GateDraft extends ElementHolder {
     }
 
     private RentalSetDefinition setOf(int i) {
-        return stage == Stage.DONE ? draft.team().get(i) : currentPack().cards().get(i);
+        return stage == Stage.DONE ? draft.team().get(i) : boardPack().cards().get(i);
+    }
+
+    private RentalDraw.Pack boardPack() {
+        return draft.offer().packs().get(Math.max(0, Math.min(boardPack, RentalDraw.PACKS - 1)));
     }
 
     private Rarity tierOf(int i) {
-        return stage == Stage.DONE ? draft.teamTiers().get(i) : currentPack().tiers().get(i);
+        return stage == Stage.DONE ? draft.teamTiers().get(i) : boardPack().tiers().get(i);
     }
 
     private com.cobbletowers.rental.RentalSpread spreadOf(int i) {
-        return stage == Stage.DONE ? draft.teamSpreads().get(i) : currentPack().spreads().get(i);
+        return stage == Stage.DONE ? draft.teamSpreads().get(i) : boardPack().spreads().get(i);
     }
 
     private record Pose(Vec3 local, float spin, float scale) {}
@@ -411,6 +420,7 @@ final class GateDraft extends ElementHolder {
                 hide(packBody);
             }
             case OPENING -> {
+                boardPack = draft.currentPack();                           // the pack these five cards come from, for their whole stay
                 body.setText(Component.empty());
                 header.setText(Component.literal("PACK " + packNo + " OF " + RentalDraw.PACKS).withColor(GOLD));
             }
@@ -605,6 +615,12 @@ final class GateDraft extends ElementHolder {
     }
 
     private void restart(ServerPlayer player) {
+        // the team is handed to the player's lobby once their leader walks in: it is locked from then (audit, 25 Nov 2026: a restart in
+        // the countdown emptied the team the run was about to launch with)
+        if (com.cobbletowers.lobby.LobbyService.lobbyOf(player.getUUID()).isPresent()) {
+            player.displayClientMessage(Component.literal("Your team is going in: the draft is locked").withColor(0xFF7A6E), true);
+            return;
+        }
         draft.restart();
         for (ItemDisplayElement e : ledge) e.setItem(ItemStack.EMPTY);
         ledgeShown = 0;

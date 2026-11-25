@@ -36,6 +36,12 @@ final class GateDrafts {
     private static final Map<UUID, GateDraft> VIEWS = new HashMap<>();
     /** Every player whose draft was looked after this tick, so the rest can be let go. */
     private static final Set<UUID> SEEN = new HashSet<>();
+    /**
+     * When each draft was last looked after. A draft outlives its party leaving the mode by this long (audit, 25 Nov 2026: one stray click
+     * on another mode tile threw away every member's finished team), so going back to Rental Draft finds it as it was.
+     */
+    private static final Map<UUID, Long> SEEN_AT = new HashMap<>();
+    static final long KEEP_MILLIS = 30_000L;
 
     private GateDrafts() {}
 
@@ -44,6 +50,7 @@ final class GateDrafts {
         VIEWS.clear();
         DRAFTS.clear();
         SEEN.clear();
+        SEEN_AT.clear();
     }
 
     /** Starts a tick's pass over the gates. */
@@ -63,8 +70,10 @@ final class GateDrafts {
         HubLayout.Altar spot = gate.altar();
         BlockPos at = hub.origin().offset(spot.x(), spot.y(), spot.z());
         Vec3 base = new Vec3(at.getX() + 0.5, at.getY(), at.getZ() + 0.5);
+        long now = System.currentTimeMillis();
         for (UUID id : party.members()) {
             SEEN.add(id);
+            SEEN_AT.put(id, now);
             Entry entry = DRAFTS.get(id);
             if (entry == null || !entry.tower().equals(portal.tower())) {
                 long seed = hub.level().getRandom().nextLong();
@@ -86,9 +95,14 @@ final class GateDrafts {
         }
     }
 
-    /** Ends the pass: a player whose party no longer holds a gate in Rental Draft loses their draft. */
+    /**
+     * Ends the pass: a player whose party no longer holds a gate in Rental Draft loses their board at once and their draft after
+     * {@link #KEEP_MILLIS}.
+     */
     static void end() {
-        DRAFTS.keySet().removeIf(id -> !SEEN.contains(id));
+        long now = System.currentTimeMillis();
+        DRAFTS.keySet().removeIf(id -> !SEEN.contains(id) && now - SEEN_AT.getOrDefault(id, 0L) > KEEP_MILLIS);
+        SEEN_AT.keySet().retainAll(DRAFTS.keySet());
         VIEWS.entrySet().removeIf(e -> {
             if (SEEN.contains(e.getKey())) return false;
             e.getValue().destroy();
@@ -101,6 +115,7 @@ final class GateDrafts {
         GateDraft view = VIEWS.get(player.getUUID());
         Entry entry = DRAFTS.get(player.getUUID());
         if (view == null || entry == null || !entry.tower().equals(tower)) return false;
+        PartyService.active(tower, player.getUUID());
         view.click(player, hit);
         return true;
     }

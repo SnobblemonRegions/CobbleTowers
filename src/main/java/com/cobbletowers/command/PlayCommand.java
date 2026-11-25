@@ -55,6 +55,8 @@ public final class PlayCommand {
                         }))
                         // The Tower Keeper NPC runs this one (operator level, so the dialog's server source passes).
                         .then(Commands.literal("keeper")
+                                // operator level only (audit, 25 Nov 2026): a player could name anyone and open the Hall over their screen
+                                .requires(source -> source.hasPermission(2))
                                 .then(Commands.argument("player", EntityArgument.player()).executes(PlayCommand::hallFor)
                                         // a tower's host in the Tower Hub: the same Hall, opened on that tower
                                         .then(Commands.argument("tower", ResourceLocationArgument.id()).executes(PlayCommand::hallForTower))))

@@ -109,7 +109,10 @@ public final class HubPortals {
         }
         // a Tower Hub party (owner, 20 Nov 2026) goes in by its leader, with whoever is gathered at the gate: no screen
         Optional<Party> party = PartyService.partyOf(player.getUUID());
-        if (party.isPresent() && TowerRuns.forPlayer(player.getUUID()).isEmpty()) {
+        // a player alone (a party of one) who is in a team from the Tower Hall goes the Hall's way below, as before the hub's parties (audit,
+        // 25 Nov 2026: they were refused instead of shown their team)
+        boolean hallTeam = party.isPresent() && party.get().size() == 1 && LobbyService.lobbyOf(player.getUUID()).isPresent();
+        if (party.isPresent() && !hallTeam && TowerRuns.forPlayer(player.getUUID()).isEmpty()) {
             PartyService.walkIn(server, new PartyService.Hub(level, origin, HubLayout.load()), player, portal, party.get());
             return;
         }

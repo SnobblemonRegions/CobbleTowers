@@ -328,18 +328,22 @@ final class RecordsHall {
                         .append(Component.literal("\n" + top.get(i).getValue().total() + " season points").withColor(0xA0A6B4)));
                 if (!id.equals(shownBust[i])) {
                     shownBust[i] = id;
-                    bust(server, busts[i], id);
+                    int slot = i;
+                    bust(server, busts[i], id, () -> id.equals(shownBust[slot]));
                 }
             }
         }
 
         /** A player head with that player's skin; an online player's profile has it already, others are looked up off the thread. */
-        private static void bust(MinecraftServer server, ItemDisplayElement element, UUID id) {
+        private static void bust(MinecraftServer server, ItemDisplayElement element, UUID id, java.util.function.BooleanSupplier stillShown) {
             ServerPlayer online = server.getPlayerList().getPlayer(id);
             GameProfile profile = online != null ? online.getGameProfile() : new GameProfile(id, nameOf(server, id));
             element.setItem(head(new ResolvableProfile(profile)));
             if (online == null) {
-                new ResolvableProfile(profile).resolve().thenAcceptAsync(resolved -> element.setItem(head(resolved)), server);
+                // a lookup that comes back after the plinth has moved on to someone else is dropped (audit, 25 Nov 2026)
+                new ResolvableProfile(profile).resolve().thenAcceptAsync(resolved -> {
+                    if (stillShown.getAsBoolean()) element.setItem(head(resolved));
+                }, server);
             }
         }
 
@@ -357,6 +361,7 @@ final class RecordsHall {
 
         private final UUID owner;
         long due;
+        private int openedAt = Integer.MIN_VALUE / 2;
         private final List<ItemDisplayElement> inlays = new ArrayList<>();
         /** The Season Chest: its lid (turned about its hinge), the light inside, the next reward floating over it, and where it is. */
         private final ItemDisplayElement chestLid, chestGlow, chestPreview;
@@ -413,7 +418,11 @@ final class RecordsHall {
             InteractionElement hit = new InteractionElement(new VirtualElement.InteractionHandler() {
                 @Override
                 public void interact(ServerPlayer player, InteractionHand hand) {
-                    if (hand == InteractionHand.MAIN_HAND && player.getUUID().equals(owner)) SeasonChest.open(player);   // both hands fire for one click
+                    if (hand != InteractionHand.MAIN_HAND || !player.getUUID().equals(owner)) return;          // both hands fire for one click
+                    int tick = player.server.getTickCount();
+                    if (tick - openedAt < 10) return;           // at most twice a second (audit, 25 Nov 2026): each open draws the track
+                    openedAt = tick;
+                    SeasonChest.open(player);
                 }
             });
             hit.setSize(2.1f, 1.5f);

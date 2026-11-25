@@ -68,7 +68,32 @@ public final class PartyService {
 
     static final PartyBook BOOK = new PartyBook();
 
-    private record Hold(Party party, long lastSeen) {}
+    /** A party holding a gate: when one of it was last at the gate, and when it last did anything there (a click, a step on the ring). */
+    private record Hold(Party party, long lastSeen, long lastActive) {}
+
+    /**
+     * A holding party that has done nothing at its gate this long gives the gate up to another party standing on the altar's ring (audit,
+     * 25 Nov 2026: one idle player could keep a gate from everyone).
+     */
+    static final long IDLE_RELEASE = 60_000L;
+    /** Each player's last altar click, in server ticks: a click is answered at most once per {@value #ALTAR_CLICK_TICKS} ticks. */
+    private static final Map<UUID, Integer> ALTAR_CLICKED = new HashMap<>();
+    private static final int ALTAR_CLICK_TICKS = 5;
+    /** Who has been told about an invite from whom, and when: the chat line is sent once per pair per {@value #INVITE_NOTE_MILLIS} ms. */
+    private static final Map<UUID, Map<UUID, Long>> INVITE_NOTED = new HashMap<>();
+    private static final long INVITE_NOTE_MILLIS = 15_000L;
+
+    /** The holding party did something at this gate: its hold is kept from going idle. */
+    private static void active(HubLayout.Portal portal, UUID who) {
+        Hold hold = HOLDS.get(portal.tower());
+        if (hold != null && hold.party().contains(who)) HOLDS.put(portal.tower(), new Hold(hold.party(), hold.lastSeen(), System.currentTimeMillis()));
+    }
+
+    /** {@link #active} for a gate named by its tower (the draft board reports its own clicks). */
+    static void active(ResourceLocation tower, UUID who) {
+        Hold hold = HOLDS.get(tower);
+        if (hold != null && hold.party().contains(who)) HOLDS.put(tower, new Hold(hold.party(), hold.lastSeen(), System.currentTimeMillis()));
+    }
 
     private static final Map<UUID, Long> ARRIVED = new HashMap<>();
     private static final Map<UUID, Vec3> LAST_POS = new HashMap<>();
@@ -136,6 +161,10 @@ public final class PartyService {
                 ON_PAD_SINCE.remove(id);
                 SENT.remove(id);
                 CLICKED.remove(id);
+                ALTAR_CLICKED.remove(id);
+                ARRIVED.remove(id);
+                INVITE_NOTED.remove(id);
+                INVITE_NOTED.values().forEach(m -> m.remove(id));
             });
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> clear());
@@ -151,6 +180,8 @@ public final class PartyService {
         HOLDS.clear();
         SENT.clear();
         CLICKED.clear();
+        ALTAR_CLICKED.clear();
+        INVITE_NOTED.clear();
         ALTARS.values().forEach(GateAltar::destroy);
         ALTARS.clear();
         VOTES.clear();
@@ -179,8 +210,15 @@ public final class PartyService {
         switch (result.click()) {
             case INVITED, REINVITED -> {
                 bar(actor, "Invited " + them + ". They sneak + right-click you to join.");
-                target.sendSystemMessage(Component.literal(me + " invited you to their party: sneak + right-click them to join (a minute)."));
-                bar(target, me + " invited you: sneak + right-click them to join");
+                // told once per pair per 15 s (audit, 25 Nov 2026: a repeated sneak-click put a line in their chat every few ticks)
+                long nowMs = System.currentTimeMillis();
+                Map<UUID, Long> noted = INVITE_NOTED.computeIfAbsent(target.getUUID(), k -> new HashMap<>());
+                Long noteAt = noted.get(actor.getUUID());
+                if (noteAt == null || nowMs - noteAt >= INVITE_NOTE_MILLIS) {
+                    noted.put(actor.getUUID(), nowMs);
+                    target.sendSystemMessage(Component.literal(me + " invited you to their party: sneak + right-click them to join (a minute)."));
+                    bar(target, me + " invited you: sneak + right-click them to join");
+                }
             }
             case JOINED -> {
                 for (UUID id : result.party().members()) {
@@ -220,6 +258,11 @@ public final class PartyService {
             if (altar == null) continue;
             GateAltar.Hit part = altar.hitAt(hit.getLocation());
             if (part == null) continue;
+            // one click per 5 ticks per player (audit, 25 Nov 2026: a modified game could spam the altar's chime and burst for everyone)
+            int tick = actor.server.getTickCount();
+            Integer last = ALTAR_CLICKED.get(actor.getUUID());
+            if (last != null && tick - last < ALTAR_CLICK_TICKS) return InteractionResult.SUCCESS;
+            ALTAR_CLICKED.put(actor.getUUID(), tick);
             switch (part.part()) {
                 case THREAT -> clickThreat(actor, portal);
                 case FIRST -> clickVote(actor, portal, false);
@@ -279,6 +322,7 @@ public final class PartyService {
             bar(actor, "Your leader sets the Threat. Vote on a crystal: First floor or Best.");
             return;
         }
+        active(portal, actor.getUUID());
         int value = (party.get().threat() + 1) % (com.cobbletowers.ascension.ThreatPolicy.MAX_ENTRY + 1);
         party.get().setThreat(value);
         bar(actor, value == 0 ? "No Threat band: the tower uses its floor tiers." : "Threat " + LobbyService.threatNumeral(value)
@@ -303,6 +347,7 @@ public final class PartyService {
                     + (playlist.get().maxPlayers() == 1 ? "" : "s") + ": your party is larger.");
             return;
         }
+        active(portal, actor.getUUID());
         party.get().setMode(mode);
         bar(actor, "Mode: " + GateAltar.MODE_NAMES.getOrDefault(mode, mode) + (playlist.map(p -> ". " + p.description()).orElse(".")));
     }
@@ -330,6 +375,7 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
             bar(actor, "Nobody's best is above the first floor yet: everyone must have reached an Ascension for it.");
             return;
         }
+        active(portal, actor.getUUID());
         Map<UUID, Boolean> votes = VOTES.computeIfAbsent(party.get(), k -> new HashMap<>());
         votes.put(actor.getUUID(), best);
         bar(actor, "You voted for " + (best ? "your party's best Ascension." : "the first floor."));
@@ -370,6 +416,7 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
 
     /** A party member walked into a portal (and was stepped back). The leader takes everyone gathered at the gate in. */
     static void walkIn(MinecraftServer server, Hub hub, ServerPlayer player, HubLayout.Portal portal, Party party) {
+        active(portal, player.getUUID());
         if (!party.leader().equals(player.getUUID())) {
             bar(player, "Your leader takes the party in: wait here at the gate.");
             return;
@@ -453,6 +500,7 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
                 for (HubLayout.Portal portal : hub.layout().portals()) {
                     if (gathered(hub, portal, member) && !portal.tower().equals(READY.get(id))) {
                         READY.put(id, portal.tower());
+                        active(portal, id);
                         bar(member, "Ready for " + gateName(portal.tower()) + ": stay at the gate; your leader takes the party in.");
                     }
                 }
@@ -652,22 +700,44 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
         GateDrafts.begin();
         for (HubLayout.Portal portal : hub.layout().portals()) {
             Map<Party, Integer> near = new LinkedHashMap<>();
-            Hold held = HOLDS.get(portal.tower());
-            boolean free = held == null || PartyBook.dissolved(held.party()) || !BOOK.parties().contains(held.party());
+            java.util.Set<Party> onRing = new java.util.HashSet<>();
             for (ServerPlayer player : hub.level().players()) {
                 if (!near(hub, portal, player)) continue;
                 Optional<Party> party = BOOK.partyOf(player.getUUID());
-                // a player alone at a free gate is a party of one (owner, 23 Nov 2026): the altar and the walk-in work for them too
-                if (party.isEmpty() && free && !inRun(player.getUUID()) && near.isEmpty()) party = Optional.of(BOOK.solo(player.getUUID()));
-                if (party.isPresent()) near.merge(party.get(), 1, Integer::sum);
+                boolean stepped = gathered(hub, portal, player);
+                // a player alone on a gate's altar ring is a party of one (owner, 23 Nov 2026): the altar and the walk-in work for them too.
+                // Only on the ring (audit, 25 Nov 2026): walking past a gate claims nothing.
+                if (party.isEmpty() && stepped && !inRun(player.getUUID())) party = Optional.of(BOOK.solo(player.getUUID()));
+                if (party.isEmpty()) continue;
+                near.merge(party.get(), 1, Integer::sum);
+                if (stepped) onRing.add(party.get());
             }
             Hold hold = HOLDS.get(portal.tower());
             if (hold != null && (PartyBook.dissolved(hold.party()) || !BOOK.parties().contains(hold.party()))) hold = null;
-            if (hold != null && near.containsKey(hold.party())) hold = new Hold(hold.party(), now);
+            if (hold != null && near.containsKey(hold.party())) hold = new Hold(hold.party(), now, hold.lastActive());
             else if (hold != null && now - hold.lastSeen() > GATE_RELEASE) hold = null;
+            // a holder idle this long gives way to another party waiting on the ring
+            Party idle = null;
+            if (hold != null && now - hold.lastActive() > IDLE_RELEASE) {
+                Party holder = hold.party();
+                if (onRing.stream().anyMatch(p -> p != holder)) {
+                    idle = holder;
+                    hold = null;
+                }
+            }
             if (hold == null && !near.isEmpty()) {
-                Party first = near.entrySet().stream().max(Map.Entry.comparingByValue()).orElseThrow().getKey();
-                hold = new Hold(first, now);
+                Party skip = idle;
+                Optional<Party> first = near.entrySet().stream().filter(e -> e.getKey() != skip)
+                        .filter(e -> skip == null || onRing.contains(e.getKey())).max(Map.Entry.comparingByValue()).map(Map.Entry::getKey);
+                if (first.isPresent()) {
+                    hold = new Hold(first.get(), now, now);
+                    if (idle != null) {
+                        for (UUID id : idle.members()) {
+                            ServerPlayer member = server.getPlayerList().getPlayer(id);
+                            if (member != null) bar(member, "Your party was idle at " + gateName(portal.tower()) + " gate: another party has it now.");
+                        }
+                    }
+                }
             }
             if (hold == null) HOLDS.remove(portal.tower());
             else HOLDS.put(portal.tower(), hold);
@@ -679,7 +749,7 @@ static Optional<com.cobbletowers.definition.PlaylistDefinition> playlistOf(Strin
                 GateDrafts.gate(server, hub, portal, gate, party, id -> ready(id, portal), id -> {
                     ServerPlayer m = server.getPlayerList().getPlayer(id);
                     return m != null && near(hub, portal, m);
-                }, p -> { });
+                }, p -> active(portal, p.getUUID()));
             }
         }
         // a party of one holding no gate ends: its player left the gate, or a bigger party took it (one that grew by an invite is a party
