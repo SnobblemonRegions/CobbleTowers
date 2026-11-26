@@ -11,24 +11,18 @@ import net.minecraft.server.level.ServerPlayer;
  * run time, so CobbleTowers neither compiles against it nor needs it present: no build dependency, no class that fails to link on a server
  * without it, and no coupling to the Loom version it happens to be built with.
  *
- * <p>There are two things it can talk to, in this order. The Snobblemon bridge (SnobbleGUIOverhaul's server mod, {@code snobblemon_server}) is used
- * directly when it is installed: {@code SnobbleUi.open}, {@code openHud}, {@code emitJson} and {@code onMessage}, with the page named by the first part of the
- * configured URL ({@code cobbletowers}). Otherwise WebGUI's {@code land.webgui.api.WebviewApi} is used: {@code openGui(player, url)}, {@code openHud(player, url)},
- * {@code emitToPage(player, event, json)} and {@code onPageEvent(channel, handler)}. {@link #install()} throws if the one it picked is missing a method,
- * which {@link WebGuiBridge#install()} turns into "stay native".
+ * <p>That is Snobblemon GUI (SnobbleGUIOverhaul's server mod, {@code snobblemon_server}): {@code SnobbleUi.open}, {@code openHud}, {@code emitJson} and
+ * {@code onMessage}, with the page named by the first part of the configured URL ({@code cobbletowers}). {@link #install()} throws if it is missing a
+ * method, which {@link WebGuiBridge#install()} turns into "stay native".
  */
 final class WebGuiLink {
 
-    /** The channel a page's {@code webgui.postToGame({channel: "cobbletowers", ...})} arrives on. */
+    /** The channel the tower page's messages arrive on. */
     static final String CHANNEL = "cobbletowers";
-    /** The event a page listens for with {@code webgui.on("tower", ...)}. */
+    /** The event the tower page's payloads are sent as. */
     static final String EVENT = "tower";
 
-    private static MethodHandle openGui;
-    private static MethodHandle openHud;
-    private static MethodHandle emitToPage;
-
-    /** Whether the Snobblemon bridge is what is in use; its handles are the {@code b*} ones. */
+    /** Whether the Snobblemon bridge's handles (the {@code b*} ones) are bound. */
     private static boolean direct;
     private static MethodHandle bAvailable;
     private static MethodHandle bOpen;
@@ -40,8 +34,6 @@ final class WebGuiLink {
 
     private static final String BRIDGE_MOD = "snobblemon_server";
     private static final String BRIDGE_CLASS = "net.snobblemon.server.SnobbleUi";
-    private static final net.minecraft.resources.ResourceLocation WEBGUI_HELLO =
-            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("webgui", "hello");
 
     private WebGuiLink() {}
 
@@ -50,12 +42,12 @@ final class WebGuiLink {
         return net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded(BRIDGE_MOD);
     }
 
-    /** Whether something that can show the screens is installed: the bridge, or WebGUI. */
+    /** Whether something that can show the screens is installed: the bridge. */
     static boolean installed() {
-        return bridgeInstalled() || net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("webgui");
+        return bridgeInstalled();
     }
 
-    /** Whether the bridge, not WebGUI, is what shows the screens (known once {@link #install()} has run). */
+    /** Whether the bridge is bound and shows the screens (known once {@link #install()} has run). */
     static boolean direct() {
         return direct;
     }
@@ -65,7 +57,7 @@ final class WebGuiLink {
      * channel.
      */
     static boolean clientReady(ServerPlayer player) {
-        if (!direct) return net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player, WEBGUI_HELLO);
+        if (!direct) return false;
         try {
             return (boolean) bAvailable.invokeExact(player);
         } catch (Throwable ex) {
@@ -105,28 +97,10 @@ final class WebGuiLink {
     }
 
     static void install() {
-        if (bridgeInstalled()) {
-            try {
-                installDirect();
-                return;
-            } catch (Throwable ex) {
-                throw new IllegalStateException("The Snobblemon bridge's SnobbleUi is not what this build expects: " + ex, ex);
-            }
-        }
         try {
-            Class<?> api = Class.forName("land.webgui.api.WebviewApi");
-            MethodHandles.Lookup lookup = MethodHandles.publicLookup();
-            MethodType open = MethodType.methodType(void.class, ServerPlayer.class, String.class);
-            openGui = lookup.findStatic(api, "openGui", open);
-            openHud = lookup.findStatic(api, "openHud", open);
-            emitToPage = lookup.findStatic(api, "emitToPage",
-                    MethodType.methodType(void.class, ServerPlayer.class, String.class, String.class));
-            MethodHandle onPageEvent = lookup.findStatic(api, "onPageEvent",
-                    MethodType.methodType(void.class, String.class, BiConsumer.class));
-            BiConsumer<ServerPlayer, String> handler = WebGuiBridge::onPage;
-            onPageEvent.invoke(CHANNEL, handler);
+            installDirect();
         } catch (Throwable ex) {
-            throw new IllegalStateException("WebGUI's WebviewApi is not what this build expects: " + ex, ex);
+            throw new IllegalStateException("The Snobblemon bridge's SnobbleUi is not what this build expects: " + ex, ex);
         }
     }
 
@@ -161,9 +135,7 @@ final class WebGuiLink {
             if (direct) {
                 boolean shown = (boolean) bOpen.invokeExact(player, pageId(url));
                 if (!shown) com.cobbletowers.TowerLog.warn("No Snobblemon page '{}' to show {} (or {} has no Snobblemon Client)", pageId(url), url, player.getGameProfile().getName());
-                return;
             }
-            openGui.invokeExact(player, url);
         } catch (Throwable ex) {
             throw rethrow(ex);
         }
@@ -172,15 +144,13 @@ final class WebGuiLink {
     static void openHud(ServerPlayer player, String url) {
         try {
             if (direct) {
-                // the tower page's overlay when the bridge has one; otherwise, as WebGUI's compat shim does, the full page
+                // the tower page's overlay when the bridge has one; otherwise the full page
                 String hud = hudPageId(url);
                 boolean overlay = (boolean) bIsHudLayout.invokeExact(hud);
                 String id = overlay ? hud : pageId(url);
                 boolean shown = overlay ? (boolean) bOpenHud.invokeExact(player, id) : (boolean) bOpen.invokeExact(player, id);
                 if (!shown) com.cobbletowers.TowerLog.warn("No Snobblemon page '{}' to show {} (or {} has no Snobblemon Client)", id, url, player.getGameProfile().getName());
-                return;
             }
-            openHud.invokeExact(player, url);
         } catch (Throwable ex) {
             throw rethrow(ex);
         }
@@ -197,9 +167,7 @@ final class WebGuiLink {
                 String overlay = hud ? (String) bHudPage.invokeExact(player) : null;
                 String page = overlay != null ? overlay : (String) bOpenPage.invokeExact(player);
                 if (page != null) bEmitJson.invokeExact(player, page, EVENT, json);
-                return;
             }
-            emitToPage.invokeExact(player, EVENT, json);
         } catch (Throwable ex) {
             throw rethrow(ex);
         }
