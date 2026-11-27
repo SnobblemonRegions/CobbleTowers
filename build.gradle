@@ -7,7 +7,7 @@ plugins {
 // The jar is server-only: the tower screens are native Snobblemon GUI pages (SnobbleGUIOverhaul), so there are no client classes and the mod file says "server".
 // The old in-game screens are kept, unbuilt, in archive/native-ui.
 def devBuild = project.hasProperty('dev')
-version = '1.0.14+fabric-1.21.1'
+version = '1.0.15+fabric-1.21.1'
 if (devBuild) version = version + '-dev'
 group = 'com.cobbletowers'
 
