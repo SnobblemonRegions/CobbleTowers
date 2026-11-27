@@ -4,7 +4,7 @@ plugins {
 
 // `-Pdev` builds the test jar: the Test Tower and the test commands are in it, and the name ends in -dev. The default build is
 // the release and leaves them out.
-// The jar is server-only: the web UI (WebGUI) is the only UI, so there are no client classes and the mod file says "server".
+// The jar is server-only: the tower screens are native Snobblemon GUI pages (SnobbleGUIOverhaul), so there are no client classes and the mod file says "server".
 // The old in-game screens are kept, unbuilt, in archive/native-ui.
 def devBuild = project.hasProperty('dev')
 version = '1.0.14+fabric-1.21.1'

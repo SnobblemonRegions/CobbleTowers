@@ -81,34 +81,6 @@ step "Validate the geo armor models"
 # A broken geo or a missing texture renders nothing for a player with Armor Model API, and nothing else notices.
 "$py" validation/validate_armor_geo.py
 
-step "Check the committed web UI bundle is current"
-# The jar ships src/main/resources/web/cobbletowers, built from web/. An edit to web/src without a rebuild would ship the old page.
-if command -v node >/dev/null 2>&1 && [ -d web/node_modules ]; then
-  web_tmp="$(mktemp -d)"
-  WEB_OUT="$web_tmp/cobbletowers" node web/build.mjs >/dev/null
-  # Compared with what is committed (the index), not the working copy: with core.autocrlf git rewrites a checked-out file with
-  # CRLF, which would differ from a fresh build though the commit is right.
-  stale=""
-  built="$(cd "$web_tmp/cobbletowers" && find . -type f | sed 's#^\./##' | sort)"
-  for rel in $built; do
-    want="$(git rev-parse ":src/main/resources/web/cobbletowers/$rel" 2>/dev/null || echo missing)"
-    have="$(git hash-object "$web_tmp/cobbletowers/$rel")"
-    [ "$want" = "$have" ] || stale="$stale $rel"
-  done
-  for rel in $(git ls-files src/main/resources/web/cobbletowers | sed 's#^src/main/resources/web/cobbletowers/##'); do
-    [ -f "$web_tmp/cobbletowers/$rel" ] || stale="$stale $rel(not built any more)"
-  done
-  rm -rf "$web_tmp"
-  if [ -n "$stale" ]; then
-    echo "ci_local: src/main/resources/web/cobbletowers is stale; run 'node build.mjs' in web/ and commit the result. Differs:$stale" >&2
-    exit 1
-  fi
-  # The workflow runs `npm test` here too; it builds the dev bundle into web/dist-dev, never the committed one.
-  step "Run the web UI tests"
-  (cd web && npm test)
-else
-  echo "ci_local: node or web/node_modules is missing; skipping the web bundle check (run 'npm install' in web/)."
-fi
 
 step "Compile, test and remap"
 ./gradlew clean build --stacktrace --warning-mode all
