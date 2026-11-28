@@ -114,6 +114,7 @@ public final class TowerPresence {
         UUID playerId = player.getUUID();
         Long since = DISCONNECTED_AT.remove(playerId);
         closeParkedRuns(server, player);
+        RunExitService.onLogin(server, player);
         Optional<PersistedRun> found = ParticipantService.runOf(playerId);
         if (found.isEmpty() || !found.get().state().isLive()) return;
         PersistedRun run = found.get();
@@ -197,6 +198,8 @@ public final class TowerPresence {
         UUID runId = found.get().runId();
 
         DISCONNECTED_AT.remove(player.getUUID());
+        // The exit sweep takes them home; lift the operator exemption first so it does not skip them.
+        RunExitService.leftOwnRun(player);
         // Persist the irreversible membership change before callbacks can resolve the floor or throw.
         ParticipantService.update(server, runId, player.getUUID(), ParticipantState::left, now);
         // Settle the last membership before boss-withdrawal callbacks can report a party wipe.
@@ -209,6 +212,8 @@ public final class TowerPresence {
                 TowerEncounters.dropPlayer(server, runId, player.getUUID(), "left the run", now));
         // Boss battles belong to CobbleRaids and are not in the floor adapter's battle index.
         guarded("end the departing player's battle", () -> CobblemonBattleAdapter.endBattleOf(player));
+        // Their vote no longer counts: whoever stays may already have voted.
+        guarded("settle the draft after a departure", () -> DraftService.settleIfEverybodyVoted(server, runId, now));
         TowerLog.info("Player {} left run {}", player.getGameProfile().getName(), runId);
         return true;
     }
@@ -341,6 +346,8 @@ public final class TowerPresence {
             TowerLog.info("Player {} did not come back within the window; they are out of the floor of run {}",
                     playerId, runId);
 
+            guarded("settle the draft after a lapsed window",
+                    () -> DraftService.settleIfEverybodyVoted(server, runId, now));
             TowerRuns.get(runId).ifPresent(run -> {
                 if (anybodyCouldReturn(run, now)) return;
                 TowerLog.info("Run {} has nobody online and nobody expected back; ending it", runId);

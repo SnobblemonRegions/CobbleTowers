@@ -189,14 +189,16 @@ public final class LobbyService {
 
     /** A host leaving ends the team; anyone else just steps out of it. */
     public static String leave(MinecraftServer server, ServerPlayer player) {
+        // In a live run, leaving is leaving the run (the same as `runs leave`); the exit sweep then takes them home.
+        // Checked before the team: a team outlives its runs, so a host in a run would otherwise end the team and stay
+        // in the tower (found 28 Nov 2026).
+        if (inRun(player.getUUID())
+                && com.cobbletowers.runtime.TowerPresence.leave(server, player, System.currentTimeMillis())) {
+            return "You left the run. You will be taken home in a moment.";
+        }
         Optional<TowerLobby> found = lobbyOf(player.getUUID());
         if (found.isEmpty()) {
-            // In a live run, leaving is leaving the run (the same as `runs leave`); the exit sweep then takes them
-            // home. Only after that does the "the run is over, take me home" path apply.
-            if (inRun(player.getUUID())
-                    && com.cobbletowers.runtime.TowerPresence.leave(server, player, System.currentTimeMillis())) {
-                return "You left the run. You will be taken home in a moment.";
-            }
+            // Only after that does the "the run is over, take me home" path apply.
             String home = com.cobbletowers.runtime.RunExitService.leaveNow(server, player);
             return home != null ? home : noTeam(player);
         }
