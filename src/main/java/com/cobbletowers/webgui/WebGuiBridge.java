@@ -69,18 +69,16 @@ public final class WebGuiBridge {
         WebGuiConfig loaded = WebGuiConfig.load();
         if (!loaded.enabled()) return;
         if (!WebGuiLink.installed()) {
-            TowerLog.warn("cobbletowers-webgui.json is enabled but neither the Snobblemon bridge nor the WebGUI mod is installed; tower screens stay native");
+            TowerLog.warn("cobbletowers-webgui.json is enabled but Snobblemon GUI is not installed; tower screens stay native");
             return;
         }
         try {
             WebGuiLink.install();
         } catch (LinkageError | RuntimeException ex) {
-            // A bridge or WebGUI too old (or too new) to have the API we use: say so once and stay native, never break startup.
-            TowerLog.error("The Snobblemon bridge or WebGUI is installed but its API did not match ({}); tower screens stay native", ex.toString());
+            // A bridge too old (or too new) to have the API we use: say so once and stay native, never break startup.
+            TowerLog.error("Snobblemon GUI is installed but its API did not match ({}); tower screens stay native", ex.toString());
             return;
         }
-        // the bridge draws the screens itself from its own layouts, so there is no web bundle to put on disk
-        if (!WebGuiLink.direct()) WebUiFiles.install();
         config = loaded;
         linked = true;
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
@@ -88,7 +86,7 @@ public final class WebGuiBridge {
             LAST_TOO_LARGE.remove(handler.getPlayer().getUUID());
             LAST_PONG.remove(handler.getPlayer().getUUID());
         });
-        TowerLog.info("Tower screens can be shown through {} at {} ({} mode)", WebGuiLink.direct() ? "the Snobblemon bridge" : "WebGUI", loaded.url(), loaded.mode());
+        TowerLog.info("Tower screens are shown by Snobblemon GUI at {} ({} mode)", loaded.url(), loaded.mode());
     }
 
     // ---- the decision
