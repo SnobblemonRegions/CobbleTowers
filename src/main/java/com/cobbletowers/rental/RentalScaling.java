@@ -20,6 +20,9 @@ import net.minecraft.server.level.ServerPlayer;
  * level step is also an AscensionLib milestone, so each rental earns one upgrade credit that is spent on a random affix
  * slot at once ({@link AscensionLibGrants#upgradeRentals}). Enemy levels follow the party's two highest levels, so the climb is felt as
  * stronger affixes and stats on both sides, not as a free lead. Pure rule plus one hook.
+ *
+ * <p>With CobbleLvlCap installed a rental never rises past its player's level cap ({@link LevelCapCompat}): a player
+ * capped at 85 keeps a level-85 team from floor 13 on instead of one that would sit out every battle.
  */
 public final class RentalScaling {
 
@@ -52,7 +55,8 @@ public final class RentalScaling {
      * @return how many rentals rose
      */
     public static int raise(ServerPlayer player, int floorIndex) {
-        int target = levelFor(floorIndex);
+        // Never past the player's level cap (CobbleLvlCap), or every rental would sit out the next battle.
+        int target = LevelCapCompat.capped(levelFor(floorIndex), LevelCapCompat.capFor(player));
         List<Pokemon> raised = new ArrayList<>();
         for (Pokemon rental : RentalStorage.held(player)) {
             if (rental.getLevel() < target) {
