@@ -179,7 +179,7 @@ def standard_floor(roofless: bool = False, headroom: int = 0) -> Grid:
     for xa, xb in ((x0, x0 + 6), (x1 - 6, x1)):
         G.box("rib", xa, 6, z0, xb, 6, z1)                                 # gallery deck
         rail = x0 + 6 if xa == x0 else x1 - 6
-        G.box("minecraft:polished_andesite_wall", rail, 7, z0, rail, 7, z1)
+        G.box("minecraft:andesite_wall", rail, 7, z0, rail, 7, z1)
     G.air(x0, 1, z0, x1, 5, z1)
     G.box("floor", x0, 0, z0, x1, 0, z1)
     piers(G, [x0 + 7, x1 - 7], z0 + 3, z1 - 3, 11)
@@ -240,7 +240,7 @@ def vendor_stand(G: Grid, x: int, z: int) -> None:
     G.box("wood", x, 2, z, x + 6, 2, z)
     G.box("wood", x, 1, z + 1, x, 2, z + 3); G.box("wood", x + 6, 1, z + 1, x + 6, 2, z + 3)
     for px, pz in ((x, z), (x + 6, z), (x, z + 4), (x + 6, z + 4)):
-        G.box("minecraft:polished_andesite_wall", px, 3 if pz == z else 1, pz, px, 5, pz)
+        G.box("minecraft:andesite_wall", px, 3 if pz == z else 1, pz, px, 5, pz)
     for i, xx in enumerate(range(x, x + 7)):
         G.box("hanging" if i % 2 == 0 else "minecraft:white_wool", xx, 6, z - 1, xx, 6, z + 4)
     G.box("accent", x + 2, 7, z + 1, x + 4, 7, z + 1)                       # the sign board
