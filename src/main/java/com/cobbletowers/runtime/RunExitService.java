@@ -73,6 +73,30 @@ public final class RunExitService {
         return run.cell().isPresent() && anyoneInside(server, run);
     }
 
+    /**
+     * The player chose to leave their run (or died out of it). An operator in creative or spectator is normally left
+     * to explore, but leaving one's own run must still take them home: without this, the next floor clears the old
+     * cell around them and they fall into the void (found 28 Nov 2026).
+     */
+    public static void leftOwnRun(ServerPlayer player) {
+        if (operatorExploring(player)) LEAVING.add(player.getUUID());
+    }
+
+    /**
+     * Someone logged in inside the tower. If their run is over (a restart parks it, and the join just closed it), they
+     * go home at once: there is no reward screen to read, and their cell is already being cleared. Waiting for the
+     * sweep's beat left them over the void for a couple of seconds (found 28 Nov 2026).
+     */
+    public static void onLogin(MinecraftServer server, ServerPlayer player) {
+        if (!inTower(player) || com.cobbletowers.spectator.Watching.isWatching(player.getUUID())) return;
+        Standing standing = standingOf(player.getUUID());
+        if (standing.kind() == Standing.Kind.ENDED) {
+            evacuate(server, player);
+        } else if (standing.kind() == Standing.Kind.NONE && !operatorExploring(player)) {
+            evacuate(server, player);
+        }
+    }
+
     public static void announce(MinecraftServer server, PersistedRun run) {
         for (PersistedParticipant participant : run.participants()) {
             ServerPlayer player = server.getPlayerList().getPlayer(participant.playerId());

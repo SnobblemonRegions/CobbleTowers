@@ -68,6 +68,16 @@ class ExitRulesTest {
     }
 
     @Test
+    @DisplayName("an operator in creative who leaves their own live run goes home at once, not left in a cell about to be cleared")
+    void operatorWhoLeavesTheirRunGoesHome() {
+        // Leaving makes their standing NONE; RunExitService.leftOwnRun lifts the exemption (found 28 Nov 2026: the
+        // next floor cleared the old cell around a creative operator and they fell into the void).
+        assertEquals(Verdict.LEAVE, ExitRules.decide(true, ExitRules.exempt(true, true), Standing.none(), END));
+        assertEquals(Verdict.STAY, ExitRules.decide(true, ExitRules.exempt(true, false), Standing.none(), END),
+                "without the flag the sweep skips them, which was the bug");
+    }
+
+    @Test
     @DisplayName("before a cell is reset its participants are sent home, except one who has a live place in another run")
     void releaseNeverMovesAPlayerInANewRun() {
         assertFalse(ExitRules.mayEvacuateAtRelease(Standing.active()), "a player already in their next run stays where they are");

@@ -666,10 +666,99 @@ def connect(grid: np.ndarray, palette: list[str], intern, edge_solid: bool = Fal
     return set_count
 
 
+# ---- hidden lights: Rootvale's halls are lit without glowing cubes ---------------------------------------------------------------
+
+GLOW_CUBES = ("minecraft:shroomlight", "minecraft:ochre_froglight", "minecraft:verdant_froglight")
+VINE = "minecraft:cave_vines_plant[berries=false]"
+VINE_TIP = "minecraft:cave_vines[age=25,berries=false]"
+CAP = "minecraft:red_mushroom_block"                    # a toadstool cap: what a lamp post wears instead of a glowing cube
+FACES = ((0, -1, 0), (1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1), (0, 1, 0))
+
+
+UNGLOW = ("rootvale",)                  # the towers whose halls are lit by hidden lights
+
+
+def unglow(g: Grid, keep_clear: list[tuple[int, int, int, int, int, int]] = ()) -> int:
+    """Owner, 28 Nov 2026: Rootvale's warm light is wanted without the orange and gold cubes. Every shroomlight and froglight goes, and an
+    invisible light block (level 15, as the cube gave) takes its light into the nearest air:
+      - set into a surface (three or more solid faces), or holding up a lantern or chain: the cell takes its neighbours' block, by a vote;
+      - on top of a post: the post wears a toadstool cap, its light just above;
+      - at the foot of a chain: the chain becomes cave vines and the light hangs at the tip;
+      - otherwise (hanging from leaves, perched): the cell is left empty and lit.
+    Decided from the grid as it was, so neighbouring cubes do not vote for each other. No light goes into a `keep_clear` box (x0, y0, z0, x1,
+    y1, z1): RoomDresser's rooms behind the doors must stay empty air. Returns how many cubes it replaced."""
+    glow_ids = [i for i, n in enumerate(g.palette) if n.split("[")[0] in GLOW_CUBES]
+    if not glow_ids:
+        return 0
+    before = g.grid.copy()
+    names = list(g.palette)
+    ident = g.bid if hasattr(g, "bid") else g.id                   # a hall's Grid or a stop room's rooms.Room
+    wall = (g.t if hasattr(g, "t") else g.theme)["wall"]
+    sx, sy, sz = g.grid.shape
+    is_glow = np.isin(before, glow_ids)
+    light = ident("minecraft:light[level=15]")
+
+    def name(x: int, y: int, z: int) -> str:
+        return names[int(before[x, y, z])] if 0 <= x < sx and 0 <= y < sy and 0 <= z < sz else AIR
+
+    def air_now(x: int, y: int, z: int) -> bool:
+        if any(x0 <= x <= x1 and y0 <= y <= y1 and z0 <= z <= z1 for x0, y0, z0, x1, y1, z1 in keep_clear):
+            return False
+        return 0 <= x < sx and 0 <= y < sy and 0 <= z < sz and g.grid[x, y, z] == 0
+
+    def surface(n: str) -> bool:
+        return n != AIR and n.split("[")[0] not in GLOW_CUBES and _full(n) and not see_through(n) and "leaves" not in n and "candle" not in n
+
+    cells = [tuple(int(v) for v in c) for c in np.argwhere(is_glow)]
+    chains = []
+    for x, y, z in cells:
+        around = [name(x + dx, y + dy, z + dz) for dx, dy, dz in FACES]
+        solid = [n for n in around if n != AIR]
+        below, above = around[0], around[5]
+        holds = "lantern" in below or "chain" in below or "vines" in below      # something hangs from it: it must stay a block
+        if len(solid) >= 3 or holds:
+            votes = [n for n in around if surface(n)]
+            pick = max(set(votes), key=votes.count) if votes else ("minecraft:moss_block" if "moss" in below else wall)
+            g.grid[x, y, z] = ident(pick)
+        elif len(solid) == 1 and (below.split("[")[0].endswith("_fence") or "_wall" in below):
+            g.grid[x, y, z] = ident(CAP)
+        elif "chain" in above:
+            g.grid[x, y, z] = ident(VINE_TIP)
+            chains.append((x, y, z))
+            continue
+        else:
+            g.grid[x, y, z] = 0
+            if air_now(x, y, z):
+                g.grid[x, y, z] = light
+            continue
+    for x, y, z in cells:                                           # then the light, once every cube is gone
+        if g.grid[x, y, z] in (light, ident(VINE_TIP)):
+            continue
+        spots = [(x + dx, y + dy, z + dz) for dx, dy, dz in FACES]
+        spots += [(x + 2 * dx, y + 2 * dy, z + 2 * dz) for dx, dy, dz in FACES]
+        for p in spots:
+            if air_now(*p):
+                g.grid[p] = light
+                break
+    vine = ident(VINE)
+    for x, y, z in chains:                                          # the chain over a tip becomes the vine it hangs from
+        yy = y + 1
+        while yy < sy and "chain" in names[int(before[x, yy, z])]:
+            g.grid[x, yy, z] = vine
+            yy += 1
+        for p in ((x, y - 1, z), (x + 1, y, z), (x - 1, y, z), (x, y, z + 1), (x, y, z - 1)):
+            if air_now(*p):
+                g.grid[p] = light
+                break
+    return len(cells)
+
+
 def see_through(name: str) -> bool:
     base = name.split("[")[0].removeprefix("minecraft:")
     if base == "sea_lantern":                 # a full light block, not a lantern
         return False
+    if base in ("light", "cave_vines", "cave_vines_plant"):     # the invisible light block, and vines
+        return True
     return any(k in base for k in SEE_THROUGH)
 
 
@@ -718,13 +807,14 @@ def shell_closed(g: Grid, starts: list[tuple[int, int, int]]) -> list[str]:
 # ---- validation: a walk over the blocks themselves ------------------------------------------------------------------------------
 
 PASSABLE_NAMES = (AIR, CHAIN, LANTERN)
+PASSABLE_BASES = ("minecraft:light", "minecraft:cave_vines", "minecraft:cave_vines_plant")      # no collision: walked through
 
 
 class Walker:
     def __init__(self, g: Grid) -> None:
         self.g = g
         n = len(g.palette)
-        self.pass_ = np.array([g.palette[i] in PASSABLE_NAMES for i in range(n)])
+        self.pass_ = np.array([g.palette[i] in PASSABLE_NAMES or g.palette[i].split("[")[0] in PASSABLE_BASES for i in range(n)])
         self.tall = np.array([g.palette[i].split("[")[0] == g.theme["rail"] or "_wall" in g.palette[i] for i in range(n)])
         self.wet = np.array([g.palette[i].startswith("minecraft:water") for i in range(n)])     # nobody stands on water
 

@@ -23,7 +23,7 @@ NEUTRAL = {
     "light": "minecraft:pearlescent_froglight",       # light coves, chandeliers, backlit glass
     "glass": "minecraft:white_stained_glass",         # the glass in front of backlit panels
     "wood": "minecraft:spruce_planks",                # the vendor stand
-    "rail": "minecraft:polished_andesite_wall",       # gallery rails
+    "rail": "minecraft:andesite_wall",                # gallery rails (1.21.1 has no polished_andesite_wall: it pasted as air)
 }
 
 # Tideforge (doctrine: Momentum; Kyogre, Vaporeon, Blastoise, Golisopod, Empoleon). Today's battle_tower_tideforge is mostly prismarine

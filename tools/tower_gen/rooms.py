@@ -26,6 +26,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(ROOT / "validation"))
 from themes import THEMES  # noqa: E402
 
+THEME_NAMES = {id(t): name for name, t in THEMES.items()}
+
 W, H, D = 11, 9, 15
 DATA_VERSION = 3955
 AIR = "minecraft:air"
@@ -278,7 +280,9 @@ ROOMS = {"battle": battle, "rest": rest, "shrine": shrine, "gambler": gambler, "
 def build(kind: str, theme: dict[str, str]) -> Room:
     r = Room(theme)
     ROOMS[kind](r)
-    from tower_gen import connect                          # joined up as pasted (no neighbour updates); past the box is the chamber's wall
+    from tower_gen import UNGLOW, connect, unglow          # joined up as pasted (no neighbour updates); past the box is the chamber's wall
+    if THEME_NAMES.get(id(theme)) in UNGLOW:
+        unglow(r)                                          # Rootvale's rooms are lit by hidden lights, as its halls are
     connect(r.grid, r.palette, r.bid, edge_solid=True)
     return r
 
@@ -289,7 +293,7 @@ def passable(r: Room, x: int, y: int, z: int) -> bool:
     if not (0 <= x < W and 0 <= y < H and 0 <= z < D):
         return False
     name = r.palette[int(r.grid[x, y, z])]
-    return name == AIR or name.startswith(("minecraft:lantern", "minecraft:chain", "minecraft:red_carpet")) or "candle" in name
+    return name == AIR or name.startswith(("minecraft:lantern", "minecraft:chain", "minecraft:red_carpet", "minecraft:light[", "minecraft:cave_vines"))         or "candle" in name
 
 
 def check(kind: str, r: Room) -> list[str]:

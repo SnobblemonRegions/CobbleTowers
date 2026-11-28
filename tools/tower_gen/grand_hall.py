@@ -240,6 +240,8 @@ def build_building(spec: Spec, theme: dict[str, str], b: int) -> Grid:
     g.grid[:] = g.id("wall")
     for floor in spec.buildings[b - 1]:
         build_floor(spec, g, floor)
+    if spec.theme in tg.UNGLOW:                            # lit by hidden lights, none in the rooms RoomDresser pastes behind the doors
+        tg.unglow(g, [tg.dresser_box(d) for k in spec.buildings[b - 1] for d in layout(spec, k)["doors"]])
     tg.connect(g.grid, g.palette, g.id)                    # rails and bars joined up: the paste does no neighbour updates
     return g
 
@@ -365,6 +367,9 @@ def main(spec: Spec) -> int:
 
     buildings = {b: build_building(spec, theme, b) for b in range(1, len(spec.buildings) + 1)}
     prep = tg.build_prep(theme)
+    if name in tg.UNGLOW:
+        tg.unglow(prep)
+        tg.connect(prep.grid, prep.palette, prep.id)
     problems = validate(spec, buildings) + tg.validate_prep(prep)
     for b, g in buildings.items():
         boss = building_boss(spec, b)

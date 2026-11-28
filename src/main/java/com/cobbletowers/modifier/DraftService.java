@@ -320,6 +320,20 @@ public final class DraftService {
     }
 
     /**
+     * Settles the open draft if everyone still entitled to vote already has. Votes are only checked when cast, so a
+     * voter who leaves would otherwise strand the rest on a draft they have finished (found 28 Nov 2026).
+     * @return true if it settled
+     */
+    public static boolean settleIfEverybodyVoted(MinecraftServer server, UUID runId, long now) {
+        Optional<PersistedRun> found = TowerRuns.get(runId);
+        if (found.isEmpty() || found.get().isRetired()) return false;
+        Optional<PersistedDraft> open = found.get().modifiers().draft().filter(draft -> !draft.resolved());
+        if (open.isEmpty() || voters(found.get()).isEmpty() || !everybodyVoted(found.get(), open.get())) return false;
+        settle(server, runId, now);
+        return true;
+    }
+
+    /**
      * Settles the open draft whether or not everybody voted; an unvoted draft still resolves (see {@link DraftVote}).
      */
     public static PersistedDraft settle(MinecraftServer server, UUID runId, long now) {
