@@ -28,10 +28,15 @@ public final class CellGrid {
 
     /** Matches the dimension's min_y and height. */
     public static final int MIN_Y = 0;
-    public static final int MAX_Y = 384;
+    public static final int MAX_Y = 512;
 
-    /** Where a floor sits, and where anything entering a cell is put down. */
-    public static final int FLOOR_Y = 64;
+    /**
+     * Where a floor sits, and where anything entering a cell is put down. The dimension keeps the overworld sky (a fixed noon), whose
+     * clouds are drawn at y 192 through everything: inside a hall they hung under the Tideforge dome (owner, 15 Nov 2026). Every cell
+     * is built above them: the preparation room at FLOOR_Y - {@link PrepPlacement#DROP} = 200 clears their top (196.3), and the
+     * tallest building (258 high, Duskvale) ends at 490, under MAX_Y.
+     */
+    public static final int FLOOR_Y = 232;
 
     /**
      * How far below the cell a cleanup sweep still looks: the tower is a void, so leftovers keep falling below y=0

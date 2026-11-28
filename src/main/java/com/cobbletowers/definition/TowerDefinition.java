@@ -36,7 +36,18 @@ public record TowerDefinition(
         Optional<TowerWindow> window,
         boolean pedestalVotes,
         boolean routeMap,
-        boolean bossRush) {
+        boolean bossRush,
+        Optional<PrepRoom> prep) {
+
+    /** A tower that starts its run on floor 1 with no preparation room, which is every tower before P59. */
+    public TowerDefinition(ResourceLocation id, String displayName, int schemaVersion, int revision,
+                           ResourceLocation rulesetId, ResourceLocation rewardTableId, List<ResourceLocation> floorIds,
+                           List<ResourceLocation> milestoneIds, Optional<ResourceLocation> regionalTheme,
+                           Optional<ResourceLocation> scoutingProfile, boolean ascension, Optional<TowerWindow> window,
+                           boolean pedestalVotes, boolean routeMap, boolean bossRush) {
+        this(id, displayName, schemaVersion, revision, rulesetId, rewardTableId, floorIds, milestoneIds, regionalTheme,
+                scoutingProfile, ascension, window, pedestalVotes, routeMap, bossRush, Optional.empty());
+    }
 
     /** A tower whose floors open with an opponent wave, which is every tower before balance phase 2. */
     public TowerDefinition(ResourceLocation id, String displayName, int schemaVersion, int revision,
@@ -95,6 +106,7 @@ public record TowerDefinition(
         Objects.requireNonNull(regionalTheme, "regionalTheme");
         Objects.requireNonNull(scoutingProfile, "scoutingProfile");
         Objects.requireNonNull(window, "window");
+        Objects.requireNonNull(prep, "prep");
         if (displayName == null || displayName.isBlank()) {
             throw new IllegalArgumentException("display_name must not be blank");
         }
@@ -157,6 +169,7 @@ public record TowerDefinition(
                         TowerJson.requireString(TowerJson.object(root, "window"), "end"))) : Optional.empty(),
                 TowerJson.bool(root, "pedestal_votes", false),
                 TowerJson.bool(root, "route_map", false),
-                TowerJson.bool(root, "boss_rush", true));
+                TowerJson.bool(root, "boss_rush", true),
+                PrepRoom.optional(root, "prep"));
     }
 }

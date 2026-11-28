@@ -3,6 +3,7 @@ package com.cobbletowers.definition;
 import com.google.gson.JsonObject;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import net.minecraft.resources.ResourceLocation;
 
 /**
@@ -10,6 +11,7 @@ import net.minecraft.resources.ResourceLocation;
  * of effects on a target's live party, never an item stack (TDS #20 C).
  * @param maxPurchasesPerRun how often one run may buy it, all its players together (TDS #19); 0 means unlimited
  * @param maxPurchasesPerPlayer how often each player of a run may buy it; 0 means unlimited. The Mystery Bag uses this, so one player's bags do not use up the team's
+ * @param soldIn where it is on sale (P59): the atrium between floors, the preparation room, or both; the atrium alone when the file does not say
  */
 public record VendorServiceDefinition(
         ResourceLocation id,
@@ -19,7 +21,8 @@ public record VendorServiceDefinition(
         int priceCobbleDollars,
         VendorEffect effect,
         int maxPurchasesPerRun,
-        int maxPurchasesPerPlayer) {
+        int maxPurchasesPerPlayer,
+        Set<VendorPlace> soldIn) {
 
     public static final int SUPPORTED_SCHEMA_VERSION = 1;
 
@@ -43,6 +46,21 @@ public record VendorServiceDefinition(
         if (maxPurchasesPerPlayer < 0) {
             throw new IllegalArgumentException("max_purchases_per_player must be >= 0, got " + maxPurchasesPerPlayer);
         }
+        Objects.requireNonNull(soldIn, "soldIn");
+        if (soldIn.isEmpty()) throw new IllegalArgumentException("sold_in must name at least one place");
+        soldIn = Set.copyOf(soldIn);
+    }
+
+    /** A service sold only in the atrium, which is every service before P59. */
+    public VendorServiceDefinition(ResourceLocation id, int schemaVersion, int revision, String displayName, int priceCobbleDollars,
+                                   VendorEffect effect, int maxPurchasesPerRun, int maxPurchasesPerPlayer) {
+        this(id, schemaVersion, revision, displayName, priceCobbleDollars, effect, maxPurchasesPerRun, maxPurchasesPerPlayer,
+                Set.of(VendorPlace.ATRIUM));
+    }
+
+    /** Whether it is on sale at {@code place}. */
+    public boolean soldAt(VendorPlace place) {
+        return soldIn.contains(place);
     }
 
     /** A service with no per-player limit (the form every service had before the limit existed). */
@@ -60,7 +78,16 @@ public record VendorServiceDefinition(
                 TowerJson.requireInt(root, "price_cobble_dollars"),
                 parseEffect(TowerJson.requireString(root, "effect")),
                 TowerJson.integer(root, "max_purchases_per_run", 0),
-                TowerJson.integer(root, "max_purchases_per_player", 0));
+                TowerJson.integer(root, "max_purchases_per_player", 0),
+                places(root));
+    }
+
+    private static Set<VendorPlace> places(JsonObject root) {
+        if (!root.has("sold_in")) return Set.of(VendorPlace.ATRIUM);
+        if (!root.get("sold_in").isJsonArray()) throw new IllegalArgumentException("'sold_in' must be a list, e.g. [\"atrium\", \"prep\"]");
+        Set<VendorPlace> places = java.util.EnumSet.noneOf(VendorPlace.class);
+        for (var entry : root.getAsJsonArray("sold_in")) places.add(VendorPlace.parse(entry.getAsString()));
+        return places;
     }
 
     private static VendorEffect parseEffect(String raw) {

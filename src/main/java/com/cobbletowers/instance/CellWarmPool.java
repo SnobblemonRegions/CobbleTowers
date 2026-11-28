@@ -119,6 +119,26 @@ public final class CellWarmPool {
         return layouts.size();
     }
 
+    /** Queues every floor building of every tower to be cut into column pieces off the server thread (StructurePieces). */
+    static int cutEveryFloor(MinecraftServer server, com.cobbletowers.definition.TowerContent content) {
+        java.util.Set<ResourceLocation> seen = new java.util.LinkedHashSet<>();
+        // Every loaded floor definition, read once: never walked by index, because floorAt past the last floor of an ascending tower is the
+        // next cycle's floor, so a walk "until there is none" never ends (it hung the rig at start-up, 14 Nov).
+        for (var floor : content.floors().values()) {
+            floor.layout().ifPresent(layout -> seen.add(layout.structure()));
+        }
+        int queued = 0;
+        for (ResourceLocation id : seen) {
+            var template = server.getStructureManager().get(id);
+            if (template.isPresent()) {
+                StructurePieces.prepare(id, template.get());
+                queued++;
+            }
+        }
+        if (queued > 0) TowerLog.info("Queued {} floor building(s) to be cut into column pieces", queued);
+        return queued;
+    }
+
     /** The build in progress (one at a time) and who holds its lease. */
     private static SlicedBuild BUILD;
     private static UUID BUILD_TENANT;
@@ -199,6 +219,11 @@ public final class CellWarmPool {
                 prewarm(com.cobbletowers.definition.TowerDefinitionRegistry.content(), System.currentTimeMillis());
             } catch (RuntimeException ex) {
                 TowerLog.error("The warm pool could not plan its start-up builds", ex);
+            }
+            try {
+                cutEveryFloor(server, com.cobbletowers.definition.TowerDefinitionRegistry.content());
+            } catch (RuntimeException ex) {
+                TowerLog.error("Floor structures could not be queued for cutting", ex);
             }
         });
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {

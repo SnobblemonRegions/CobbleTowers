@@ -1,0 +1,133 @@
+package com.cobbletowers.modifier;
+
+import com.cobbletowers.TowerLog;
+import com.cobbletowers.definition.ModifierDefinition;
+import com.cobbletowers.definition.TowerDefinitionRegistry;
+import com.cobbletowers.menu.ModifierMenuText;
+import com.cobbletowers.network.ClientUi;
+import com.cobbletowers.network.RelicRevealPayload;
+import com.cobbletowers.network.RelicShelfPayload;
+import com.cobbletowers.persistence.PersistedParticipant;
+import com.cobbletowers.persistence.PersistedRun;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+
+/**
+ * Shows the party each relic it gains (P59): a card on the bridge's HUD with the relic's art and what it does, or the same words in chat for a
+ * player without the bridge. Fed by {@link com.cobbletowers.runtime.TowerRuns#save}, which sees every relic arrive whatever gave it (a room, a
+ * milestone, a draft, the gambler, a treat), so no source has to remember to announce.
+ */
+public final class RelicReveal {
+
+    private RelicReveal() {}
+
+    /** The relics in {@code after} that {@code before} did not hold, in the order they were gained. A run that did not exist yet gained nothing. */
+    public static List<ResourceLocation> gained(PersistedRun before, PersistedRun after) {
+        if (before == null || after == null) return List.of();
+        Set<ResourceLocation> had = Set.copyOf(before.modifiers().relics());
+        List<ResourceLocation> gained = new ArrayList<>();
+        for (ResourceLocation relic : after.modifiers().relics()) if (!had.contains(relic)) gained.add(relic);
+        return gained;
+    }
+
+    /** The card's colour family, from the relic's first tag. */
+    static String kindOf(ModifierDefinition relic) {
+        for (String tag : relic.tags()) {
+            switch (tag) {
+                case "offense": return "battle";
+                case "sustain": return "sustain";
+                case "tempo": return "tempo";
+                case "economy": return "fortune";
+                case "scouting": return "scouting";
+                case "boss": return "champion";
+                default: break;
+            }
+        }
+        return "battle";
+    }
+
+    public static void announce(MinecraftServer server, PersistedRun run, List<ResourceLocation> gained) {
+        if (server == null || gained.isEmpty()) return;
+        var modifiers = TowerDefinitionRegistry.content().modifiers();
+        int held = run.modifiers().relics().size();
+        for (ResourceLocation id : gained) {
+            ModifierDefinition relic = modifiers.get(id);
+            if (relic == null) continue;
+            RelicRevealPayload payload = new RelicRevealPayload(id, relic.displayName(), kindOf(relic), List.copyOf(ModifierMenuText.lines(relic)),
+                    run.floorIndex() + 1, held);
+            TowerLog.info("Run {}: relic {} gained, shown to the party", run.runId(), id);
+            for (PersistedParticipant participant : run.participants()) {
+                if (!participant.state().isInRun()) continue;
+                ServerPlayer player = server.getPlayerList().getPlayer(participant.playerId());
+                if (player == null) continue;
+                if (ClientUi.canShow(player, RelicRevealPayload.TYPE)) ClientUi.send(player, payload);
+                else tellInChat(player, payload);
+            }
+        }
+    }
+
+    /** Whether the run's held relics differ (gained, lost, swapped) between two saves, so the HUD strip needs sending. */
+    public static boolean shelfChanged(PersistedRun before, PersistedRun after) {
+        if (after == null) return false;
+        return before == null ? !after.modifiers().relics().isEmpty() : !before.modifiers().relics().equals(after.modifiers().relics());
+    }
+
+    /** The strip's contents for a run: its relics in the order gained. */
+    static RelicShelfPayload shelfOf(PersistedRun run) {
+        var modifiers = TowerDefinitionRegistry.content().modifiers();
+        List<RelicShelfPayload.Relic> relics = new ArrayList<>();
+        for (ResourceLocation id : run.modifiers().relics()) {
+            ModifierDefinition relic = modifiers.get(id);
+            if (relic != null) relics.add(new RelicShelfPayload.Relic(id, relic.displayName(), kindOf(relic)));
+        }
+        return new RelicShelfPayload(relics);
+    }
+
+    /** Sends the strip to everyone in the run, and an empty one to anybody who has left it. Only bridge players get it: chat has no strip. */
+    public static void shelf(MinecraftServer server, PersistedRun run) {
+        if (server == null) return;
+        if (run.state().isTerminal()) {               // the run is over: the strip comes down for everyone
+            clearShelf(server, run);
+            return;
+        }
+        RelicShelfPayload held = shelfOf(run);
+        for (PersistedParticipant participant : run.participants()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(participant.playerId());
+            if (player == null || !ClientUi.canShow(player, RelicShelfPayload.TYPE)) continue;
+            ClientUi.send(player, participant.state().isInRun() ? held : new RelicShelfPayload(List.of()));
+        }
+    }
+
+    /** Takes the strip down for everyone who was in a run that has ended. */
+    public static void clearShelf(MinecraftServer server, PersistedRun run) {
+        if (server == null) return;
+        for (PersistedParticipant participant : run.participants()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(participant.playerId());
+            if (player != null && ClientUi.canShow(player, RelicShelfPayload.TYPE)) ClientUi.send(player, new RelicShelfPayload(List.of()));
+        }
+    }
+
+    /** A player joining mid-run gets their strip back. */
+    public static void install() {
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                server.execute(() -> com.cobbletowers.runtime.TowerRuns.forPlayer(handler.getPlayer().getUUID())
+                        .filter(run -> !run.modifiers().relics().isEmpty())
+                        .ifPresent(run -> shelf(server, run))));
+    }
+
+    private static void tellInChat(ServerPlayer player, RelicRevealPayload relic) {
+        player.sendSystemMessage(Component.literal("Relic gained: ").withStyle(ChatFormatting.GOLD)
+                .append(Component.literal(relic.name()).withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)));
+        for (String line : relic.lines()) {
+            ChatFormatting colour = line.startsWith(ModifierMenuText.GOOD) ? ChatFormatting.GREEN
+                    : line.startsWith(ModifierMenuText.BAD) ? ChatFormatting.RED : ChatFormatting.GRAY;
+            player.sendSystemMessage(Component.literal("  " + ModifierMenuText.plain(line)).withStyle(colour));
+        }
+    }
+}

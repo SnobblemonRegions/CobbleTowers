@@ -310,7 +310,7 @@ public final class SeasonProgressService {
     // ---- words ------------------------------------------------------------------------------------
 
     public static String describe(ResourceLocation item, int amount) {
-        if (item.equals(CobbleDollars.ITEM_ID)) return amount + " CobbleDollars";
+        if (item.equals(CobbleDollars.ITEM_ID)) return amount + " Tower Tokens";
         if (item.equals(RaidPointsCurrency.ITEM_ID)) return amount + " Raid Points";
         String name = item.getPath().replace('_', ' ');
         return (amount > 1 ? amount + " " : "") + name;

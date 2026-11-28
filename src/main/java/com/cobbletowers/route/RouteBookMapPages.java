@@ -77,7 +77,7 @@ public final class RouteBookMapPages {
             case ELITE -> "A tougher battle, for a better reward.";
             case REST -> "Fully heal the party.";
             case SHRINE -> "Take a curse: a relic now, a challenge for good.";
-            case FORGE -> "Pay CobbleDollars for a battle relic.";
+            case FORGE -> "Pay Tower Tokens for a battle relic.";
             case LIBRARY -> "Study, and take a scouting relic.";
             case VAULT -> "Crack it: a purse for everyone, or an ambush.";
             case POOL -> "Dive, and swap a relic for a different one.";

@@ -28,6 +28,11 @@ public final class TowerHallService {
     private TowerHallService() {}
 
     public static void open(MinecraftServer server, ServerPlayer player, String message) {
+        open(server, player, message, null);
+    }
+
+    /** The Hall, opened on {@code focus} when it is given (a hub host's dialog or a tower's portal); otherwise as usual. */
+    public static void open(MinecraftServer server, ServerPlayer player, String message, ResourceLocation focus) {
         if (PartyStorage.inBattle(player)) {
             player.sendSystemMessage(Component.literal("Finish your battle before opening Tower Hall."));
             return;
@@ -60,7 +65,8 @@ public final class TowerHallService {
         String status = TowerRuns.forPlayer(player.getUUID()).filter(r -> !r.isRetired())
                 .map(r -> "Floor " + r.floorIndex() + " / " + r.state().name().replace('_', ' ')).orElse("");
         com.cobbletowers.network.ClientUi.send(player, new TowerHallStatePayload(towers, trials, play, status,
-                IntermissionService.isAtIntermission(player), safeExtras(server, player)));
+                IntermissionService.isAtIntermission(player), focus == null ? safeExtras(server, player)
+                        : com.cobbletowers.menu.HallExtras.withFocus(safeExtras(server, player), focus)));
     }
 
     /** The extras are decoration: whatever goes wrong reading them, the Hall still opens, without them. */

@@ -96,10 +96,19 @@ public final class LaneArrival {
                 new Prop(4, 0, 0, Blocks.PURPLE_CARPET.defaultBlockState()));
     }
 
-    /** Where a prop stands for a party that arrives facing {@code yaw}: behind them is west when they face east (yaw 270) and east when they face west. */
+    /**
+     * Where a prop stands for a party that arrives facing {@code yaw} (0 south, 90 west, 180 north, 270 east): {@code back} blocks the other way,
+     * {@code side} across. The P58 tower's arrivals faced east or west only; the P59 buildings' face north, and reading every yaw as east or west
+     * put their props four blocks to one side, loose in the middle of the arrival hall, instead of behind the party in the arch it came through.
+     */
     public static BlockPos where(BlockPos arrival, float yaw, Prop prop) {
-        int behind = Math.round(yaw) % 360 == 270 ? -1 : 1;
-        return arrival.offset(behind * prop.back(), prop.up(), prop.side());
+        int facing = Math.floorMod(Math.round(yaw / 90f), 4);          // 0 south (+z), 1 west (-x), 2 north (-z), 3 east (+x)
+        return switch (facing) {
+            case 0 -> arrival.offset(prop.side(), prop.up(), -prop.back());
+            case 1 -> arrival.offset(prop.back(), prop.up(), prop.side());
+            case 2 -> arrival.offset(prop.side(), prop.up(), prop.back());
+            default -> arrival.offset(-prop.back(), prop.up(), prop.side());
+        };
     }
 
     /** Dresses the arrival at {@code arrival} for {@code kind}. Only air is replaced, so the hall's own blocks are never damaged. */

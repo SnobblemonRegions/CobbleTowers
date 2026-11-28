@@ -55,7 +55,9 @@ public final class PlayCommand {
                         }))
                         // The Tower Keeper NPC runs this one (operator level, so the dialog's server source passes).
                         .then(Commands.literal("keeper")
-                                .then(Commands.argument("player", EntityArgument.player()).executes(PlayCommand::hallFor)))
+                                .then(Commands.argument("player", EntityArgument.player()).executes(PlayCommand::hallFor)
+                                        // a tower's host in the Tower Hub: the same Hall, opened on that tower
+                                        .then(Commands.argument("tower", ResourceLocationArgument.id()).executes(PlayCommand::hallForTower))))
                         .then(Commands.literal("run").executes(context -> {
                             var player = context.getSource().getPlayerOrException();
                             com.cobbletowers.menu.TowerFeatureService.handle(context.getSource().getServer(), player,
@@ -176,6 +178,20 @@ public final class PlayCommand {
     /** {@code /cobbletowers play keeper <player>}: what the NPC's dialog runs, as the server, for the player it names. */
     private static int hallFor(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         showHall(context.getSource().getServer(), EntityArgument.getPlayer(context, "player"));
+        return 1;
+    }
+
+    /** {@code /cobbletowers play keeper <player> <tower>}: a hub host's dialog. A team forming or a run under way still gets its own screen. */
+    private static int hallForTower(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = EntityArgument.getPlayer(context, "player");
+        var server = context.getSource().getServer();
+        if (IntermissionService.isAtIntermission(player) || LobbyService.lobbyOf(player.getUUID()).isPresent()) {
+            showHall(server, player);
+            return 1;
+        }
+        tellNoScreen(player);
+        com.cobbletowers.webgui.WebGuiBridge.userAsked(player);
+        com.cobbletowers.menu.TowerHallService.open(server, player, "", ResourceLocationArgument.getId(context, "tower"));
         return 1;
     }
 

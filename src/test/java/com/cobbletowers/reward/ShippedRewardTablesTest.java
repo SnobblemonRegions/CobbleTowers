@@ -100,11 +100,11 @@ class ShippedRewardTablesTest {
     }
 
     @Test
-    @DisplayName("every tower pays CobbleDollars, and every table that can pay Raid Points names the reserved id")
+    @DisplayName("every tower pays Tower Tokens, and every table that can pay Raid Points names the reserved id")
     void currenciesArePresent() {
         for (String name : TOWERS) {
             RewardTableDefinition table = load(name);
-            assertTrue(mentions(table, "cobbletowers:cobble_dollar"), name + " pays no CobbleDollars");
+            assertTrue(mentions(table, "cobbletowers:cobble_dollar"), name + " pays no Tower Tokens");
             assertTrue(mentions(table, "cobbleraids:raid_points"), name + " pays no Raid Points");
         }
     }

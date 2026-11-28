@@ -33,7 +33,7 @@ public final class CellPreparer {
      * What {@link #reset} sweeps: every chunk the cell holds, from just under the floor to the top of the world. A
      * cell is not told what was pasted into it, so all of it is covered; air-only sections are skipped.
      */
-    private static final int RESET_BELOW = 1;
+    private static final int RESET_BELOW = PrepPlacement.DROP + 1;      // down to the preparation room under the build (P59), and the row under it
 
     private CellPreparer() {}
 
@@ -95,6 +95,7 @@ public final class CellPreparer {
         int swept = CellCleanup.sweepBeforeBuild(server, cell);
         if (swept > 0) TowerLog.warn("Cell {} held {} leftover entity/entities before it was prepared; swept", cell, swept);
         // From here the cell holds (some of) a build, whether or not the paste succeeds.
+        CellEvents.wiped(cell);
         CellCleanliness.markDirty(cell);
 
         long started = System.nanoTime();
@@ -151,6 +152,17 @@ public final class CellPreparer {
 
     /** Clears one loaded chunk of the cell and returns how many blocks were removed. */
     static int resetChunk(ServerLevel level, LevelChunk chunk) {
+        int cleared = 0;
+        for (int index = 0; index < chunk.getSections().length; index++) cleared += resetSection(level, chunk, index);
+        return cleared;
+    }
+
+    /**
+     * Clears one 16-high section of a loaded chunk of the cell and returns how many blocks were removed. The sliced
+     * clears go a section at a time: a whole chunk column of a dense building (the Tideforge cathedral, near 100k blocks
+     * in a column) took 50 to 86 ms in one step (rig 2, 14 Nov); a section is at most 4096 blocks.
+     */
+    static int resetSection(ServerLevel level, LevelChunk chunk, int index) {
         BlockState air = Blocks.AIR.defaultBlockState();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         int lowest = CellGrid.FLOOR_Y - RESET_BELOW;
@@ -158,9 +170,9 @@ public final class CellPreparer {
         int chunkZ = chunk.getPos().z;
         int cleared = 0;
         LevelChunkSection[] sections = chunk.getSections();
-        for (int index = 0; index < sections.length; index++) {
+        {
             LevelChunkSection section = sections[index];
-            if (section.hasOnlyAir()) continue;
+            if (section.hasOnlyAir()) return 0;
             int baseY = SectionPos.sectionToBlockCoord(chunk.getSectionYFromSectionIndex(index));
             for (int localY = 0; localY < 16; localY++) {
                 int y = baseY + localY;

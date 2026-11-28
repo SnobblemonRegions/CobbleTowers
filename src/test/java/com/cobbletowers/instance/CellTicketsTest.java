@@ -141,9 +141,11 @@ class CellTicketsTest {
     @Test
     @DisplayName("the ticket covers the arena, and the count it reports is the real one")
     void ticketFootprint() {
-        // 7x7 chunks. The number matters because it is what an operator multiplies by the number of
+        // 11x11 chunks. The number matters because it is what an operator multiplies by the number of
         // active runs, so it is reported rather than guessed at.
-        assertEquals(49, CellTickets.chunksPerCell());
+        assertEquals(121, CellTickets.chunksPerCell());
+        assertTrue(CellTickets.RADIUS_CHUNKS * 16 * 2 + 16 <= CellGrid.INTERIOR,
+                "the held chunks must stay inside the cell's interior, clear of the next cell");
 
         BlockPos centre = CellGrid.centerOf(0);
         ChunkPos centreChunk = new ChunkPos(centre);

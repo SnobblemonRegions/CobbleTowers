@@ -69,7 +69,7 @@ public final class EchoDuels {
                     com.cobbletowers.season.SeasonPoints.Source.ECHO_DUEL, 0, false);
             if (player != null) {
                 player.sendSystemMessage(Component.literal("You won the Echo Duel: +" + EchoPolicy.DUEL_REWARD
-                        + " CobbleDollars. Your party was not touched."));
+                        + " Tower Tokens. Your party was not touched."));
             }
         } else if (player != null) {
             player.sendSystemMessage(Component.literal("The Echo won this time. Nothing was lost: your party was not touched."));

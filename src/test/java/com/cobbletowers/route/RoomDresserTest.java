@@ -17,6 +17,9 @@ class RoomDresserTest {
         }
         assertEquals(CobbleTowers.id("room_battle"), RoomDresser.templateOf("NOPE"));
         assertEquals(CobbleTowers.id("room_battle"), RoomDresser.templateOf(""));
+        // a tower's own room (P59): room_<tower>_<kind>, unknown kinds still a battle
+        assertEquals(CobbleTowers.id("room_neutral_shrine"), RoomDresser.towerTemplateOf(CobbleTowers.id("neutral"), "SHRINE"));
+        assertEquals(CobbleTowers.id("room_neutral_battle"), RoomDresser.towerTemplateOf(CobbleTowers.id("neutral"), "NOPE"));
     }
 
     @Test

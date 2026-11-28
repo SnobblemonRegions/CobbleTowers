@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 2,
   "display_name": "Cure Status",
   "price_cobble_dollars": 10,
   "effect": "cure_status",
-  "max_purchases_per_run": 0
+  "max_purchases_per_run": 0,
+  "sold_in": ["atrium", "prep"]
 }

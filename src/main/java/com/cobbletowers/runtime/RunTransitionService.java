@@ -273,6 +273,7 @@ public final class RunTransitionService {
         com.cobbletowers.vendor.VendorNpc.despawn(server, run);
         com.cobbletowers.intermission.PedestalService.despawn(server, run);
         com.cobbletowers.halloween.door.TrickDoors.dropRun(run.runId());
+        com.cobbletowers.route.door.SealDoors.dropRun(run.runId());
         InstanceAllocator.Release release = InstanceAllocator.release(server, run.runId(), cell.getAsInt());
         if (release instanceof InstanceAllocator.Quarantined quarantined) {
             TowerLog.warn("Run {} ended leaving cell {} unfit for reuse: {}",

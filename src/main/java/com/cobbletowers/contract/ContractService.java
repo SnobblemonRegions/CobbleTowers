@@ -92,7 +92,7 @@ public final class ContractService {
             TowerWalletStore.get(server).checkpoint(server);
         }
         TowerContractStore.get(server).checkpoint(server);
-        TowerLog.info("{} completed the contract {} and is paid {} CobbleDollars", player, template.id(), reward);
+        TowerLog.info("{} completed the contract {} and is paid {} Tower Tokens", player, template.id(), reward);
         com.cobbletowers.mastery.TuningCounters.bump(server, "contract_completed." + template.id());
         com.cobbletowers.season.SeasonProgressService.award(server, player, template.period() == ContractTemplateDefinition.Period.DAILY
                 ? com.cobbletowers.season.SeasonPoints.Source.DAILY_CONTRACT : com.cobbletowers.season.SeasonPoints.Source.WEEKLY_CONTRACT, 0, false);
@@ -100,7 +100,7 @@ public final class ContractService {
         if (online != null) {
             online.sendSystemMessage(Component.literal("Contract complete: ").withStyle(ChatFormatting.GOLD)
                     .append(Component.literal(template.displayName()).withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD))
-                    .append(Component.literal(reward > 0 ? "  +" + reward + " CobbleDollars" : "").withStyle(ChatFormatting.GREEN)));
+                    .append(Component.literal(reward > 0 ? "  +" + reward + " Tower Tokens" : "").withStyle(ChatFormatting.GREEN)));
         }
     }
 
@@ -161,7 +161,7 @@ public final class ContractService {
             }
             lines.add("  " + (contract.slot() + 1) + ". " + contract.template().displayName() + " - "
                     + contract.template().description() + " [" + contract.count() + "/" + contract.template().condition().count() + "]"
-                    + (contract.done() ? " DONE" : "") + "  (+" + contract.template().reward() + " CobbleDollars)");
+                    + (contract.done() ? " DONE" : "") + "  (+" + contract.template().reward() + " Tower Tokens)");
         }
         if (lines.isEmpty()) lines.add("There are no contracts on this server.");
         return lines;

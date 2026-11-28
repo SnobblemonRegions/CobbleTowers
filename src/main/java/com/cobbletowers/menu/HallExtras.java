@@ -46,7 +46,14 @@ public final class HallExtras {
 
     /** The same extras with the lobby's mode and why the team does not fit it. */
     public static Extras withMode(Extras base, String modeName, List<String> problems) {
-        return new Extras(base.runTower(), base.party(), base.standings(), modeName == null ? "" : modeName, List.copyOf(problems));
+        return new Extras(base.runTower(), base.party(), base.standings(), modeName == null ? "" : modeName, List.copyOf(problems),
+                base.focusTower());
+    }
+
+    /** The same extras, opening the Hall on {@code tower} (a hub host or portal sent the player here). */
+    public static Extras withFocus(Extras base, ResourceLocation tower) {
+        return new Extras(base.runTower(), base.party(), base.standings(), base.modeName(), base.modeProblems(),
+                tower == null ? "" : tower.toString());
     }
 
     /** At most six Pokemon, in party order. */
