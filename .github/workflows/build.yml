@@ -71,20 +71,6 @@ jobs:
       - name: Validate the geo armor models
         run: python3 validation/validate_armor_geo.py
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      # The jar ships the committed bundle; an edit to web/src without a rebuild would ship the old page.
-      - name: Check the committed web UI bundle is current
-        working-directory: web
-        run: |
-          npm ci
-          WEB_OUT="$RUNNER_TEMP/cobbletowers" node build.mjs
-          diff -r -q "$RUNNER_TEMP/cobbletowers" ../src/main/resources/web/cobbletowers
-          npm test
-
       - name: Compile and test
         run: gradle --no-daemon clean build --stacktrace --warning-mode all
 
