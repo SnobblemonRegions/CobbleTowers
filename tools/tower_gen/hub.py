@@ -160,6 +160,79 @@ def pointed_arch(g: Grid, name: str, x0: int, z0: int, x1: int, z1: int, h: int,
 
 # ---- the ground, the plaza, the fountain monument ----------------------------------------------------------------------------------------
 
+# ---- Rootvale's living dressing (owner, 28 Nov 2026: no glowing cubes; light blocks, and more on the trees and mushrooms) -------------------
+# Rootvale's lights are invisible light blocks now. What shows instead is growth: green cave vines hanging from canopies and arches, spore
+# blossoms under the leaves (their drifting spores are the glow), shelf fungi on the trunks, gills under the mushroom caps, small mushrooms on
+# podzol round the stems. None of these blocks faces a way, so they survive a bay's quarter turn. Their own random keeps the island's shared
+# random untouched, so the other three quarters come out exactly as before.
+
+VINE, VINE_TIP = "minecraft:cave_vines_plant[berries=false]", "minecraft:cave_vines[age=25,berries=false]"
+SPORE = "minecraft:spore_blossom"
+GILLS = {"red": "minecraft:red_mushroom_block[down=false,east=false,north=false,south=false,up=false,west=false]",
+         "brown": "minecraft:brown_mushroom_block[down=false,east=false,north=false,south=false,up=false,west=false]"}
+SMALL_SHROOMS = ("minecraft:red_mushroom", "minecraft:brown_mushroom")
+
+
+def deco(*key) -> random.Random:
+    return random.Random("rootvale:" + ":".join(str(k) for k in key))
+
+
+def lit(g: Grid, x: int, y: int, z: int, level: int = 15) -> None:
+    """An invisible light block, only into air."""
+    if g.grid[x, y, z] == 0:
+        g.at(f"minecraft:light[level={level}]", x, y, z)
+
+
+def vines(g: Grid, x: int, top: int, z: int, n: int) -> int:
+    """Cave vines hanging from the block over `top`, at most n long, stopping at anything in the way; returns the tip's y (top + 1 if none)."""
+    y = top
+    while y > top - n and g.grid[x, y, z] == 0 and g.grid[x, y - 1, z] == 0:
+        g.at(VINE, x, y, z)
+        y -= 1
+    if y < top:
+        g.at(VINE_TIP, x, y + 1, z)
+    return y + 1
+
+
+def underside(g: Grid, x: int, y: int, z: int, floor: int) -> int | None:
+    """From y, down to the first air cell with a block over it (a canopy's or an arch's underside); None if nothing is over x, z."""
+    while y > floor and not (g.grid[x, y, z] == 0 and g.grid[x, y + 1, z] != 0):
+        y -= 1
+    return y if y > floor else None
+
+
+def shelf(g: Grid, x: int, y: int, z: int, ox: float, oz: float, size: int = 1) -> None:
+    """A shelf fungus on a trunk's face: brown cap blocks sticking out (ox, oz) from the bark cell x, y, z, lit from under."""
+    tx, tz = -oz, ox
+    cells = []
+    for k in sorted(range(-size, size + 1), key=abs):                  # middle first, so each piece can lean on the one before
+        for d in range(1, 2 + (k == 0 and size > 1)):
+            px, pz = round(x + ox * d + tx * k), round(z + oz * d + tz * k)
+            if g.grid[px, y, pz] != 0 or (px, pz) in cells:
+                continue
+            touches = any(g.grid[px + a, y, pz + b] != 0 for a, b in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+            if touches:                                                 # face to face with the bark or the shelf, never by a corner
+                g.at("minecraft:brown_mushroom_block", px, y, pz)
+                cells.append((px, pz))
+    lit(g, round(x + ox), y - 1, round(z + oz), 12)
+
+
+def toadstools(g: Grid, x: int, z: int, r: float, rnd: random.Random) -> None:
+    """A podzol patch round a stem with small mushrooms and moss carpet on it (podzol keeps them alive in full light)."""
+    for px in range(int(x - r - 1), int(x + r + 2)):
+        for pz in range(int(z - r - 1), int(z + r + 2)):
+            if math.hypot(px - x, pz - z) > r or g.grid[px, G, pz] != 0 or g.grid[px, G - 1, pz] == 0:
+                continue
+            if "grass_block" not in g.name(px, G - 1, pz) and "moss" not in g.name(px, G - 1, pz) and "dirt" not in g.name(px, G - 1, pz):
+                continue
+            g.at("minecraft:podzol", px, G - 1, pz)
+            roll = rnd.random()
+            if roll < 0.22:
+                g.at(rnd.choice(SMALL_SHROOMS), px, G, pz)
+            elif roll < 0.4:
+                g.at("minecraft:moss_carpet", px, G, pz)
+
+
 def plan() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     xs, zs = np.meshgrid(np.arange(SX), np.arange(SZ), indexing="ij")
     return xs, zs, np.hypot(xs - C, zs - C), (np.degrees(np.arctan2(zs - C, xs - C)) + 360) % 360
@@ -608,9 +681,7 @@ def duskvale_ruin(g: Grid, cx: int) -> None:
 
 
 def rootvale_tree(g: Grid, cx: int) -> None:
-    t = "rootvale"
     bark, heart = "minecraft:oak_wood", "minecraft:stripped_oak_wood"
-    glow, gold = role(t, "light"), role(t, "accent")
     cz = TOWER_Z
     for y in range(G - 1, G + 54):                                              # the trunk, flaring at the foot, streaked
         r = 8 + max(0, 10 - (y - G)) * 0.7 - (y - G) * 0.03
@@ -635,30 +706,58 @@ def rootvale_tree(g: Grid, cx: int) -> None:
     ends.append((cx, G + 64, cz))
 
     def leaf(x: int, y: int, z: int) -> str:
-        if (x * 7 + y * 3 + z * 5) % 41 == 0:
-            return glow
         return LEAVES[3] if (x + y * 2 + z) % 11 == 0 else LEAVES[2] if (x * 3 + y + z * 5) % 4 == 0 else LEAVES[1]
 
     for i, (x, y, z) in enumerate(ends):                                        # the crown: leafy lobes at the branch ends
         rad = 10 if i == len(ends) - 1 else 8
         blob(g, leaf, x, y + 2, z, rad, rad * 0.62)
-        for k in range(4):                                                      # lights hanging under each lobe, from its underside
-            a = math.radians(k * 90 + i * 20)
-            hx, hz = round(x + rad * 0.55 * math.cos(a)), round(z + rad * 0.55 * math.sin(a))
-            under = round(y + 2 - rad * 0.62) - 2
-            while under < G + 80 and g.grid[hx, under + 1, hz] == 0:
-                under += 1
-            low = under - 3 - k % 2 * 2
-            g.box(CHAIN, hx, low + 1, hz, hx, under, hz)
-            g.at(glow, hx, low, hz)
-    for y in range(G + 8, G + 50, 5):                                           # knots of light set in the trunk's face
+    rnd = deco("world_tree")
+    for i, (x, y, z) in enumerate(ends):                                        # under each lobe: vines and spore blossoms, lit unseen
+        rad = 10 if i == len(ends) - 1 else 8
+        for k in range(10):
+            a = math.radians(k * 36 + i * 20 + rnd.uniform(-12, 12))
+            reach = rad * rnd.uniform(0.3, 0.85)
+            hx, hz = round(x + reach * math.cos(a)), round(z + reach * math.sin(a))
+            under = underside(g, hx, round(y + 2), hz, G + 20)
+            if under is None:
+                continue
+            if k % 3 == 2:
+                g.at(SPORE, hx, under, hz)
+                lit(g, hx, under - 2, hz, 14)
+            else:
+                tip = vines(g, hx, under, hz, rnd.randint(3, 8))
+                if k % 3 == 0:
+                    lit(g, hx, tip - 1, hz, 15)
+    for y in range(G + 8, G + 50, 5):                                           # shelf fungi stepping up the trunk's face
         a = math.radians((y * 47) % 360)
         r = 8 + max(0, 10 - (y - G)) * 0.7 - (y - G) * 0.03 - 0.6
-        g.at(glow if y % 2 else gold, round(cx + r * math.cos(a)), y, round(cz + r * math.sin(a)))
-    for x in range(cx - 3, cx + 4):                                             # a glowing hollow at the foot, facing the gate
-        for y in range(G, G + 8):
-            if abs(x - cx) <= 3 - max(0, y - G - 4):
-                g.at(gold if (x + y) % 2 else glow, x, y, cz + 9)
+        shelf(g, round(cx + r * math.cos(a)), y, round(cz + r * math.sin(a)), math.cos(a), math.sin(a), size=1 + (y // 5) % 2)
+
+
+def world_tree_floor(g: Grid) -> None:
+    """Between the world tree's buttress roots: podzol patches with toadstools, moss and azalea. Laid once the bays stand (in the island's own
+    grid), so the bay's footprint, which keeps the gardens clear of it, is the same as before."""
+    rnd = deco("world_tree_floor")
+    (ox, oz), cx, cz = BAYS[3][1], C + BAYS[3][1][0] * (GATE_R + WALL_Z[1] - TOWER_Z), C
+    for k in range(9):
+        a = math.radians(k * 40 + 30)
+        px, pz = round(cx + 19 * math.cos(a)), round(cz + 19 * math.sin(a))
+        if (px - cx) * -ox > 16:                                                 # not on the way to the gate, toward the plaza
+            continue
+        for qx in range(px - 3, px + 4):
+            for qz in range(pz - 3, pz + 4):
+                if math.hypot(qx - px, qz - pz) > 2.8 or g.grid[qx, G, qz] != 0:
+                    continue
+                if not any(k_ in g.name(qx, G - 1, qz) for k_ in ("grass_block", "moss_block", "dirt")):
+                    continue
+                g.at("minecraft:podzol", qx, G - 1, qz)
+                roll = rnd.random()
+                if roll < 0.3:
+                    g.at(rnd.choice(SMALL_SHROOMS), qx, G, qz)
+                elif roll < 0.5:
+                    g.at("minecraft:moss_carpet", qx, G, qz)
+                elif roll < 0.56:
+                    g.at("minecraft:flowering_azalea", qx, G, qz)
 
 
 def quarter_of(ang: float) -> str:
@@ -794,14 +893,23 @@ def big_tree(g: Grid, tower: str, x: int, z: int, rnd: random.Random) -> None:
             tube(g, "minecraft:oak_wood", bezier((x, G + 10, z), (x + 2 * math.cos(a), G + 15, z + 2 * math.sin(a)), p2, 14), 0.8)
             blob(g, lambda a_, b_, c_: LEAVES[3] if (a_ + b_ + c_) % 3 == 0 else LEAVES[2], p2[0], p2[1] + 2, p2[2], 5.5, 3.8)
         blob(g, lambda a_, b_, c_: LEAVES[3] if (a_ * 3 + c_) % 4 == 0 else LEAVES[2], x, G + 23, z, 6.5, 4)
-        for k in range(6):
-            a = math.radians(k * 60)
-            lx, lz = round(x + 5 * math.cos(a)), round(z + 5 * math.sin(a))
-            ly = G + 12
-            while g.grid[lx, ly + 1, lz] == 0 and ly < G + 30:
-                ly += 1
-            g.box(CHAIN, lx, ly - 2, lz, lx, ly, lz)
-            g.at("minecraft:shroomlight", lx, ly - 3, lz)
+        dr = deco("big_tree", x, z)                                             # vines and spore blossoms under the crown, lit unseen
+        for k in range(12):
+            a = math.radians(k * 30 + dr.uniform(-10, 10))
+            reach = dr.uniform(2.5, 8)
+            lx, lz = round(x + reach * math.cos(a)), round(z + reach * math.sin(a))
+            under = underside(g, lx, G + 24, lz, G + 8)
+            if under is None:
+                continue
+            if k % 4 == 1:
+                g.at(SPORE, lx, under, lz)
+            else:
+                tip = vines(g, lx, under, lz, dr.randint(2, 6))
+                if k % 4 == 0:
+                    lit(g, lx, tip - 1, lz, 15)
+        shelf(g, x + 1, G + 5, z, 1, 0)                                         # the trunk's bark is 1 out from its middle
+        shelf(g, x - 1, G + 8, z, -1, 0)
+        toadstools(g, x, z, 4.5, dr)
 
 
 def big_tree_spots() -> list[tuple[str, int, int]]:
@@ -877,6 +985,105 @@ def rock_pool(g: Grid, x: int, z: int, r: float, rnd: random.Random) -> None:
                     g.at("minecraft:sea_pickle[pickles=4,waterlogged=true]", xx, G - 3, zz)
             elif d <= r + 1.3:
                 g.at(rnd.choice(CORALS + (PRISMARINE,)), xx, G - 1, zz)
+
+
+def rootvale_dressing(g: Grid, free: np.ndarray, giants: list, flowering: list, arches: list) -> None:
+    """Rootvale's garden, dressed after it is laid out: gills, stem rings, toadstools and young mushrooms round the giant mushrooms; vines,
+    spore blossoms and pink petals on the flowering trees; vines and moss on the root arches. Every light is a hidden light block.
+
+    The giants need a clear 13 by 13 square each and the quarter is crowded (its big trees, the Records Hall), so mostly one fits; medium
+    mushrooms fill the smaller gaps between everything else."""
+    dr = deco("medium")
+    cells = [tuple(map(int, c)) for c in np.argwhere(free)]
+    dr.shuffle(cells)
+    mediums = []
+    for x, z in cells:
+        if len(mediums) >= 8:
+            break
+        if not free[x - 3:x + 4, z - 3:z + 4].all() or g.grid[x - 4:x + 5, G + 1:G + 11, z - 4:z + 5].any() or g.grid[x, G - 1, z] == 0:
+            continue
+        if any(math.hypot(x - a, z - b) < 9 for a, b, *_ in giants + mediums) or any(math.hypot(x - a, z - b) < 6 for a, b, _ in flowering):
+            continue
+        mediums.append((x, z, dr.randint(4, 7), dr.randint(2, 3), len(mediums) % 3 != 1))    # two red to each brown
+    for x, z, h, cap, red in mediums:
+        if red:
+            for dx in range(-cap - 1, cap + 2):
+                for dy in range(0, cap + 1):
+                    for dz in range(-cap - 1, cap + 2):
+                        e = math.sqrt((dx * dx + dz * dz) / (cap + 0.5) ** 2 + (dy / (cap * 0.75 + 0.5)) ** 2)
+                        if 0.5 <= e <= 1.0:
+                            g.at("minecraft:red_mushroom_block", x + dx, G + h + dy, z + dz)
+            g.box("minecraft:mushroom_stem", x, G, z, x, G + h + int(cap * 0.7), z)
+        else:
+            disc(g, "minecraft:brown_mushroom_block", x, G + h + 1, z, cap + 1)
+            g.box("minecraft:mushroom_stem", x, G, z, x, G + h, z)
+    for x, z, h, cap, red in giants + mediums:
+        dr = deco("giant", x, z)
+        kind = "red" if red else "brown"
+        y = G + h                                                       # the cap's underside: gills where the shell leaves it open
+        for dx in range(-cap - 1, cap + 2):
+            for dz in range(-cap - 1, cap + 2):
+                if math.hypot(dx, dz) <= cap + (0.2 if red else 0.6) and g.grid[x + dx, y, z + dz] == 0:
+                    g.at(GILLS[kind], x + dx, y, z + dz)
+        for k in range(4):                                              # lit from under the cap
+            a = math.radians(k * 90 + 45)
+            lit(g, round(x + 2 * math.cos(a)), G + h - 1, round(z + 2 * math.sin(a)), 15)
+        if red and h >= 9:                                              # a ring on the stem, as a fly agaric has
+            for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):
+                if g.grid[x + dx, G + h - 3, z + dz] == 0:
+                    g.at("minecraft:mushroom_stem", x + dx, G + h - 3, z + dz)
+        toadstools(g, x, z, 3.5, dr)
+        for _ in range(2):                                              # young ones beside it
+            a = dr.uniform(0, 2 * math.pi)
+            d = cap + dr.randint(2, 4)
+            px, pz = round(x + d * math.cos(a)), round(z + d * math.sin(a))
+            stem = dr.randint(2, 3)
+            if not free[px, pz] or g.grid[px, G - 1, pz] == 0:
+                continue
+            if g.grid[px - 1:px + 2, G:G + stem + 3, pz - 1:pz + 2].any():
+                continue
+            young_red = dr.random() < 0.5
+            g.box("minecraft:mushroom_stem", px, G, pz, px, G + stem - 1, pz)
+            capb = "minecraft:red_mushroom_block" if young_red else "minecraft:brown_mushroom_block"
+            for dx in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    g.at(capb, px + dx, G + stem, pz + dz)
+            if young_red:
+                g.at(capb, px, G + stem + 1, pz)
+    for x, z, h in flowering:
+        dr = deco("flowering", x, z)
+        for k in range(7):
+            a = math.radians(k * 51 + dr.uniform(-15, 15))
+            reach = dr.uniform(1.5, 4)
+            lx, lz = round(x + reach * math.cos(a)), round(z + reach * math.sin(a))
+            under = underside(g, lx, G + h + 2, lz, G + 3)
+            if under is None:
+                continue
+            if k == 3:
+                g.at(SPORE, lx, under, lz)
+            else:
+                vines(g, lx, under, lz, dr.randint(2, 4))
+        lit(g, x, G + h - 1, z + 1, 15)                                 # where the old lamp hung by the trunk
+        for px in range(x - 3, x + 4):                                  # fallen petals round the foot
+            for pz in range(z - 3, z + 4):
+                if 1 <= math.hypot(px - x, pz - z) <= 3.2 and g.grid[px, G, pz] == 0 and g.grid[px, G - 1, pz] != 0 and dr.random() < 0.55:
+                    g.at(f"minecraft:pink_petals[facing=north,flower_amount={dr.randint(1, 4)}]", px, G, pz)
+    for x, z, a in arches:
+        dr = deco("arch", x, z)
+        under = underside(g, x, G + 13, z, G + 2)
+        if under is not None:                                           # a curtain of vines from the arch's crown, lit at its foot
+            tip = vines(g, x, under, z, dr.randint(5, 7))
+            lit(g, x, tip - 1, z, 15)
+        for t in (0.2, 0.35, 0.65, 0.8):                                # shorter vines and moss along the arch
+            px, pz = round(x + (2 * t - 1) * 5 * math.cos(a)), round(z + (2 * t - 1) * 5 * math.sin(a))
+            under = underside(g, px, G + 13, pz, G + 1)
+            if under is not None and under > G + 1:
+                vines(g, px, under, pz, dr.randint(1, 3))
+            top = G + 14
+            while top > G and g.grid[px, top, pz] == 0:
+                top -= 1
+            if top > G and g.grid[px, top + 1, pz] == 0 and "wood" in g.name(px, top, pz):
+                g.at("minecraft:moss_carpet", px, top + 1, pz)
 
 
 def garden(g: Grid, tower: str, free: np.ndarray, wide: np.ndarray, out: tuple[int, int], rnd: random.Random) -> None:
@@ -995,39 +1202,36 @@ def garden(g: Grid, tower: str, free: np.ndarray, wide: np.ndarray, out: tuple[i
                 g.at(rnd.choice(("minecraft:azalea", "minecraft:flowering_azalea")), x, G, z)
             elif roll < 0.09:
                 g.at(rnd.choice(("minecraft:dandelion", "minecraft:cornflower", "minecraft:moss_carpet", "minecraft:allium")), x, G, z)
+        giants = []
         for x, z in spots(rnd, free, 6, 6, taken):                          # giant mushrooms, far enough apart that no cap cuts another
             h = rnd.randint(8, 15)
             cap = rnd.randint(4, 5)
             red = rnd.random() < 0.6
+            giants.append((x, z, h, cap, red))
             if red:
                 for dx in range(-cap - 1, cap + 2):                         # a red dome, a thick shell
                     for dy in range(0, cap + 1):
                         for dz in range(-cap - 1, cap + 2):
                             e = math.sqrt((dx * dx + dz * dz) / (cap + 0.5) ** 2 + (dy / (cap * 0.7 + 0.5)) ** 2)
                             if 0.6 <= e <= 1.0:                     # thick enough that each layer meets the next
-                                g.at("minecraft:shroomlight" if e < 0.8 and (dx + dz) % 4 == 0 else "minecraft:red_mushroom_block",
-                                     x + dx, G + h + dy, z + dz)
+                                g.at("minecraft:red_mushroom_block", x + dx, G + h + dy, z + dz)
                 g.box("minecraft:mushroom_stem", x, G, z, x, G + h + int(cap * 0.7), z)        # the stem last, up into the crown
             else:
                 disc(g, "minecraft:brown_mushroom_block", x, G + h + 1, z, cap + 1.5)
                 g.box("minecraft:mushroom_stem", x, G, z, x, G + h, z)
-                for k in range(4):
-                    a = math.radians(k * 90 + 45)
-                    g.at("minecraft:shroomlight", round(x + 2 * math.cos(a)), G + h, round(z + 2 * math.sin(a)))
+        flowering = []
         for x, z in spots(rnd, free, 4, 4, taken):                          # flowering trees
             h = rnd.randint(7, 10)
+            flowering.append((x, z, h))
             g.box("minecraft:oak_log[axis=y]", x, G, z, x, G + h, z)
             blob(g, lambda a, b, c: LEAVES[3] if (a + b + c) % 4 == 0 else LEAVES[2] if (a + c) % 3 == 0 else LEAVES[1], x, G + h + 1, z, 4.2, 3)
-            g.at("minecraft:shroomlight", x, G + h - 1, z + 1)
-        for x, z in spots(rnd, free, 3, 6, taken):                          # root arches, a light hung under each
+        arches = []
+        for x, z in spots(rnd, free, 3, 6, taken):                          # root arches
             a = rnd.uniform(0, math.pi)
+            arches.append((x, z, a))
             tube(g, "minecraft:dark_oak_wood", bezier((x - 5 * math.cos(a), G - 1, z - 5 * math.sin(a)), (x, G + 12, z),
                                                       (x + 5 * math.cos(a), G - 1, z + 5 * math.sin(a)), 30), 1.1)
-            top = G + 4
-            while g.grid[x, top + 1, z] == 0:
-                top += 1
-            g.box(CHAIN, x, G + 4, z, x, top, z)
-            g.at("minecraft:shroomlight", x, G + 3, z)
+        rootvale_dressing(g, free, giants, flowering, arches)
 
 
 def pylon(g: Grid, x: int, z: int, a: str, b: str) -> None:
@@ -1083,10 +1287,10 @@ EMITS = {"sea_lantern": 15, "shroomlight": 15, "ochre_froglight": 15, "verdant_f
          "glowstone": 15, "end_rod": 14, "amethyst_cluster": 5, "sea_pickle": 15}
 SEE_LIGHT = ("air", "glass", "leaves", "water", "chain", "lantern", "_wall", "fence", "bars", "pane", "kelp", "seagrass", "coral_fan", "pickle",
              "light", "flower", "potted", "poppy", "daisy", "tulip", "lily", "bluet", "dandelion", "cornflower", "allium", "azalea", "carpet",
-             "short_grass", "cluster", "end_rod", "slab")
+             "short_grass", "cluster", "end_rod", "slab", "vines", "spore", "petals")
 NOT_SPAWN_ON = ("leaves", "glass", "slab", "_wall", "fence", "bars", "water", "lantern", "chain", "light", "pot", "carpet", "cluster", "end_rod",
                 "kelp", "pickle", "coral_fan", "azalea", "flower", "poppy", "daisy", "tulip", "lily", "bluet", "dandelion", "cornflower", "allium",
-                "short_grass")
+                "short_grass", "vines", "spore", "petals")
 
 
 def block_light(g: Grid) -> np.ndarray:
@@ -1133,8 +1337,13 @@ def spawn_proof(g: Grid) -> int:
         taken = []
         for x, y, z in dark:
             if all(max(abs(x - a), abs(y - b), abs(z - c)) > 7 for a, b, c in taken):
+                x, y, z = int(x), int(y), int(z)
+                if g.grid[x, y, z] != 0:                    # a flower, a leaf, a carpet: light the air over it rather than replace it
+                    y += 1
+                    if g.grid[x, y, z] != 0:
+                        continue
                 taken.append((x, y, z))
-                g.at("minecraft:light[level=13]", int(x), int(y), int(z))
+                g.at("minecraft:light[level=13]", x, y, z)
                 placed += 1
     return placed
 
@@ -1711,6 +1920,7 @@ def build(veil: bool = False) -> Grid:
     for arr, x0, z0 in placed:                                              # the bays over the gardens
         region = g.grid[x0:x0 + arr.shape[0], :, z0:z0 + arr.shape[2]]
         region[arr != 0] = arr[arr != 0]
+    world_tree_floor(g)
     trials_pavilion(g, veil)
     records_hall(g)
     plaza(g)

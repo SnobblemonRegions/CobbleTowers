@@ -31,6 +31,7 @@ WET = ("minecraft:water",)
 
 def dense(path: Path) -> tuple[np.ndarray, list[str]]:
     size, blocks = sc.load(path)
+    blocks = {p: n for p, n in blocks.items() if n.split("[")[0] != "minecraft:light"}       # an invisible light block is air to the eye
     names = ["minecraft:air"] + sorted({n for n in blocks.values()})
     index = {n: i for i, n in enumerate(names)}
     grid = np.zeros(size, dtype=np.uint16)
@@ -41,7 +42,7 @@ def dense(path: Path) -> tuple[np.ndarray, list[str]]:
 
 def masks(grid: np.ndarray, names: list[str]) -> tuple[np.ndarray, np.ndarray]:
     """air, and solid (anything but air, water and thin hanging things: a chain or lantern beside a gap does not wall it in)."""
-    thin = np.array([n.startswith(WET) or any(k in n for k in ("chain", "minecraft:lantern", "candle")) for n in names])
+    thin = np.array([n.startswith(WET) or any(k in n for k in ("chain", "minecraft:lantern", "candle", "cave_vines")) for n in names])
     air = grid == 0
     return air, ~air & ~thin[grid]
 
