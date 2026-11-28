@@ -36,10 +36,41 @@ public final class TowerSeasonProgressStore extends TowerStore {
         return open(server, TowerSeasonProgressStore::new, TowerSeasonProgressStore::load, FILE_ID);
     }
 
+    /** Whether the player has a tally in any season (the Tutorial Tower's "has played before", 25 Nov 2026). */
+    public boolean knows(UUID player) {
+        return progress.containsKey(player);
+    }
+
     /** The player's tally for {@code season}; empty if they have none, or only one from another season. */
     public Progress of(UUID player, int season) {
         Entry entry = progress.get(player);
         return entry != null && entry.season() == season ? entry.progress() : Progress.EMPTY;
+    }
+
+    /** The season's leaders (Records Hall statues, 20 Nov 2026): the {@code n} players with the most points, ties to the earlier entry. */
+    public java.util.List<Map.Entry<UUID, Progress>> top(int season, int n) {
+        return progress.entrySet().stream()
+                .filter(e -> e.getValue().season() == season && e.getValue().progress().total() > 0)
+                .sorted(java.util.Comparator.comparingInt((Map.Entry<UUID, Entry> e) -> e.getValue().progress().total()).reversed())
+                .limit(n)
+                .map(e -> Map.entry(e.getKey(), e.getValue().progress()))
+                .toList();
+    }
+
+    /** Where a player stands in the season: 1 for first, 0 when they have no points in it. */
+    public int rankOf(UUID player, int season) {
+        int mine = of(player, season).total();
+        if (mine <= 0) return 0;
+        int above = 0;
+        for (Entry e : progress.values()) if (e.season() == season && e.progress().total() > mine) above++;
+        return above + 1;
+    }
+
+    /** How many players have points in the season. */
+    public int playersIn(int season) {
+        int n = 0;
+        for (Entry e : progress.values()) if (e.season() == season && e.progress().total() > 0) n++;
+        return n;
     }
 
     public void put(UUID player, int season, Progress next) {

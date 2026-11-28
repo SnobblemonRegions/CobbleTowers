@@ -20,7 +20,7 @@ final class PageSession {
     /** The one kind shown on the HUD page; everything else belongs to the full-screen page. */
     static final String HUD_KIND = "SpectatorPanel";
     /** Every kind the HUD page shows (the spectator panel and the Haunted rare tray). */
-    static final java.util.Set<String> HUD_KINDS = java.util.Set.of(HUD_KIND, "HauntedRareTray");
+    static final java.util.Set<String> HUD_KINDS = java.util.Set.of(HUD_KIND, "HauntedRareTray", "PartyHud");
 
     /** What a payload does when it reaches a page, mirroring what the native client does with the same payload. */
     enum Policy {

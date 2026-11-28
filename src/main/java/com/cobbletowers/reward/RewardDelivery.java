@@ -31,6 +31,22 @@ public final class RewardDelivery {
 
     private RewardDelivery() {}
 
+    /** While above zero, deliveries list what was given in chat but send no reveal screen. Server thread only. */
+    private static int quiet;
+
+    /**
+     * Runs {@code action} with no reveal screen for what it delivers: a claim made from a screen of its own (the Records Hall's Season
+     * Chest) keeps that screen open instead of having the reveal replace it.
+     */
+    public static void withoutReveal(Runnable action) {
+        quiet++;
+        try {
+            action.run();
+        } finally {
+            quiet--;
+        }
+    }
+
     /** Subscribed once, for the life of the JVM, the way every other event install here is. */
     public static void install() {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> guarded(() -> {
@@ -123,7 +139,7 @@ public final class RewardDelivery {
         if (creditedWallet) TowerWalletStore.get(server).checkpoint(server);
         if (!delivered.isEmpty()) {
             player.sendSystemMessage(Component.literal("Tower rewards delivered: " + summarize(delivered)));
-            TowerNetworking.sendRewardReveal(player, revealOf(delivered));
+            if (quiet == 0) TowerNetworking.sendRewardReveal(player, revealOf(delivered));
         }
         if (store.heldFor(player.getUUID()).size() > heldBefore) {
             player.sendSystemMessage(Component.literal(

@@ -1,0 +1,22 @@
+{
+  "tower": "cobbletowers:tutorial",
+  "playlist": "cobbletowers:tutorial",
+  "team": [
+    "cobbletowers:charizard",
+    "cobbletowers:blastoise",
+    "cobbletowers:venusaur"
+  ],
+  "kit": [
+    {
+      "item": "cobbletowers:tower_key",
+      "count": 4
+    },
+    {
+      "item": "cobbletowers:rental_key",
+      "count": 2
+    }
+  ],
+  "materials": {
+    "scouter": 10
+  }
+}

@@ -102,6 +102,7 @@ public final class EchoService {
      * Whether an Echo Duel room can be offered now: a regional run outside a trial, with someone else's Echo to meet.
      */
     public static boolean duelAvailable(MinecraftServer server, PersistedRun run, int floorIndex) {
+        if (com.cobbletowers.tutorial.Tutorial.isTutorial(run.towerId())) return false;    // no Echo Duel (it pays) in the replayable tutorial
         return duelOpponent(server, run, floorIndex, 0).isPresent();
     }
 

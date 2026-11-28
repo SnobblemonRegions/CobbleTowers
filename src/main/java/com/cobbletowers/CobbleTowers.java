@@ -160,6 +160,7 @@ public final class CobbleTowers implements ModInitializer {
         com.cobbletowers.vendor.VendorNpc.install();
         com.cobbletowers.prep.PrepRoomService.install();
         com.cobbletowers.hub.HubPortals.install();                  // the Tower Hub's portals and their veils (19 Nov 2026)
+        com.cobbletowers.hub.PartyService.install();                // the hub's parties: gestures, warp-pad ring, gates, HUD (20 Nov 2026)
         com.cobbletowers.modifier.RelicReveal.install();   // P59: the relic strip comes back for a player joining mid-run   // P59: the room the party waits in before floor 1
         com.cobbletowers.economy.MysteryBagService.install();
         com.cobbletowers.route.RouteIcons.bootstrap();

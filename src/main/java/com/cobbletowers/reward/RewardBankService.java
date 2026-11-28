@@ -180,6 +180,8 @@ public final class RewardBankService {
                 id -> content.milestoneKindOf(id), com.cobbletowers.season.SeasonSpotlight.weights(run.towerId()));
         // A daily or weekly trial pays its loot to the one scored attempt only; a practice run banks nothing from the tower's table.
         if (PracticeTrialReward.isPractice(run.options())) grants = List.of();
+        // The Tutorial Tower pays nothing from a table (25 Nov 2026): it can be replayed; its one reward is the first-clear kit.
+        if (com.cobbletowers.tutorial.Tutorial.isTutorial(run.towerId())) grants = List.of();
         // The risk bonus is paid once, with the final payout of the tower: the run is over (completed or cashed out).
         if (run.state() == RunState.COMPLETED || run.state() == RunState.CASHED_OUT) {
             int bonus = riskBonusPercent(content, run);

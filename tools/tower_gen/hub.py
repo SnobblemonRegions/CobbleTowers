@@ -1155,6 +1155,85 @@ def bay_frame(out: tuple[int, int]) -> tuple[np.ndarray, np.ndarray, int, int]:
     raise ValueError(out)
 
 
+# ---- the party fixtures (owner, 20 Nov 2026): the warp pad's rim is the party ring; each gate has its Gate Altar --------------------
+
+PARTY_LIT = "minecraft:ochre_froglight"         # the party's own colour, gold: never a tower's
+PARTY_UNLIT = "minecraft:polished_deepslate"
+RING_R = (4.0, 5.3)                             # the pad's rim, in four arcs (one lights per player standing on the pad)
+GATHER = ((-6, 6), (1, 7))                      # across, out from the gate's face: the portal's mouth (a party there is at its gate)
+ALTAR_D = 16                                    # the Gate Altar on the path, on the plaza side of the host: the first thing met on the way in
+READY_R = (2.6, 3.4)                            # its ready ring in the paving: a member standing inside it is ready
+
+
+def gate_spot(out: tuple[int, int], a: int, d: int) -> tuple[int, int]:
+    """A spot in front of a gate: `d` out from its face toward the plaza, `a` across (positive is on your right, facing the gate)."""
+    ox, oz = out
+    return C + ox * (GATE_R - d) + (-oz) * a, C + oz * (GATE_R - d) + ox * a
+
+
+def ring_cells() -> list[tuple[int, int, int]]:
+    """The pad's rim: (x, z, arc 0-3), leaving a chiseled gap at each compass point between the arcs."""
+    sx, sz = SPAWN
+    cells = []
+    for x in range(sx - 6, sx + 7):
+        for z in range(sz - 6, sz + 7):
+            d = math.hypot(x - sx, z - sz)
+            if not RING_R[0] < d <= RING_R[1]:
+                continue
+            a = math.degrees(math.atan2(z - sz, x - sx)) % 360
+            if min(abs(((a - k + 180) % 360) - 180) for k in (0, 90, 180, 270)) < 9:
+                continue
+            cells.append((x, z, int(a // 90)))
+    return cells
+
+
+def altar_spot(g: Grid, tower: str, out: tuple[int, int]) -> None:
+    """Where the Gate Altar stands (the mod draws it): a 3 x 3 trim plinth under it, one barrier in its middle (the mod keeps players off the rest),
+    and a ring in the tower's inlay round it, the ready ring."""
+    x, z = gate_spot(out, 0, ALTAR_D)
+    for dx in range(-4, 5):
+        for dz in range(-4, 5):
+            d = math.hypot(dx, dz)
+            if READY_R[0] < d <= READY_R[1]:
+                g.at(role(tower, "inlay"), x + dx, G - 1, z + dz)
+    g.air(x - 2, G, z - 2, x + 2, G + 4, z + 2)
+    g.box(role(tower, "trim"), x - 1, G - 1, z - 1, x + 1, G - 1, z + 1)
+    # one barrier in the altar's middle column, which the model closes in on every side so its outline never shows; the mod nudges anyone
+    # off the rest of the altar (owner, 25 Nov 2026: the 3 x 3 x 2 barriers' outline showed over the lowered altar)
+    g.at("minecraft:barrier", x, G, z)
+    # the twin mode boards either side (drawn by the mod): clear their ground (the hedge and benches pass behind), barriers under them
+    for side in (-1, 1):
+        for a in range(6, 10):
+            for d in range(-5, 6):
+                bx, bz = gate_spot(out, side * a, ALTAR_D + d)
+                g.air(bx, G, bz, bx, G + 5, bz)
+                if a in (7, 8) and abs(d) <= 4:
+                    g.at(role(tower, "floor"), bx, G - 1, bz)
+                # the barriers stand in the column just behind the board's face (owner, 24 Nov 2026): the face (7.44 out) hides their
+                # outline, so looking over the board shows none, and a click still lands (it passes through the drawn board)
+                if a == 8 and abs(d) <= 4:
+                    g.box("minecraft:barrier", bx, G, bz, bx, G + 3, bz)
+
+
+def party_fixtures(g: Grid) -> None:
+    for x, z, _ in ring_cells():
+        g.at(PARTY_UNLIT, x, G - 1, z)
+    for tower, out, _ in BAYS:
+        altar_spot(g, tower, out)
+
+
+def party_layout(tower: str, out: tuple[int, int]) -> dict:
+    (a0, a1), (d0, d1) = GATHER
+    corners = [gate_spot(out, a, d) for a in (a0, a1) for d in (d0, d1)]
+    xs, zs = [c[0] for c in corners], [c[1] for c in corners]
+    x, z = gate_spot(out, 0, ALTAR_D)
+    return {
+        "gather": {"min": [min(xs), G, min(zs)], "max": [max(xs), G + 3, max(zs)]},
+        # the altar's front faces the plaza (away from the gate); yaw turns the model's +z onto that direction
+        "altar": {"x": x, "y": G, "z": z, "yaw": round(math.degrees(math.atan2(-out[0], -out[1])), 1), "ready": READY_R[1]},
+    }
+
+
 def to_world(out: tuple[int, int], x: int, y: int, z: int) -> tuple[int, int, int]:
     rx, rz, x0, z0 = bay_frame(out)
     i, j = np.argwhere((rx == x) & (rz == z))[0]
@@ -1183,9 +1262,416 @@ def layout() -> dict:
             "back": {"x": back[0], "y": back[1], "z": back[2], "yaw": inward},
             "host": {"x": host[0], "y": host[1], "z": host[2], "yaw": inward},
             "color": VEIL_RGB[tower],
+            **party_layout(tower, out),
         })
     return {"structure": "cobbletowers:tower_hub", "size": [SX, SY, SZ],
-            "pad": {"x": SPAWN[0], "y": G, "z": SPAWN[1], "yaw": 180.0}, "portals": portals}
+            "pad": {"x": SPAWN[0], "y": G, "z": SPAWN[1], "yaw": 180.0}, "portals": portals, "shrines": shrine_layout(),
+            "records": records_layout(),
+            "ring": {"y": G - 1, "r": RING_R[1], "lit": PARTY_LIT, "unlit": PARTY_UNLIT,
+                     "stone": {"lit": PARTY_LIT, "unlit": PARTY_UNLIT}, "cells": [[x, z, arc] for x, z, arc in ring_cells()]}}
+
+
+
+# ---- the Trials Pavilion (NE diagonal) and the Records Hall's site (SW) (owner, 20 Nov 2026) --------------------------------------------
+
+TRIALS_R, TRIALS_SIZE = 60, 16                  # the pavilion's centre, out from the fountain on the NE diagonal; its radius
+RECORDS_R, RECORDS_SIZE = 60, 18                # the Records Hall's site on the SW diagonal (marked out; the hall comes next)
+CIVIC = ((1, -1), (-1, 1))                      # the diagonals the two buildings take (their pylons and garden corners give way)
+
+
+def civic_centre(diag: tuple[int, int], r: int) -> tuple[int, int]:
+    return round(C + diag[0] * r / math.sqrt(2)), round(C + diag[1] * r / math.sqrt(2))
+
+
+def civic_mask(xs: np.ndarray, zs: np.ndarray) -> np.ndarray:
+    """The two buildings' ground and the paths to them from the plaza's diagonal gaps: kept clear of the gardens."""
+    m = np.zeros(xs.shape, dtype=bool)
+    for diag, r, size in (((1, -1), TRIALS_R, TRIALS_SIZE), ((-1, 1), RECORDS_R, RECORDS_SIZE)):
+        cx, cz = civic_centre(diag, r)
+        m |= np.hypot(xs - cx, zs - cz) <= size + 4
+        ux, uz = diag[0] / math.sqrt(2), diag[1] / math.sqrt(2)
+        along = (xs - C) * ux + (zs - C) * uz
+        across = np.abs(-(xs - C) * uz + (zs - C) * ux)
+        m |= (along > PLAZA - 2) & (along < r) & (across <= 4.5)
+    return m
+
+
+def civic_path(g: Grid, diag: tuple[int, int], r: int, size: int) -> None:
+    """A path along the diagonal from the plaza's gap to the building, kerbed, with lamps either side."""
+    ux, uz = diag[0] / math.sqrt(2), diag[1] / math.sqrt(2)
+    for x in range(SX):
+        for z in range(SZ):
+            along = (x + 0.5 - C) * ux + (z + 0.5 - C) * uz
+            if not PLAZA - 1 < along < r - size + 1:
+                continue
+            across = abs(-(x + 0.5 - C) * uz + (z + 0.5 - C) * ux)
+            if across <= 2.5:
+                g.at(PAVE2 if across < 1.6 else "minecraft:polished_diorite", x, G - 1, z)
+                g.air(x, G, z, x, G + 3, z)
+            elif across <= 3.4:
+                g.at(KERB, x, G - 1, z)
+    for t in range(PLAZA + 4, r - size, 6):
+        for side in (-1, 1):
+            lx = round(C + ux * t + (-uz) * 4.2 * side)
+            lz = round(C + uz * t + ux * 4.2 * side)
+            g.at(KERB, lx, G - 1, lz)
+            lamp(g, lx, lz, 5, "minecraft:stone_brick_wall", "minecraft:sea_lantern", arms=False)
+
+
+def shrine(g: Grid, cx: int, cz: int, facing: tuple[int, int], daily: bool, veil: bool = False) -> None:
+    """One trial shrine set into the pavilion's ring: a wall with an arched portal (its veil drawn by the mod), the emblem over it (the
+    Daily's sun, the Weekly's crescent moon), pilasters, and a ready ring in front. `facing` points from the wall into the pavilion."""
+    fx, fz = facing
+    rx, rz = -fz, fx                                         # along the wall
+    wall = "minecraft:quartz_bricks"
+    rim = "minecraft:gold_block" if daily else "minecraft:amethyst_block"
+    glow = "minecraft:ochre_froglight" if daily else "minecraft:pearlescent_froglight"
+    veil = ("minecraft:yellow_stained_glass" if daily else "minecraft:purple_stained_glass") if veil else tg.AIR
+    dark = "minecraft:polished_blackstone" if not daily else "minecraft:smooth_quartz"
+
+    def put(name, a, depth, y):                              # a: along the wall, depth: toward the pavilion's middle
+        g.at(name, cx + rx * a + fx * depth, y, cz + rz * a + fz * depth)
+
+    for a in range(-7, 8):
+        for depth in (-1, 0):
+            for y in range(G - 1, G + 14):
+                put(wall, a, depth, y)
+    for a in range(-8, 9):                                   # a cornice and a plinth course
+        for depth in (-1, 0, 1):
+            put("minecraft:chiseled_quartz_block", a, depth, G + 14)
+        put("minecraft:smooth_quartz", a, 1, G)
+    for a in (-7, 7):                                        # pilasters, lit
+        for y in range(G, G + 14):
+            put("minecraft:quartz_pillar", a, 1, y)
+        put(glow, a, 1, G + 6)
+    spring, half = G + 6, 2
+    for a in range(-half - 2, half + 3):                     # the arch: opening (veil), lit rim, trim band
+        for y in range(G, spring + half + 3):
+            d = math.hypot(a, y - spring) if y >= spring else abs(a)
+            for depth in (-1, 0):
+                if d <= half + 0.4:
+                    put(veil, a, depth, y)
+                elif d <= half + 1.4:
+                    put(rim, a, depth, y)
+            if half + 1.4 < d <= half + 2.4:
+                put("minecraft:chiseled_quartz_block", a, 1, y)
+    ey = G + 11                                              # the emblem
+    for a in range(-4, 5):
+        for y in range(ey - 4, ey + 5):
+            d = math.hypot(a, y - ey)
+            if daily:
+                if d <= 1.5:
+                    put(glow, a, 1, y)
+                elif d <= 2.6:
+                    put(rim, a, 1, y)
+                elif d <= 3.4 and (a == 0 or y == ey or abs(a) == abs(y - ey)):
+                    put(rim, a, 1, y)                        # rays
+            else:                                            # a bright crescent on a night-dark disc, in an amethyst rim
+                if d <= 3.0:
+                    lit = math.hypot(a + 1.4, y - ey - 0.4) > 2.3
+                    put("minecraft:pearlescent_froglight" if lit else "minecraft:black_concrete", a, 1, y)
+                elif d <= 3.6:
+                    put(rim, a, 1, y)
+    for a in range(-5, 6):                                   # the ready ring in front, in the shrine's colour
+        for depth in range(1, 10):
+            d = math.hypot(a, depth - 5.5)
+            if 2.7 < d <= 3.5:
+                put(rim if daily else "minecraft:purpur_block", a, depth, G - 1)
+
+
+SHRINES = (("daily", (0, -12), (0, 1)), ("weekly", (12, 0), (-1, 0)))     # (kind, offset from the pavilion's middle, facing in)
+SHRINE_RGB = {"daily": 0xF2C744, "weekly": 0xB57BEA}
+
+
+def shrine_layout() -> list[dict]:
+    """What the mod needs of the shrines: each portal's opening (as a box, like a gate's), the spot a walker is set back on (inside the
+    pavilion, facing in), the ready ring (centre and radius) and where the plate hangs; the same frame shrine() builds in."""
+    px, pz = civic_centre((1, -1), TRIALS_R)
+    out = []
+    for kind, (ox, oz), (fx, fz) in SHRINES:
+        cx, cz = px + ox, pz + oz
+        rx, rz = -fz, fx
+
+        def at(a, depth):
+            return cx + rx * a + fx * depth, cz + rz * a + fz * depth
+
+        cells = [at(a, depth) for a in (-2, 2) for depth in (-1, 0)]
+        xs, zs = [c[0] for c in cells], [c[1] for c in cells]
+        bx, bz = at(0, 6)
+        ready = (cx + fx * 5.5 + 0.5, cz + fz * 5.5 + 0.5)
+        plate = at(0, 1)
+        out.append({
+            "kind": kind, "min": [min(xs), G, min(zs)], "max": [max(xs), G + 8, max(zs)],
+            "back": {"x": bx, "y": G, "z": bz, "yaw": facing(fx, fz)},
+            "ready": {"x": round(ready[0], 2), "z": round(ready[1], 2), "r": 3.5},
+            "plate": [plate[0], G + 16, plate[1]], "color": SHRINE_RGB[kind],
+        })
+    return out
+
+
+def stepped(g: Grid, name: str, pts: list[tuple[int, int, int]]) -> None:
+    """A line through the points that steps one axis at a time, so every block shares a face with the next (no corner-only joins)."""
+    x, y, z = pts[0]
+    g.at(name, x, y, z)
+    for nx, ny, nz in pts[1:]:
+        while (x, y, z) != (nx, ny, nz):
+            if x != nx:
+                x += 1 if nx > x else -1
+            elif z != nz:
+                z += 1 if nz > z else -1
+            else:
+                y += 1 if ny > y else -1
+            g.at(name, x, y, z)
+
+
+def trials_pavilion(g: Grid, veil: bool = False) -> None:
+    """The Trials Pavilion: a round quartz platform with a dial floor, a colonnade carrying an open ribbed dome with a lit oculus, the
+    Daily shrine (north side, gold, sun) and the Weekly shrine (east side, violet, moon), a sundial in the middle, open to the plaza."""
+    px, pz = civic_centre((1, -1), TRIALS_R)
+    R = TRIALS_SIZE
+    ent = math.degrees(math.atan2(C - pz, C - px)) % 360      # the side facing the plaza: the way in
+    for x in range(px - R - 2, px + R + 3):
+        for z in range(pz - R - 2, pz + R + 3):
+            d = math.hypot(x - px, z - pz)
+            if d > R + 1.5:
+                continue
+            a = math.degrees(math.atan2(z - pz, x - px)) % 360
+            g.air(x, G, z, x, G + 26, z)
+            if d > R + 0.5:
+                g.at(KERB, x, G - 1, z)
+            elif d < 3.2:
+                g.at("minecraft:chiseled_quartz_block", x, G - 1, z)
+            elif abs(((a + 15) % 30) - 15) < 1.6 and d > 5 and int(d) % 2 == 0:
+                g.at("minecraft:gold_block" if d > R - 2 else "minecraft:polished_diorite", x, G - 1, z)   # the dial's hour lines
+            else:
+                ring = int(d) // 3
+                g.at("minecraft:smooth_quartz" if ring % 2 else "minecraft:quartz_bricks", x, G - 1, z)
+    for k in range(12):                                       # the colonnade, open toward the plaza
+        a = 15 + 30 * k
+        if abs(((a - ent + 180) % 360) - 180) < 20:
+            continue
+        cx, cz = round(px + 15 * math.cos(math.radians(a))), round(pz + 15 * math.sin(math.radians(a)))
+        g.box("minecraft:chiseled_quartz_block", cx - 1, G, cz - 1, cx + 1, G, cz + 1)
+        g.box("minecraft:quartz_pillar", cx, G + 1, cz, cx, G + 9, cz)
+        g.box("minecraft:chiseled_quartz_block", cx - 1, G + 10, cz - 1, cx + 1, G + 10, cz + 1)
+        g.at("minecraft:gold_block", cx, G + 5, cz)
+    for x in range(px - R - 1, px + R + 2):                   # the entablature ring and a gold band
+        for z in range(pz - R - 1, pz + R + 2):
+            d = math.hypot(x - px, z - pz)
+            if 14 <= d <= 16.4:
+                g.box("minecraft:quartz_bricks", x, G + 11, z, x, G + 11, z)
+                g.at("minecraft:gold_block" if 15.4 < d else "minecraft:smooth_quartz", x, G + 12, z)
+    for k in range(12):                                       # the dome's ribs, from the ring to the oculus, joined face to face
+        a = math.radians(15 + 30 * k)
+        pts = []
+        for i in range(0, 41):
+            t = i / 40
+            rr = 15 - 12 * math.sin(t * math.pi / 2)
+            y = G + 13 + round(11 * math.sin(t * math.pi / 2) ** 0.8)
+            pts.append((round(px + rr * math.cos(a)), y, round(pz + rr * math.sin(a))))
+        stepped(g, "minecraft:quartz_bricks", pts)
+        for i in (12, 24, 34):                                # gold bosses along each rib
+            g.at("minecraft:gold_block", *pts[i])
+    for x in range(px - 13, px + 14):                         # the oculus ring
+        for z in range(pz - 13, pz + 14):
+            d = math.hypot(x - px, z - pz)
+            if 2.5 <= d <= 3.6:
+                g.at("minecraft:gold_block", x, G + 24, z)
+                g.at("minecraft:ochre_froglight" if (x + z) % 2 else "minecraft:gold_block", x, G + 25, z)
+    g.box("minecraft:chiseled_quartz_block", px - 1, G, pz - 1, px + 1, G, pz + 1)    # the sundial
+    g.box("minecraft:smooth_quartz_slab[type=bottom]", px - 2, G + 1, pz - 2, px + 2, G + 1, pz + 2)
+    g.box("minecraft:gold_block", px, G + 1, pz, px, G + 3, pz)
+    g.at("minecraft:lightning_rod[facing=up]", px, G + 4, pz)
+    for kind, (ox, oz), facing in SHRINES:                   # the Daily on the north side, the Weekly on the east, facing in
+        shrine(g, px + ox, pz + oz, facing, daily=kind == "daily", veil=veil)
+    civic_path(g, (1, -1), TRIALS_R, TRIALS_SIZE)
+
+
+RECORDS_TRACK = 16                             # the season track's tier marks inlaid in the floor ring (the mod lights each viewer's own)
+TRACK_R = 8.5                                  # the ring's radius: inside the trophy cases (fronts at 12.5), outside the dais (5.4)
+CHEST_R = 4.6                                  # the Season Chest, on the dais's front step (3.9 to 5.4), facing the door
+INLAY = "minecraft:chiseled_polished_blackstone"
+MASTERY_ORDER = ("neutral", "tideforge", "duskvale", "rootvale")
+
+
+def records_layout() -> dict:
+    """Where the Records Hall's live parts are, for the mod (the same geometry records_hall builds): the leaderboard wall's three columns,
+    the three statue plinths' tops, the sixteen tier marks in the floor ring (their top face), the Season Chest's foot and facing, each
+    tower's trophy case (the panel face it stands against) and its plate, and the door's rank plate."""
+    px, pz = civic_centre((-1, 1), RECORDS_R)
+    R = RECORDS_SIZE
+    door = math.degrees(math.atan2(C - pz, C - px)) % 360
+    back = (door + 180) % 360
+    ux, uz = math.cos(math.radians(door)), math.sin(math.radians(door))
+    vx, vz = -uz, ux
+
+    def off(a, b):
+        return abs(((a - b + 180) % 360) - 180)
+
+    def pt(x, y, z):
+        return [round(x, 3), y, round(z, 3)]
+
+    bx, bz = px + 0.5 - ux * (R - 2.0), pz + 0.5 - uz * (R - 2.0)
+    columns = [pt(bx + vx * (1 - i) * 6.3, G + 9, bz + vz * (1 - i) * 6.3) for i in range(3)]
+    statues = []
+    for side, h in ((0, 3), (-1, 2), (1, 1)):
+        sx, sz = round(px + vx * side * 2.2 + ux * 0.5), round(pz + vz * side * 2.2 + uz * 0.5)
+        statues.append(pt(sx + 0.5, G + 3 + h, sz + 0.5))
+    track = []
+    for i in range(24):
+        a = i * 15 + 7.5
+        if min(off(a, gp) for gp in (door, back)) < 24:
+            continue
+        if len(track) >= RECORDS_TRACK:
+            break
+        track.append(pt(round(px + TRACK_R * math.cos(math.radians(a))) + 0.5, G, round(pz + TRACK_R * math.sin(math.radians(a))) + 0.5))
+    shelves = {}
+    for tower, a in zip(MASTERY_ORDER, (270, 0, 90, 180)):
+        ax, az = math.cos(math.radians(a)), math.sin(math.radians(a))
+        tx, tz = -az, ax
+        cx, cz = px + ax * (R - 1.5), pz + az * (R - 1.5)
+        fx, fz = round(cx) + 0.5 - ax * 0.5, round(cz) + 0.5 - az * 0.5           # the panel's face, middle of the alcove, at floor level
+        shelves[tower] = {"case": pt(fx, G, fz), "plate": pt(fx - ax * 0.06, G + 5.7, fz - az * 0.06),
+                          "facing": round(math.degrees(math.atan2(-ax, -az)), 1)}
+    return {"centre": [px, G, pz], "radius": R, "board": columns, "board_facing": round(math.degrees(math.atan2(ux, uz)), 1),
+            "statues": statues, "track": track, "shelves": shelves,
+            "chest": pt(px + 0.5 + ux * CHEST_R, G + 1, pz + 0.5 + uz * CHEST_R), "chest_facing": round(math.degrees(math.atan2(ux, uz)), 1), "rank": pt(px + 0.5 + ux * (R - 3.5), G + 3, pz + 0.5 + uz * (R - 3.5))}
+
+
+def records_hall(g: Grid) -> None:
+    """The Records Hall (SW diagonal): a dark rotunda with gold and quartz, its arch toward the plaza. Inside, round a stepped rank dais
+    (the season's top three as statues, drawn by the mod, and the Season Chest on its front step), a pale ring path with the season track's
+    sixteen tier marks inlaid in it; on the back wall, facing the
+    door, the leaderboard wall; and four alcoves with each tower's mastery shelves in that tower's stone. A tiled dome with gold ribs and a
+    skylight over it all."""
+    px, pz = civic_centre((-1, 1), RECORDS_R)
+    R = RECORDS_SIZE
+    door = math.degrees(math.atan2(C - pz, C - px)) % 360      # toward the plaza
+    back = (door + 180) % 360
+    WALL, TRIM, DARK = "minecraft:polished_blackstone_bricks", "minecraft:chiseled_quartz_block", "minecraft:polished_deepslate"
+
+    def off(a, b):
+        return abs(((a - b + 180) % 360) - 180)
+
+    for x in range(px - R - 3, px + R + 4):
+        for z in range(pz - R - 3, pz + R + 4):
+            d = math.hypot(x - px, z - pz)
+            if d > R + 2.2:
+                continue
+            ang = math.degrees(math.atan2(z - pz, x - px)) % 360
+            g.air(x, G, z, x, G + 30, z)
+            # the floor: dark, a pale ring path with the track's tier marks in it (below), a quartz border at the wall
+            if d > R + 0.6:
+                g.at(KERB, x, G - 1, z)
+            elif 7.4 <= d <= 9.4:
+                g.at("minecraft:smooth_quartz", x, G - 1, z)
+            elif d > R - 1.6:
+                g.at("minecraft:quartz_bricks", x, G - 1, z)
+            else:
+                g.at(DARK if (int(d) + int(ang // 22.5)) % 2 else "minecraft:polished_blackstone", x, G - 1, z)
+            # the drum wall, with the door's arch cut through it
+            if R - 0.5 <= d <= R + 0.9:
+                for y in range(G, G + 13):
+                    tang = math.radians(off(ang, door)) * R             # how far along the wall from the door's middle
+                    spring = G + 6
+                    rr = math.hypot(tang, y - spring) if y >= spring else tang
+                    if off(ang, door) < 25 and rr <= 3.6:
+                        continue                                          # the doorway
+                    if off(ang, door) < 25 and rr <= 4.8:
+                        g.at("minecraft:gold_block" if rr <= 4.2 else TRIM, x, y, z)
+                        continue
+                    g.at(WALL, x, y, z)
+                g.at(TRIM, x, G + 13, z)
+                g.at("minecraft:gold_block" if d > R + 0.3 else TRIM, x, G + 14, z)
+    # pilasters and slit windows round the drum (none at the door, the back wall or the alcoves)
+    for k in range(16):
+        a = k * 22.5 + 11.25
+        cx, cz = px + (R + 1.2) * math.cos(math.radians(a)), pz + (R + 1.2) * math.sin(math.radians(a))
+        if off(a, door) > 20:
+            g.box("minecraft:quartz_pillar", round(cx), G, round(cz), round(cx), G + 12, round(cz))
+            g.at("minecraft:gold_block", round(cx), G + 13, round(cz))
+        w = a + 11.25
+        if off(w, door) > 30 and off(w, back) > 30 and min(off(w, m) for m in (0, 90, 180, 270)) > 12:
+            wx, wz = round(px + R * math.cos(math.radians(w))), round(pz + R * math.sin(math.radians(w)))
+            g.box("minecraft:light_gray_stained_glass", wx, G + 5, wz, wx, G + 10, wz)
+            g.at("minecraft:sea_lantern", wx, G + 4, wz)                 # a light set into the wall under each window
+    # the dome: tiles, filled down to the lowest neighbour so it has no holes, gold ribs, a skylight
+    top = {}
+    for x in range(px - R - 2, px + R + 3):
+        for z in range(pz - R - 2, pz + R + 3):
+            d = math.hypot(x - px, z - pz)
+            if d <= R + 0.9:
+                top[(x, z)] = G + 15 + round(12 * math.sqrt(max(0.0, 1 - (min(d, R) / R) ** 2)))
+    for (x, z), y in top.items():
+        low = min(top.get((x + dx, z + dz), G + 14) for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+        d = math.hypot(x - px, z - pz)
+        ang = math.degrees(math.atan2(z - pz, x - px)) % 360
+        rib = off(ang, round(ang / 45) * 45) * math.radians(1) * d < 0.8
+        start = G + 15 if d >= R - 2.5 else min(low, y)         # the rim rests on the drum; each column reaches its lowest neighbour
+        for yy in range(start, y + 1):
+            if d < 3.2:
+                g.at("minecraft:light_blue_stained_glass" if d < 2.4 else "minecraft:gold_block", x, yy, z)
+            else:
+                g.at("minecraft:gold_block" if rib else "minecraft:deepslate_tiles", x, yy, z)
+    g.box("minecraft:gold_block", px, G + 28, pz, px, G + 29, pz)
+    # the rank dais: three steps, the top three's plinths (first highest, middle), lit from below
+    for x in range(px - 6, px + 7):
+        for z in range(pz - 6, pz + 7):
+            d = math.hypot(x - px, z - pz)
+            if d <= 5.4:
+                g.at("minecraft:polished_blackstone_bricks", x, G, z)
+            if d <= 3.9:
+                g.at("minecraft:quartz_bricks", x, G + 1, z)
+            if 5.0 < d <= 5.4:
+                g.at("minecraft:ochre_froglight" if (x + z) % 3 == 0 else TRIM, x, G, z)
+    ux, uz = math.cos(math.radians(door)), math.sin(math.radians(door))       # toward the door
+    vx, vz = -uz, ux                                                          # across
+    for side, h, top_block in ((0, 3, "minecraft:gold_block"), (-1, 2, "minecraft:iron_block"), (1, 1, "minecraft:copper_block")):
+        sx, sz = round(px + vx * side * 2.2 + ux * 0.5), round(pz + vz * side * 2.2 + uz * 0.5)
+        g.box(TRIM, sx, G + 2, sz, sx, G + 1 + h, sz)
+        g.at(top_block, sx, G + 2 + h, sz)
+    # the season track's tier marks, inlaid in the ring path (the mod lays a gold star over each one the viewer has passed)
+    gaps = [door, back]
+    k = 0
+    for i in range(24):
+        a = i * 15 + 7.5
+        if min(off(a, gp) for gp in gaps) < 24:
+            continue
+        if k >= RECORDS_TRACK:
+            break
+        cx, cz = round(px + TRACK_R * math.cos(math.radians(a))), round(pz + TRACK_R * math.sin(math.radians(a)))
+        g.at(INLAY, cx, G - 1, cz)
+        k += 1
+    # the leaderboard wall on the back, facing the door: a gold frame round a dark board, lit from below
+    bx, bz = px - ux * (R - 1.0), pz - uz * (R - 1.0)
+    for t in range(-9, 10):
+        for y in range(G + 1, G + 12):
+            x, z = round(bx + vx * t), round(bz + vz * t)
+            edge = abs(t) == 9 or y in (G + 1, G + 11)
+            g.at("minecraft:gold_block" if edge else "minecraft:black_concrete", x, y, z)
+        x, z = round(bx + ux * 1 + vx * t), round(bz + uz * 1 + vz * t)
+        g.at("minecraft:ochre_froglight" if t % 3 == 0 else TRIM, x, G, z)
+    # the mastery alcoves: each tower's stone panel, its banner over it; the trophy case in front is the mod's (trophy_export.py)
+    for tower, a in zip(MASTERY_ORDER, (270, 0, 90, 180)):
+        ax, az = math.cos(math.radians(a)), math.sin(math.radians(a))
+        tx, tz = -az, ax
+        cx, cz = px + ax * (R - 1.5), pz + az * (R - 1.5)
+        trophy = {"neutral": "minecraft:gold_block", "tideforge": "minecraft:prismarine_bricks", "duskvale": "minecraft:amethyst_block",
+                  "rootvale": "minecraft:moss_block"}[tower]
+        for t in range(-4, 5):
+            for y in range(G, G + 9):
+                x, z = round(cx + tx * t), round(cz + tz * t)
+                if abs(t) == 4 or y in (G, G + 8):
+                    g.at(role(tower, "trim"), x, y, z)
+                elif y in (G + 2, G + 4, G + 6):
+                    g.at(role(tower, "wall"), x, y, z)
+                else:                                                        # the trophy case stands against it (the mod draws it)
+                    g.at(role(tower, "wall_low"), x, y, z)
+            x, z = round(cx + tx * t - ax), round(cz + tz * t - az)
+            if abs(t) <= 1:
+                g.box(role(tower, "hanging"), x, G + 9, z, x, G + 12, z)
+        g.at(role(tower, "light"), round(cx - ax * 5), G - 1, round(cz - az * 5))      # just in front of the case
+    civic_path(g, (-1, 1), RECORDS_R, RECORDS_SIZE)
 
 
 def build(veil: bool = False) -> Grid:
@@ -1211,21 +1697,25 @@ def build(veil: bool = False) -> Grid:
     diag = np.zeros_like(near)
     for _, tx, tz in trees:
         diag |= np.hypot(xs - tx, zs - tz) <= 10
-    for a, b in ((0, 1), (1, 2), (2, 3), (3, 0)):                              # the pylons on the diagonals, where gardens meet
+    for a, b in ((1, 2), (3, 0)):                                            # the pylons on the two diagonals the civic buildings leave
         (ta, oa, _), (tb, ob, _) = BAYS[a], BAYS[b]
         px, pz = C + (oa[0] + ob[0]) * 44, C + (oa[1] + ob[1]) * 44
         diag |= np.hypot(xs - px, zs - pz) <= 6
         pylon(g, px, pz, ta, tb)
+    civic = civic_mask(xs, zs)
     for tower, out, _ in BAYS:
-        keep = ~near & ~paths & ~diag
+        keep = ~near & ~paths & ~diag & ~civic
         garden(g, tower, sector(out) & keep, sector(out, slack=BLEND) & keep, out, rnd)
     for tower, tx, tz in trees:
         big_tree(g, tower, tx, tz, rnd)
     for arr, x0, z0 in placed:                                              # the bays over the gardens
         region = g.grid[x0:x0 + arr.shape[0], :, z0:z0 + arr.shape[2]]
         region[arr != 0] = arr[arr != 0]
+    trials_pavilion(g, veil)
+    records_hall(g)
     plaza(g)
     fountain(g)
+    party_fixtures(g)
     tg.connect(g.grid, g.palette, g.id)
     spawn_proof(g)
     return g

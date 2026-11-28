@@ -50,6 +50,11 @@ public final class RentalDraftService {
         return Optional.ofNullable(DRAFTS.get(player));
     }
 
+    /** Takes a draft made elsewhere (a Tower Hub gate's board, owner 23 Nov 2026) as the player's own for their lobby. */
+    public static void adopt(UUID player, RentalDraft draft) {
+        DRAFTS.put(player, draft);
+    }
+
     public static void clear(UUID player) {
         DRAFTS.remove(player);
     }

@@ -1,0 +1,1 @@
+{"textures":{"t":"cobbletowers:item/draft/fx/check","particle":"cobbletowers:item/draft/fx/check"},"elements":[{"from":[6.4,6.4,7.995],"to":[9.6,9.6,8.005],"shade":false,"faces":{"south":{"uv":[0,0,16,16],"texture":"#t"}}}],"display":{"fixed":{"rotation":[0,0,0],"translation":[0,0,0],"scale":[1,1,1]}}}

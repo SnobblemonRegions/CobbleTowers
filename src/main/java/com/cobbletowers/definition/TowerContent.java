@@ -193,9 +193,17 @@ public record TowerContent(
         return towerId.getPath().startsWith(ROTATING_PREFIX);
     }
 
-    /** The towers a player can browse: every loaded one except a rotating trial's. */
+    /**
+     * Whether a tower stays out of every list a player browses: a rotating trial's, and the Tutorial Tower (25 Nov 2026), which a first
+     * walk-in or its host starts and which is never a fifth tower to pick.
+     */
+    public static boolean unlisted(ResourceLocation towerId) {
+        return isRotating(towerId) || com.cobbletowers.tutorial.Tutorial.isTutorial(towerId);
+    }
+
+    /** The towers a player can browse: every loaded one except a rotating trial's and the tutorial. */
     public List<TowerDefinition> catalogTowers() {
-        return towers.values().stream().filter(tower -> !isRotating(tower.id())).toList();
+        return towers.values().stream().filter(tower -> !unlisted(tower.id())).toList();
     }
 
     /**
@@ -203,7 +211,7 @@ public record TowerContent(
      * player has played it, so a closed event is not advertised and past progress stays visible (P54).
      */
     public List<ResourceLocation> listedTowerIds(long nowMillis, java.util.function.Predicate<ResourceLocation> hasHistory) {
-        return sortedTowerIds().stream().filter(id -> {
+        return sortedTowerIds().stream().filter(id -> !unlisted(id)).filter(id -> {
             TowerDefinition tower = towers.get(id);
             return tower == null || tower.window().isEmpty() || tower.isOpen(nowMillis) || hasHistory.test(id);
         }).toList();

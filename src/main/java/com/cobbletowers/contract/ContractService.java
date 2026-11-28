@@ -68,6 +68,7 @@ public final class ContractService {
     static void onEvent(TowerEvent event) {
         MinecraftServer server = SERVER;
         if (server == null) return;
+        if (com.cobbletowers.tutorial.Tutorial.isTutorialRun(event.runId())) return;       // the replayable tutorial counts for no contract (25 Nov 2026)
         TowerContractStore store = TowerContractStore.get(server);
         boolean changed = false;
         for (UUID player : event.players()) {

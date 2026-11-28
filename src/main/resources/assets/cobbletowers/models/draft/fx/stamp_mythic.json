@@ -1,0 +1,1 @@
+{"textures":{"t":"cobbletowers:item/draft/fx/stamp_mythic","particle":"cobbletowers:item/draft/fx/stamp_mythic"},"elements":[{"from":[-2.0,5.0,7.995],"to":[18.0,11.0,8.005],"shade":false,"faces":{"south":{"uv":[0,0,16,16],"texture":"#t"}}}],"display":{"fixed":{"rotation":[0,0,0],"translation":[0,0,0],"scale":[1,1,1]}}}

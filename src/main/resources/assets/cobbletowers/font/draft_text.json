@@ -1,0 +1,7 @@
+{
+  "providers": [
+    { "type": "reference", "id": "minecraft:include/space" },
+    { "type": "ttf", "file": "cobbletowers:jersey15.ttf", "size": 10.0, "oversample": 6.0, "shift": [0.0, 0.0] },
+    { "type": "reference", "id": "minecraft:include/default" }
+  ]
+}
