@@ -25,7 +25,8 @@ import net.minecraft.world.item.ItemStack;
 
 /**
  * Hands a player whatever the tower owes them as soon as they can receive it: a roll from {@link RewardValuation} is
- * simply delivered. What does not fit in the inventory is held for {@code /tower claim}, never dropped.
+ * simply delivered. What does not fit in the inventory is held, never dropped: it is handed over on its own the next time the player joins or steps
+ * out of the tower with room for it, and {@code /tower claim} takes it at any time.
  */
 public final class RewardDelivery {
 
@@ -36,12 +37,12 @@ public final class RewardDelivery {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> guarded(() -> {
             ServerPlayer player = handler.getPlayer();
             deliver(server, player);
-            if (!player.level().dimension().equals(TowerDimension.LEVEL)) remindHeld(server, player);
+            if (!player.level().dimension().equals(TowerDimension.LEVEL)) claimHeld(server, player);
         }));
         // Stepping out of the tower is when a player can do something about a full inventory.
         ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> {
             if (origin.dimension().equals(TowerDimension.LEVEL) && !destination.dimension().equals(TowerDimension.LEVEL)) {
-                guarded(() -> remindHeld(destination.getServer(), player));
+                guarded(() -> claimHeld(destination.getServer(), player));
             }
         });
     }
@@ -191,7 +192,18 @@ public final class RewardDelivery {
         return placed.size();
     }
 
-    /** Tells the player if rewards are waiting; called when they step out of the tower and when they join. */
+    /**
+     * Hands over held rewards that now fit, then reminds the player of what still does not. Called when they join and when they step out of the tower.
+     * Before, those moments only reminded, and a reward waited for {@code /tower claim} even once the inventory had room: live data from 12 Nov 2026
+     * had one player's 21 rewards held since 27 Oct.
+     */
+    public static void claimHeld(MinecraftServer server, ServerPlayer player) {
+        if (TowerPendingRewardStore.get(server).heldFor(player.getUUID()).isEmpty()) return;
+        claim(server, player);
+        remindHeld(server, player);
+    }
+
+    /** Tells the player if rewards are still waiting for room in their inventory. */
     public static void remindHeld(MinecraftServer server, ServerPlayer player) {
         int waiting = TowerPendingRewardStore.get(server).heldFor(player.getUUID()).size();
         if (waiting == 0) return;
